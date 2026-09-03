@@ -1,0 +1,5 @@
+# Los scripts .sh se ejecutan dentro del contenedor de producción (entrypoint.sh
+# es el CMD del Dockerfile). Su shebang debe ser `#!/bin/sh` con salto de línea
+# Unix (LF). Si git los entrega con CRLF (Windows, core.autocrlf=true), el
+# contenedor falla con "entrypoint.sh: not found" y el deploy se cae.
+*.sh text eol=lf
