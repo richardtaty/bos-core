@@ -1,0 +1,18 @@
+# ─────────────────────────────────────────────────────────────
+# BOS-Core — archivos que NO se versionan en git
+# Alcance: dependencias + builds + archivos del sistema.
+# (Los secretos/.env y bases de datos se versionan a propósito.)
+# ─────────────────────────────────────────────────────────────
+
+# Dependencias instaladas (backend/, frontend/, mcp-server/)
+node_modules/
+
+# Builds / código compilado
+dist/
+
+# Caché de compilación de TypeScript (build incremental)
+*.tsbuildinfo
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
