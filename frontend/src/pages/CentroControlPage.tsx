@@ -34,7 +34,7 @@ export function CentroControlPage() {
     void cargar();
   }, [id]);
 
-  if (cargando || !usuario || !kpi) return <p className="text-sm text-neutral-500 text-neutral-400">Cargando...</p>;
+  if (cargando || !usuario || !kpi) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
   const hoy = new Date().toISOString().split("T")[0];
   const tareasHoy = tareas.filter((t) => t.fechaLimite?.startsWith(hoy));
@@ -48,11 +48,11 @@ export function CentroControlPage() {
           {usuario.nombre.charAt(0)}
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800">{usuario.nombre}</h1>
-          <p className="text-sm text-neutral-500 text-neutral-400">{usuario.rol} {usuario.activo === false ? "(Inactivo)" : ""}</p>
+          <h1 className="text-xl font-semibold text-neutral-900">{usuario.nombre}</h1>
+          <p className="text-sm text-neutral-500">{usuario.rol} {usuario.activo === false ? "(Inactivo)" : ""}</p>
         </div>
       </div>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Centro de Control — rendimiento y actividad</p>
+      <p className="text-sm text-neutral-500 mb-6">Centro de Control — rendimiento y actividad</p>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -67,9 +67,9 @@ export function CentroControlPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Hoy */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Entregas de hoy ({tareasHoy.length})</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Entregas de hoy ({tareasHoy.length})</h3>
           {tareasHoy.length === 0 ? (
-            <p className="text-xs text-neutral-400 text-neutral-500">Sin entregas para hoy.</p>
+            <p className="text-xs text-neutral-500">Sin entregas para hoy.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {tareasHoy.map((t) => (
@@ -81,9 +81,9 @@ export function CentroControlPage() {
 
         {/* Atrasadas */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Atrasadas ({tareasAtrasadas.length})</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Atrasadas ({tareasAtrasadas.length})</h3>
           {tareasAtrasadas.length === 0 ? (
-            <p className="text-xs text-neutral-400 text-neutral-500">Sin tareas atrasadas. ✅</p>
+            <p className="text-xs text-neutral-500">Sin tareas atrasadas. ✅</p>
           ) : (
             <div className="flex flex-col gap-2">
               {tareasAtrasadas.map((t) => (
@@ -95,7 +95,7 @@ export function CentroControlPage() {
 
         {/* Actividad */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Actividad reciente</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Actividad reciente</h3>
           <ActividadTimeline eventos={actividad.slice(0, 15)} />
         </div>
       </div>

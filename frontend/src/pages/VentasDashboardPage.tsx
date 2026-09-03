@@ -47,8 +47,8 @@ export function VentasDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Sala de OFERTAS</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Hola, {usuario?.nombre.split(" ")[0]} — Centro de Ventas de Taty's Enterprises</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Sala de OFERTAS</h1>
+      <p className="text-sm text-neutral-500 mb-6">Hola, {usuario?.nombre.split(" ")[0]} — Centro de Ventas de Taty's Enterprises</p>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
@@ -63,12 +63,12 @@ export function VentasDashboardPage() {
         {/* Pipelines */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300">🏗 Pipelines activos</h3>
-            <Link to="/pipelines" className="text-xs text-primary-600 text-primary-600 hover:underline">Ver todos →</Link>
+            <h3 className="text-sm font-medium text-neutral-700">🏗 Pipelines activos</h3>
+            <Link to="/pipelines" className="text-xs text-primary-600 hover:underline">Ver todos →</Link>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 text-neutral-400 uppercase">
+              <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
                 <tr>
                   <th className="text-left px-4 py-2.5">Pipeline</th>
                   <th className="text-left px-4 py-2.5">Total</th>
@@ -82,13 +82,13 @@ export function VentasDashboardPage() {
                 {metricas
                   .sort((a, b) => b.valorAbierto - a.valorAbierto)
                   .map((m) => (
-                    <tr key={m.nombre} className="border-t border-neutral-100 border-neutral-200">
-                      <td className="px-4 py-2.5 font-medium text-neutral-900 text-neutral-800">{m.nombre}</td>
-                      <td className="px-4 py-2.5 text-neutral-600 text-neutral-400">{m.total}</td>
-                      <td className="px-4 py-2.5 text-success-600 text-success-600">{m.ganados}</td>
-                      <td className="px-4 py-2.5 text-danger-600 text-danger-600">{m.perdidos}</td>
-                      <td className="px-4 py-2.5 text-neutral-700 text-neutral-300">${Math.round(m.valorAbierto).toLocaleString()}</td>
-                      <td className="px-4 py-2.5 text-neutral-600 text-neutral-400">{m.tasaConversion}%</td>
+                    <tr key={m.nombre} className="border-t border-neutral-200">
+                      <td className="px-4 py-2.5 font-medium text-neutral-900">{m.nombre}</td>
+                      <td className="px-4 py-2.5 text-neutral-600">{m.total}</td>
+                      <td className="px-4 py-2.5 text-success-600">{m.ganados}</td>
+                      <td className="px-4 py-2.5 text-danger-600">{m.perdidos}</td>
+                      <td className="px-4 py-2.5 text-neutral-700">${Math.round(m.valorAbierto).toLocaleString()}</td>
+                      <td className="px-4 py-2.5 text-neutral-600">{m.tasaConversion}%</td>
                     </tr>
                   ))}
               </tbody>
@@ -98,7 +98,7 @@ export function VentasDashboardPage() {
 
         {/* Accesos rápidos */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Accesos rápidos</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Accesos rápidos</h3>
           <div className="flex flex-col gap-2">
             {[
               { to: "/personas", label: "👤 Contactos", desc: "Gestionar leads y clientes" },
@@ -111,8 +111,8 @@ export function VentasDashboardPage() {
                 to={item.to}
                 className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 hover:border-primary-500/30 hover:shadow-sm transition-all"
               >
-                <p className="font-medium text-sm text-neutral-900 text-neutral-800 mb-1">{item.label}</p>
-                <p className="text-xs text-neutral-500 text-neutral-400">{item.desc}</p>
+                <p className="font-medium text-sm text-neutral-900 mb-1">{item.label}</p>
+                <p className="text-xs text-neutral-500">{item.desc}</p>
               </Link>
             ))}
           </div>

@@ -77,7 +77,7 @@ export function RevenueTicker() {
           <span className="inline-flex items-center gap-2 text-xs">
             <span className="text-primary-600">💡</span>
             <span className="text-neutral-700 italic">"{frase}"</span>
-            <span className="text-neutral-300 mx-2">│</span>
+            <span className="text-neutral-400 mx-2">│</span>
             <span className="text-warning-600">🔥</span>
             <span className="text-neutral-700 italic">"{FRASES[Math.floor(Math.random() * FRASES.length)]}"</span>
           </span>
@@ -105,7 +105,7 @@ export function RevenueTicker() {
               <span className={`font-mono tabular-nums text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${hoy.pct >= 100 ? "bg-success-500/15 text-success-600" : "bg-primary-500/15 text-primary-600"}`}>
                 {hoy.pct}%
               </span>
-              <span className="text-neutral-300 mx-2">│</span>
+              <span className="text-neutral-400 mx-2">│</span>
             </span>
             <span className="inline-flex items-center gap-2 text-xs">
               <span className="font-semibold text-primary-600 tracking-wide">🎯 HOY</span>
@@ -114,7 +114,7 @@ export function RevenueTicker() {
               <span className={`font-mono tabular-nums text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${hoy.pct >= 100 ? "bg-success-500/15 text-success-600" : "bg-primary-500/15 text-primary-600"}`}>
                 {hoy.pct}%
               </span>
-              <span className="text-neutral-300 mx-2">│</span>
+              <span className="text-neutral-400 mx-2">│</span>
             </span>
           </>
         )}
@@ -126,7 +126,7 @@ export function RevenueTicker() {
             <span className={`font-mono tabular-nums ${d.total >= 10000 ? "text-success-600" : d.total > 0 ? "text-neutral-800" : "text-neutral-500"}`}>
               {fmt(d.total)}
             </span>
-            <span className="text-neutral-300 mx-2">│</span>
+            <span className="text-neutral-400 mx-2">│</span>
           </span>
         ))}
 
@@ -139,7 +139,7 @@ export function RevenueTicker() {
             <span className={`font-mono tabular-nums text-[11px] px-1.5 py-0.5 rounded-full ${item.pct >= 100 ? "bg-success-500/15 text-success-600" : item.pct >= 50 ? "bg-warning-500/15 text-warning-600" : "bg-neutral-200 text-neutral-600"}`}>
               {item.pct}%
             </span>
-            <span className="text-neutral-300 mx-2">│</span>
+            <span className="text-neutral-400 mx-2">│</span>
           </span>
         ))}
       </div>

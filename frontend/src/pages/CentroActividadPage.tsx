@@ -20,15 +20,15 @@ export function CentroActividadPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Centro de Actividad</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Todo lo que ocurre en la empresa, en tiempo real</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Centro de Actividad</h1>
+      <p className="text-sm text-neutral-500 mb-6">Todo lo que ocurre en la empresa, en tiempo real</p>
 
       {/* Filtros por categoría */}
       <div className="flex gap-2 mb-6 flex-wrap">
         <button
           onClick={() => setFiltro("todas")}
           className={`text-xs px-3 py-1.5 rounded-lg ${
-            filtro === "todas" ? "bg-primary-500 text-white" : "bg-neutral-100 bg-neutral-100 text-neutral-600 text-neutral-400 hover:bg-neutral-200 hover:bg-neutral-200"
+            filtro === "todas" ? "bg-primary-500 text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
           }`}
         >
           Todas
@@ -38,7 +38,7 @@ export function CentroActividadPage() {
             key={cat}
             onClick={() => setFiltro(cat)}
             className={`text-xs px-3 py-1.5 rounded-lg ${
-              filtro === cat ? "bg-primary-500 text-white" : "bg-neutral-100 bg-neutral-100 text-neutral-600 text-neutral-400 hover:bg-neutral-200 hover:bg-neutral-200"
+              filtro === cat ? "bg-primary-500 text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
             }`}
           >
             {cat}

@@ -35,7 +35,7 @@ function NumInput({ label, valor, meta, onChange }: { label: string; valor: stri
     <label className="block">
       <span className="flex justify-between text-xs mb-1">
         <span className="text-neutral-500">{label}</span>
-        {meta !== undefined && <span className="text-neutral-400">meta {meta}</span>}
+        {meta !== undefined && <span className="text-neutral-500">meta {meta}</span>}
       </span>
       <input
         type="number"
@@ -227,7 +227,7 @@ export function PodcastReporteDiarioPage() {
         <button
           onClick={() => guardar(true)}
           disabled={guardando}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:bg-primary-100 disabled:text-primary-800"
         >
           Enviar reporte
         </button>

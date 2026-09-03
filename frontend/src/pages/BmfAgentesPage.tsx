@@ -74,8 +74,8 @@ export function BmfAgentesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Agentes BMF</h1>
-          <p className="text-sm text-neutral-500 text-neutral-400">{agentes.length} agentes en Business Market Finders</p>
+          <h1 className="text-xl font-semibold text-neutral-900 mb-1">Agentes BMF</h1>
+          <p className="text-sm text-neutral-500">{agentes.length} agentes en Business Market Finders</p>
         </div>
       </div>
 
@@ -86,10 +86,10 @@ export function BmfAgentesPage() {
             <div key={a.id} className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="font-medium text-neutral-900 text-neutral-800">
+                  <h3 className="font-medium text-neutral-900">
                     <Link to={`/equipo/${a.id}`} className="hover:text-primary-600">{a.nombre}</Link>
                   </h3>
-                  <p className="text-xs text-neutral-400">{a.cargo || a.rol}</p>
+                  <p className="text-xs text-neutral-500">{a.cargo || a.rol}</p>
                 </div>
                 <span className={`w-2 h-2 rounded-full ${a.activo !== false ? "bg-success-500" : "bg-neutral-300"}`} title={a.activo !== false ? "Activo" : "Inactivo"} />
               </div>
@@ -97,38 +97,38 @@ export function BmfAgentesPage() {
               {kpi ? (
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <p className="text-[10px] text-neutral-400 uppercase">Fundings</p>
-                    <p className="font-semibold text-neutral-800 text-neutral-200">{kpi.totalFundings}</p>
+                    <p className="text-[10px] text-neutral-500 uppercase">Fundings</p>
+                    <p className="font-semibold text-neutral-800">{kpi.totalFundings}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-neutral-400 uppercase">Conversión</p>
-                    <p className="font-semibold text-neutral-800 text-neutral-200">{kpi.conversion}%</p>
+                    <p className="text-[10px] text-neutral-500 uppercase">Conversión</p>
+                    <p className="font-semibold text-neutral-800">{kpi.conversion}%</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-neutral-400 uppercase">Monto Sol.</p>
-                    <p className="font-semibold text-neutral-800 text-neutral-200">${Math.round(kpi.montoSolicitado).toLocaleString()}</p>
+                    <p className="text-[10px] text-neutral-500 uppercase">Monto Sol.</p>
+                    <p className="font-semibold text-neutral-800">${Math.round(kpi.montoSolicitado).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-neutral-400 uppercase">Monto Apr.</p>
-                    <p className="font-semibold text-success-600 text-success-600">${Math.round(kpi.montoAprobado).toLocaleString()}</p>
+                    <p className="text-[10px] text-neutral-500 uppercase">Monto Apr.</p>
+                    <p className="font-semibold text-success-600">${Math.round(kpi.montoAprobado).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-neutral-400 uppercase">Llamadas</p>
-                    <p className="font-semibold text-neutral-800 text-neutral-200">{kpi.totalLlamadas}</p>
+                    <p className="text-[10px] text-neutral-500 uppercase">Llamadas</p>
+                    <p className="font-semibold text-neutral-800">{kpi.totalLlamadas}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-neutral-400 uppercase">Clientes</p>
-                    <p className="font-semibold text-neutral-800 text-neutral-200">{kpi.clientes}</p>
+                    <p className="text-[10px] text-neutral-500 uppercase">Clientes</p>
+                    <p className="font-semibold text-neutral-800">{kpi.clientes}</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-[10px] text-neutral-400 uppercase">Comisiones</p>
-                    <p className="text-xs text-neutral-600 text-neutral-400">
+                    <p className="text-[10px] text-neutral-500 uppercase">Comisiones</p>
+                    <p className="text-xs text-neutral-600">
                       Total: ${Math.round(kpi.comisionesTotal).toLocaleString()} | Pendiente: {kpi.comisionesPendientes}
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-neutral-400">Sin datos de actividad</p>
+                <p className="text-xs text-neutral-500">Sin datos de actividad</p>
               )}
             </div>
           );
@@ -136,7 +136,7 @@ export function BmfAgentesPage() {
       </div>
 
       {agentes.length === 0 && (
-        <p className="text-sm text-neutral-400 text-center py-8">No se encontraron agentes en el departamento BMF. Agrega usuarios al departamento "Business Market Finders" desde la sección de Equipo.</p>
+        <p className="text-sm text-neutral-600 text-center py-8">No se encontraron agentes en el departamento BMF. Agrega usuarios al departamento "Business Market Finders" desde la sección de Equipo.</p>
       )}
     </div>
   );

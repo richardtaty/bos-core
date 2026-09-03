@@ -84,35 +84,35 @@ export function NuevaPersonaModal({ onClose, onCreated }: Props) {
       <form onSubmit={onSubmit} className="bg-neutral-50 rounded-xl shadow-lg w-full max-w-lg p-6 border border-neutral-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-neutral-800">Nuevo contacto</h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-neutral-500 hover:text-neutral-600 hover:text-neutral-300">✕</button>
+          <button type="button" onClick={onClose} className="text-neutral-500 hover:text-neutral-600">✕</button>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="col-span-2">
-            <label className="text-xs text-neutral-600 text-neutral-400">Nombre completo</label>
-            <input value={nombre} onChange={(e) => setNombre(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm" />
+            <label className="text-xs text-neutral-600">Nombre completo</label>
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400">Teléfono</label>
-            <input value={telefono} onChange={(e) => setTelefono(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm" />
+            <label className="text-xs text-neutral-600">Teléfono</label>
+            <input value={telefono} onChange={(e) => setTelefono(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400">Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm" />
+            <label className="text-xs text-neutral-600">Email</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400">Fecha de nacimiento</label>
-            <input value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} type="date" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm" />
+            <label className="text-xs text-neutral-600">Fecha de nacimiento</label>
+            <input value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} type="date" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400">Ciudad *</label>
+            <label className="text-xs text-neutral-600">Ciudad *</label>
             <input
               value={ciudad}
               onChange={(e) => setCiudad(e.target.value)}
               required
               list="ciudades-sugeridas"
               placeholder="Escribe o elige..."
-              className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm"
+              className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm"
             />
             <datalist id="ciudades-sugeridas">
               {CIUDADES_SUGERIDAS.map((c) => <option key={c} value={c} />)}
@@ -120,30 +120,30 @@ export function NuevaPersonaModal({ onClose, onCreated }: Props) {
             {errores.ciudad && <p className="text-[11px] text-danger-600 mt-0.5">{errores.ciudad}</p>}
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400">Estado *</label>
-            <select value={estado} onChange={(e) => setEstado(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm">
+            <label className="text-xs text-neutral-600">Estado *</label>
+            <select value={estado} onChange={(e) => setEstado(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm">
               <option value="">Selecciona...</option>
               {ESTADOS_USA.map((e) => <option key={e}>{e}</option>)}
             </select>
             {errores.estado && <p className="text-[11px] text-danger-600 mt-0.5">{errores.estado}</p>}
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400">Fuente *</label>
-            <select value={fuente} onChange={(e) => setFuente(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm">
+            <label className="text-xs text-neutral-600">Fuente *</label>
+            <select value={fuente} onChange={(e) => setFuente(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm">
               <option value="">Selecciona...</option>
               {FUENTES.map((f) => <option key={f}>{f}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400">Responsable</label>
-            <select value={responsableId} onChange={(e) => setResponsableId(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm">
+            <label className="text-xs text-neutral-600">Responsable</label>
+            <select value={responsableId} onChange={(e) => setResponsableId(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm">
               {equipo.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
           </div>
           {fuente === "Referido" && (
             <div>
-              <label className="text-xs text-neutral-600 text-neutral-400">Referido por *</label>
-              <input value={referidoPor} onChange={(e) => setReferidoPor(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm" />
+              <label className="text-xs text-neutral-600">Referido por *</label>
+              <input value={referidoPor} onChange={(e) => setReferidoPor(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
               {errores.referidoPor && <p className="text-[11px] text-danger-600 mt-0.5">{errores.referidoPor}</p>}
             </div>
           )}
@@ -158,8 +158,8 @@ export function NuevaPersonaModal({ onClose, onCreated }: Props) {
               onClick={() => toggleTag(tag)}
               className={`text-xs px-2.5 py-1 rounded-full border ${
                 tagsSeleccionadas.includes(tag)
-                  ? "bg-primary-50 bg-primary-500/15 border-primary-500 border-primary-500/30 text-primary-600 text-primary-600"
-                  : "bg-neutral-50 bg-neutral-100 border-neutral-200 border-neutral-200 text-neutral-600 text-neutral-400"
+                  ? "bg-primary-500/15 border-primary-500 text-primary-600"
+                  : "bg-neutral-100 border-neutral-200 text-neutral-600"
               }`}
             >
               {tag}
@@ -177,8 +177,8 @@ export function NuevaPersonaModal({ onClose, onCreated }: Props) {
               onClick={() => toggleNegocio(negocio)}
               className={`text-xs px-2.5 py-1 rounded-full border ${
                 negociosSeleccionados.includes(negocio)
-                  ? "bg-success-50 bg-success-500/15 border-success-500 border-success-500/30 text-success-700 text-success-600"
-                  : "bg-neutral-50 bg-neutral-100 border-neutral-200 border-neutral-200 text-neutral-600 text-neutral-400"
+                  ? "bg-success-500/15 border-success-500 text-success-700"
+                  : "bg-neutral-100 border-neutral-200 text-neutral-600"
               }`}
             >
               {negocio}
@@ -187,10 +187,10 @@ export function NuevaPersonaModal({ onClose, onCreated }: Props) {
         </div>
 
         <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-neutral-200 text-neutral-300">
+          <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-neutral-200 text-neutral-600">
             Cancelar
           </button>
-          <button disabled={enviando} className="text-sm px-4 py-2 rounded-lg bg-primary-500 text-white font-medium disabled:opacity-50">
+          <button disabled={enviando} className="text-sm px-4 py-2 rounded-lg bg-primary-500 text-white font-medium disabled:bg-primary-100 disabled:text-primary-800">
             {enviando ? "Guardando..." : "Guardar contacto"}
           </button>
         </div>

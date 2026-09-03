@@ -38,26 +38,26 @@ export function MarketingDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Marketing</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Hola, {usuario?.nombre.split(" ")[0]} — Centro de Operaciones de Marketing</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Marketing</h1>
+      <p className="text-sm text-neutral-500 mb-6">Hola, {usuario?.nombre.split(" ")[0]} — Centro de Operaciones de Marketing</p>
 
       {/* Accesos rápidos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Link to="/moc/reportes" className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 hover:border-primary-500/30 text-center">
           <p className="text-2xl mb-1">📝</p>
-          <p className="text-sm font-medium text-neutral-700 text-neutral-300">Mi reporte diario</p>
+          <p className="text-sm font-medium text-neutral-700">Mi reporte diario</p>
         </Link>
         <Link to="/moc/scrum" className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 hover:border-primary-500/30 text-center">
           <p className="text-2xl mb-1">📋</p>
-          <p className="text-sm font-medium text-neutral-700 text-neutral-300">Tablero Scrum</p>
+          <p className="text-sm font-medium text-neutral-700">Tablero Scrum</p>
         </Link>
         <Link to="/moc/proyectos" className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 hover:border-primary-500/30 text-center">
           <p className="text-2xl mb-1">📁</p>
-          <p className="text-sm font-medium text-neutral-700 text-neutral-300">Proyectos</p>
+          <p className="text-sm font-medium text-neutral-700">Proyectos</p>
         </Link>
         <Link to="/moc/recursos" className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 hover:border-primary-500/30 text-center">
           <p className="text-2xl mb-1">🔗</p>
-          <p className="text-sm font-medium text-neutral-700 text-neutral-300">Recursos</p>
+          <p className="text-sm font-medium text-neutral-700">Recursos</p>
         </Link>
       </div>
 
@@ -74,12 +74,12 @@ export function MarketingDashboardPage() {
         {/* Tareas bloqueadas */}
         {bloqueadas.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">🚫 Tareas bloqueadas</h3>
+            <h3 className="text-sm font-medium text-neutral-700 mb-3">🚫 Tareas bloqueadas</h3>
             <div className="flex flex-col gap-2">
               {bloqueadas.map((t) => (
                 <div key={t.id} className="bg-danger-50 bg-danger-500/10 border border-danger-200 border-danger-500/20 rounded-lg p-3">
-                  <p className="text-sm font-medium text-danger-700 text-danger-600">{t.titulo}</p>
-                  <p className="text-xs text-danger-600 text-danger-600">{t.responsableNombre}{t.bloqueoMotivo ? ` — ${t.bloqueoMotivo}` : ""}</p>
+                  <p className="text-sm font-medium text-danger-700">{t.titulo}</p>
+                  <p className="text-xs text-danger-600">{t.responsableNombre}{t.bloqueoMotivo ? ` — ${t.bloqueoMotivo}` : ""}</p>
                 </div>
               ))}
             </div>
@@ -88,18 +88,18 @@ export function MarketingDashboardPage() {
 
         {/* Próximos vencimientos */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">⏰ Próximos vencimientos</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">⏰ Próximos vencimientos</h3>
           {activas.filter((t) => t.fechaLimite).sort((a, b) => (a.fechaLimite?.localeCompare(b.fechaLimite ?? "") ?? 0)).slice(0, 8).length === 0 ? (
-            <p className="text-sm text-neutral-400 text-neutral-500">Sin vencimientos próximos.</p>
+            <p className="text-sm text-neutral-500">Sin vencimientos próximos.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {activas.filter((t) => t.fechaLimite).sort((a, b) => (a.fechaLimite?.localeCompare(b.fechaLimite ?? "") ?? 0)).slice(0, 8).map((t) => (
                 <div key={t.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 flex justify-between items-center">
                   <div>
-                    <p className="text-sm font-medium text-neutral-900 text-neutral-800">{t.titulo}</p>
-                    <p className="text-xs text-neutral-500 text-neutral-400">{t.responsableNombre}</p>
+                    <p className="text-sm font-medium text-neutral-900">{t.titulo}</p>
+                    <p className="text-xs text-neutral-500">{t.responsableNombre}</p>
                   </div>
-                  <span className="text-xs text-neutral-500 text-neutral-400">
+                  <span className="text-xs text-neutral-500">
                     {t.fechaLimite ? new Date(t.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) : "—"}
                   </span>
                 </div>

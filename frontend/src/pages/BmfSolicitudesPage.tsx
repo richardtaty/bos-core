@@ -52,7 +52,7 @@ export function BmfSolicitudesPage() {
             </thead>
             <tbody>
               {solicitudes.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-6 text-center text-neutral-400">Sin solicitudes registradas</td></tr>
+                <tr><td colSpan={9} className="px-4 py-6 text-center text-neutral-600">Sin solicitudes registradas</td></tr>
               ) : (
                 solicitudes.map((s) => (
                   <tr key={s.id} className="border-t border-neutral-200 hover:bg-neutral-100">

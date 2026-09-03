@@ -61,8 +61,8 @@ export function BmfComisionesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Comisiones</h1>
-          <p className="text-sm text-neutral-500 text-neutral-400">
+          <h1 className="text-xl font-semibold text-neutral-900 mb-1">Comisiones</h1>
+          <p className="text-sm text-neutral-500">
             Total: ${Math.round(totalGenerado).toLocaleString()} — Pendiente: ${Math.round(totalPendiente).toLocaleString()} — Pagado: ${Math.round(totalPagado).toLocaleString()}
           </p>
         </div>
@@ -84,7 +84,7 @@ export function BmfComisionesPage() {
       {cargando ? <p className="text-sm text-neutral-500">Cargando...</p> : (
         <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 text-neutral-400 uppercase">
+            <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left px-4 py-2.5">Agente</th>
                 <th className="text-left px-4 py-2.5">Cliente</th>
@@ -97,24 +97,24 @@ export function BmfComisionesPage() {
             </thead>
             <tbody>
               {comisiones.length === 0 ? (
-                <tr><td colSpan={esAdmin ? 7 : 6} className="px-4 py-4 text-center text-neutral-400">Sin comisiones registradas</td></tr>
+                <tr><td colSpan={esAdmin ? 7 : 6} className="px-4 py-4 text-center text-neutral-600">Sin comisiones registradas</td></tr>
               ) : (
                 comisiones.map((c) => (
-                  <tr key={c.id} className="border-t border-neutral-100 border-neutral-200">
-                    <td className="px-4 py-2.5 font-medium text-neutral-900 text-neutral-800">{c.agenteNombre}</td>
-                    <td className="px-4 py-2.5 text-neutral-600 text-neutral-400">{c.clienteNombre || c.fundingId.slice(0, 8)}</td>
-                    <td className="px-4 py-2.5 text-neutral-700 text-neutral-300 font-medium">${Math.round(c.monto).toLocaleString()}</td>
-                    <td className="px-4 py-2.5 text-neutral-500 text-neutral-400">{c.porcentaje}%</td>
+                  <tr key={c.id} className="border-t border-neutral-200">
+                    <td className="px-4 py-2.5 font-medium text-neutral-900">{c.agenteNombre}</td>
+                    <td className="px-4 py-2.5 text-neutral-600">{c.clienteNombre || c.fundingId.slice(0, 8)}</td>
+                    <td className="px-4 py-2.5 text-neutral-700 font-medium">${Math.round(c.monto).toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-neutral-500">{c.porcentaje}%</td>
                     <td className="px-4 py-2.5">
                       <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${c.estado === "pagada" ? "bg-success-100 text-success-700" : "bg-warning-100 text-warning-700"}`}>
                         {c.estado}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-neutral-500 text-neutral-400 text-xs">{c.fechaPago ? new Date(c.fechaPago).toLocaleDateString("es-MX") : "—"}</td>
+                    <td className="px-4 py-2.5 text-neutral-500 text-xs">{c.fechaPago ? new Date(c.fechaPago).toLocaleDateString("es-MX") : "—"}</td>
                     {esAdmin && (
                       <td className="px-4 py-2.5">
                         {c.estado === "pendiente" && (
-                          <button onClick={() => pagar(c.id)} className="text-xs text-success-600 text-success-600 hover:underline">Marcar pagada</button>
+                          <button onClick={() => pagar(c.id)} className="text-xs text-success-600 hover:underline">Marcar pagada</button>
                         )}
                       </td>
                     )}
@@ -130,7 +130,7 @@ export function BmfComisionesPage() {
       {modalAbierto && (
         <div className="fixed inset-0 bg-neutral-900/40 flex items-center justify-center z-50" onClick={() => setModalAbierto(false)}>
           <div className="bg-neutral-50 rounded-xl p-5 border border-neutral-200 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-neutral-900 text-neutral-800 mb-4">Nueva Comisión</h3>
+            <h3 className="font-semibold text-neutral-900 mb-4">Nueva Comisión</h3>
             {error && <p className="text-xs text-danger-600 mb-3">{error}</p>}
             <div className="flex flex-col gap-3">
               <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm" placeholder="ID del Agente *" value={form.agenteId} onChange={(e) => setForm({ ...form, agenteId: e.target.value })} />
@@ -140,7 +140,7 @@ export function BmfComisionesPage() {
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setModalAbierto(false)} className="border border-neutral-200 px-3 py-1.5 rounded-lg text-sm text-neutral-600">Cancelar</button>
-              <button onClick={crear} disabled={guardando} className="bg-primary-500 text-white px-4 py-1.5 rounded-lg text-sm disabled:opacity-50">
+              <button onClick={crear} disabled={guardando} className="bg-primary-500 text-white px-4 py-1.5 rounded-lg text-sm disabled:bg-primary-100 disabled:text-primary-800">
                 {guardando ? "Creando..." : "Crear"}
               </button>
             </div>

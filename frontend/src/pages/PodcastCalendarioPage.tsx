@@ -12,7 +12,7 @@ const MESES = [
 const colorEstado: Record<CitaPodcastDTO["estado"], string> = {
   agendado: "bg-primary-500/10 text-primary-700",
   realizado: "bg-success-100 text-success-700",
-  cancelado: "bg-neutral-200 text-neutral-400 line-through",
+  cancelado: "bg-neutral-200 text-neutral-600 line-through",
 };
 
 function ymd(d: Date): string {
@@ -145,17 +145,17 @@ export function PodcastCalendarioPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800">Calendario de podcasts</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Calendario de podcasts</h1>
         <button onClick={abrirNuevo} className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600">
           + Nueva cita
         </button>
       </div>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Día, hora e invitado de cada grabación</p>
+      <p className="text-sm text-neutral-500 mb-6">Día, hora e invitado de cada grabación</p>
 
       {/* Navegación de mes */}
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => cambiarMes(-1)} className="w-8 h-8 rounded-lg border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-600">‹</button>
-        <h2 className="text-sm font-medium text-neutral-900 text-neutral-800 capitalize">{MESES[mes.getMonth()]} {mes.getFullYear()}</h2>
+        <h2 className="text-sm font-medium text-neutral-900 capitalize">{MESES[mes.getMonth()]} {mes.getFullYear()}</h2>
         <button onClick={() => cambiarMes(1)} className="w-8 h-8 rounded-lg border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-600">›</button>
         <button onClick={irHoy} className="text-xs text-primary-600 hover:underline">Hoy</button>
       </div>
@@ -163,7 +163,7 @@ export function PodcastCalendarioPage() {
       {/* Cuadrícula del mes */}
       <div className="grid grid-cols-7 gap-1 mb-6">
         {DIAS.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold uppercase text-neutral-400 text-neutral-500 py-1">{d}</div>
+          <div key={d} className="text-center text-[10px] font-semibold uppercase text-neutral-500 py-1">{d}</div>
         ))}
         {celdas.map((d, i) => {
           if (d === null) return <div key={`b${i}`} />;
@@ -179,14 +179,14 @@ export function PodcastCalendarioPage() {
                 esSel ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-neutral-50 hover:border-primary-300"
               }`}
             >
-              <span className={`text-xs ${esHoy ? "font-bold text-primary-600" : "text-neutral-600 text-neutral-500"}`}>{d}</span>
+              <span className={`text-xs ${esHoy ? "font-bold text-primary-600" : "text-neutral-600"}`}>{d}</span>
               <div className="flex flex-col gap-0.5 mt-1">
                 {delDia.slice(0, 2).map((c) => (
                   <span key={c.id} className={`text-[9px] px-1 py-0.5 rounded truncate ${colorEstado[c.estado]}`}>
                     {c.hora} {c.invitado}
                   </span>
                 ))}
-                {delDia.length > 2 && <span className="text-[9px] text-neutral-400">+{delDia.length - 2} más</span>}
+                {delDia.length > 2 && <span className="text-[9px] text-neutral-500">+{delDia.length - 2} más</span>}
               </div>
             </button>
           );
@@ -195,20 +195,20 @@ export function PodcastCalendarioPage() {
 
       {/* Lista del día seleccionado */}
       <div className="flex items-center gap-2 mb-2">
-        <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 capitalize">{fmtDia(diaSel)}</h3>
+        <h3 className="text-sm font-medium text-neutral-700 capitalize">{fmtDia(diaSel)}</h3>
         <button onClick={abrirNuevo} className="text-xs text-primary-600 hover:underline">+ agregar</button>
       </div>
       {citasDia.length === 0 ? (
-        <p className="text-sm text-neutral-400 text-neutral-500">Sin podcasts este día.</p>
+        <p className="text-sm text-neutral-500">Sin podcasts este día.</p>
       ) : (
         <div className="flex flex-col gap-2">
           {citasDia.map((c) => (
             <div key={c.id} className="flex items-center justify-between border border-neutral-200 bg-neutral-50 rounded-xl p-3">
               <div>
-                <p className="text-sm font-medium text-neutral-900 text-neutral-800">
+                <p className="text-sm font-medium text-neutral-900">
                   {c.hora} · {c.invitado}
                 </p>
-                {c.nota && <p className="text-xs text-neutral-500 text-neutral-400">{c.nota}</p>}
+                {c.nota && <p className="text-xs text-neutral-500">{c.nota}</p>}
                 <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 ${colorEstado[c.estado]}`}>{c.estado}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -225,7 +225,7 @@ export function PodcastCalendarioPage() {
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setMostrarModal(false)}>
           <form onSubmit={guardar} className="bg-neutral-50 rounded-xl p-6 w-full max-w-md shadow-xl border border-neutral-200" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-neutral-900 text-neutral-800 mb-4">{editando ? "Editar cita" : "Nueva cita"}</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-4">{editando ? "Editar cita" : "Nueva cita"}</h3>
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -258,11 +258,11 @@ export function PodcastCalendarioPage() {
                   <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Opcional" className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm w-full" />
                 </div>
               </div>
-              {error && <p className="text-sm text-danger-600 text-danger-600">{error}</p>}
+              {error && <p className="text-sm text-danger-600">{error}</p>}
             </div>
             <div className="flex gap-2 justify-end mt-5">
-              <button type="button" onClick={() => setMostrarModal(false)} className="px-4 py-2 text-sm text-neutral-600 text-neutral-400 hover:bg-neutral-100 hover:bg-neutral-100 rounded-lg">Cancelar</button>
-              <button type="submit" disabled={guardando} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50">
+              <button type="button" onClick={() => setMostrarModal(false)} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">Cancelar</button>
+              <button type="submit" disabled={guardando} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800">
                 {guardando ? "Guardando…" : "Guardar"}
               </button>
             </div>

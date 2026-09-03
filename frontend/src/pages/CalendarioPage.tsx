@@ -101,10 +101,10 @@ export function CalendarioPage() {
   const Grupo = ({ titulo, items, colorClase }: { titulo: string; items: TareaPendiente[]; colorClase: string }) => (
     <div className="mb-6">
       <h3 className="text-sm font-medium text-neutral-700 mb-2">
-        {titulo} <span className="text-neutral-400 font-normal">({items.length})</span>
+        {titulo} <span className="text-neutral-500 font-normal">({items.length})</span>
       </h3>
       {items.length === 0 ? (
-        <p className="text-xs text-neutral-400">Nada aquí.</p>
+        <p className="text-xs text-neutral-500">Nada aquí.</p>
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((t) => (
@@ -119,7 +119,7 @@ export function CalendarioPage() {
               </div>
               <div className="text-right">
                 <span className="text-xs text-neutral-500 block">{fmtFecha(t.fecha)}</span>
-                <span className="text-[10px] text-neutral-400">{t.responsableNombre}</span>
+                <span className="text-[10px] text-neutral-500">{t.responsableNombre}</span>
               </div>
             </Link>
           ))}
@@ -135,7 +135,7 @@ export function CalendarioPage() {
         <button
           onClick={exportarPDF}
           disabled={filtradas.length === 0}
-          className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800 disabled:cursor-not-allowed"
         >
           ⬇ Exportar PDF
         </button>

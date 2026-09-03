@@ -297,7 +297,7 @@ export function MetaAdsForm({ reporte, aviso, onGuardado, onCancel, onDuplicado 
             {draft.grupos.map((g, gi) => (
               <div key={gi} className="border border-neutral-200 rounded-lg p-4 bg-white">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold uppercase text-neutral-400 tracking-wider">Grupo {gi + 1}</span>
+                  <span className="text-xs font-semibold uppercase text-neutral-500 tracking-wider">Grupo {gi + 1}</span>
                   <button type="button" onClick={() => removeGrupo(gi)} className="text-xs text-danger-600 hover:underline">✕ Quitar grupo</button>
                 </div>
 
@@ -345,7 +345,7 @@ export function MetaAdsForm({ reporte, aviso, onGuardado, onCancel, onDuplicado 
                   {g.campanas.map((c, ci) => (
                     <div key={ci} className="border border-neutral-100 rounded-lg p-3 bg-neutral-50">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] text-neutral-400">Campaña {ci + 1}</span>
+                        <span className="text-[11px] text-neutral-500">Campaña {ci + 1}</span>
                         <button type="button" onClick={() => removeCampana(gi, ci)} className="text-[11px] text-danger-600 hover:underline">✕ Quitar</button>
                       </div>
 
@@ -409,7 +409,7 @@ export function MetaAdsForm({ reporte, aviso, onGuardado, onCancel, onDuplicado 
                         {c.segmentaciones.map((s, si) => (
                           <div key={si} className="border border-neutral-100 rounded-md p-2.5 bg-white">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-[10px] text-neutral-400">Segmentación {si + 1}</span>
+                              <span className="text-[10px] text-neutral-500">Segmentación {si + 1}</span>
                               <button type="button" onClick={() => removeSeg(gi, ci, si)} className="text-[10px] text-danger-600 hover:underline">✕ Quitar</button>
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -450,7 +450,7 @@ export function MetaAdsForm({ reporte, aviso, onGuardado, onCancel, onDuplicado 
 
         <div className="px-6 py-4 border-t border-neutral-200 flex gap-2 justify-end">
           <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">Cancelar</button>
-          <button type="button" onClick={guardar} disabled={guardando} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50">
+          <button type="button" onClick={guardar} disabled={guardando} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800">
             {guardando ? "Guardando..." : esEdicion ? "Guardar cambios" : "Registrar reporte"}
           </button>
         </div>

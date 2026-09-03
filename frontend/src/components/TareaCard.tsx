@@ -18,25 +18,25 @@ const ESTADO_LABEL: Record<string, string> = {
 };
 
 const ESTADO_COLOR: Record<string, string> = {
-  solicitud: "bg-neutral-100 text-neutral-600 bg-neutral-100 text-neutral-400",
-  backlog: "bg-neutral-100 text-neutral-600 bg-neutral-100 text-neutral-400",
-  pendiente: "bg-neutral-100 text-neutral-600 bg-neutral-100 text-neutral-400",
-  por_hacer: "bg-blue-100 text-blue-700 bg-blue-500/15 text-blue-400",
-  en_proceso: "bg-primary-100 text-primary-700 bg-primary-500/15 text-primary-600",
-  bloqueada: "bg-danger-100 text-danger-700 bg-danger-500/15 text-danger-600",
-  en_revision: "bg-warning-100 text-warning-700 bg-warning-500/15 text-warning-600",
-  requiere_ajustes: "bg-orange-100 text-orange-700 bg-orange-500/15 text-orange-400",
-  completada: "bg-success-200 text-success-800 bg-success-500/20 text-success-600",
-  aprobado: "bg-success-100 text-success-700 bg-success-500/15 text-success-600",
-  publicado: "bg-success-200 text-success-800 bg-success-500/20 text-success-600",
-  cancelado: "bg-danger-100 text-danger-700 bg-danger-500/15 text-danger-600",
+  solicitud: "bg-neutral-100 text-neutral-600",
+  backlog: "bg-neutral-100 text-neutral-600",
+  pendiente: "bg-neutral-100 text-neutral-600",
+  por_hacer: "bg-blue-100 text-blue-700",
+  en_proceso: "bg-primary-100 text-primary-700",
+  bloqueada: "bg-danger-100 text-danger-700",
+  en_revision: "bg-warning-100 text-warning-700",
+  requiere_ajustes: "bg-orange-100 text-orange-700",
+  completada: "bg-success-200 text-success-800",
+  aprobado: "bg-success-100 text-success-700",
+  publicado: "bg-success-200 text-success-800",
+  cancelado: "bg-danger-100 text-danger-700",
 };
 
 const PRIORIDAD_COLOR: Record<string, string> = {
-  urgente: "bg-danger-100 text-danger-700 bg-danger-500/15 text-danger-600",
-  alta: "bg-warning-100 text-warning-700 bg-warning-500/15 text-warning-600",
-  media: "bg-neutral-100 text-neutral-700 bg-neutral-100 text-neutral-300",
-  baja: "bg-success-100 text-success-700 bg-success-500/15 text-success-600",
+  urgente: "bg-danger-100 text-danger-700",
+  alta: "bg-warning-100 text-warning-700",
+  media: "bg-neutral-100 text-neutral-700",
+  baja: "bg-success-100 text-success-700",
 };
 
 const FLUJO_ESTADOS: Record<string, string[]> = {
@@ -85,7 +85,7 @@ export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }:
                 {tarea.prioridad}
               </span>
               {tarea.tipoTarea && (
-                <span className="text-[10px] bg-neutral-100 bg-neutral-100 text-neutral-600 text-neutral-400 px-1.5 py-0.5 rounded">
+                <span className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded">
                   {TIPO_LABEL[tarea.tipoTarea] ?? tarea.tipoTarea}
                 </span>
               )}
@@ -93,11 +93,11 @@ export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }:
                 {agruparEstados ? GRUPO_LABEL[grupo] : (ESTADO_LABEL[tarea.estado] ?? tarea.estado)}
               </span>
             </div>
-            {tarea.descripcion && <p className="text-xs text-neutral-500 text-neutral-400 mb-2 line-clamp-2">{tarea.descripcion}</p>}
+            {tarea.descripcion && <p className="text-xs text-neutral-500 mb-2 line-clamp-2">{tarea.descripcion}</p>}
             {tarea.estado === "bloqueada" && tarea.bloqueoMotivo && (
-              <p className="text-xs text-danger-600 text-danger-600 mb-1">🚫 {tarea.bloqueoMotivo}</p>
+              <p className="text-xs text-danger-600 mb-1">🚫 {tarea.bloqueoMotivo}</p>
             )}
-            <div className="flex flex-wrap gap-3 text-xs text-neutral-500 text-neutral-400">
+            <div className="flex flex-wrap gap-3 text-xs text-neutral-500">
               <span>👤 {tarea.responsableNombre}</span>
               <span>📁 {tarea.departamento}</span>
               {tarea.fechaLimite && (
@@ -168,7 +168,7 @@ export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }:
               <button
                 key={estado}
                 onClick={() => cambiarEstado(estado)}
-                className="text-[10px] px-2 py-1 rounded border border-neutral-200 hover:bg-neutral-50 hover:bg-neutral-100 text-neutral-500 text-neutral-400"
+                className="text-[10px] px-2 py-1 rounded border border-neutral-200 hover:bg-neutral-100 text-neutral-500"
               >
                 → {ESTADO_LABEL[estado] ?? estado.replace("_", " ")}
               </button>

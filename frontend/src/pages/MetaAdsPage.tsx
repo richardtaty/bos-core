@@ -114,7 +114,7 @@ export function MetaAdsPage() {
         <p className="text-3xl mb-3">📊</p>
         <h1 className="text-xl font-semibold text-neutral-900 mb-1">Métricas Meta Ads</h1>
         <p className="text-sm text-neutral-500 mb-2">No hay métricas de Meta Ads registradas.</p>
-        <p className="text-sm text-neutral-400 mb-6">Registra el primer reporte semanal para comenzar.</p>
+        <p className="text-sm text-neutral-600 mb-6">Registra el primer reporte semanal para comenzar.</p>
         {puedeGestionar && (
           <button
             onClick={() => { setReporteEdicion(null); setAviso(undefined); setModoForma("crear"); }}
@@ -194,7 +194,7 @@ export function MetaAdsPage() {
           ))}
         </select>
         {detalle && (
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-neutral-500">
             Actualizado {fmtFechaActualizacion(detalle.updatedAt)}{detalle.actualizadoPorNombre ? ` por ${detalle.actualizadoPorNombre}` : ""}
           </p>
         )}
@@ -238,7 +238,7 @@ export function MetaAdsPage() {
           })}
         </>
       ) : (
-        <p className="text-sm text-neutral-400 text-center py-10">Selecciona un período para ver sus métricas.</p>
+        <p className="text-sm text-neutral-600 text-center py-10">Selecciona un período para ver sus métricas.</p>
       )}
 
       {modoForma && (
@@ -276,14 +276,14 @@ function GrupoCard({ grupo }: { grupo: MetaAdsReporte["grupos"][number] }) {
       </div>
 
       {grupo.campanas.length === 0 ? (
-        !grupo.sinCampanasActivas && <p className="text-xs text-neutral-400 py-3">Sin campañas registradas.</p>
+        !grupo.sinCampanasActivas && <p className="text-xs text-neutral-600 py-3">Sin campañas registradas.</p>
       ) : (
         <>
           {/* Tabla — escritorio */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-neutral-400 border-b border-neutral-200">
+                <tr className="text-left text-[11px] uppercase tracking-wide text-neutral-500 border-b border-neutral-200">
                   <th className="py-2 pr-3 font-medium">Campaña</th>
                   <th className="py-2 pr-3 font-medium">Público</th>
                   <th className="py-2 pr-3 font-medium">Presupuesto</th>
@@ -317,7 +317,7 @@ function CampanaFila({ c }: { c: MetaAdsReporte["grupos"][number]["campanas"][nu
         <td className="py-2.5 pr-3 text-neutral-600">{c.ubicacionPublico ?? "—"}</td>
         <td className="py-2.5 pr-3 text-neutral-700">
           {fmtDinero(c.presupuesto)}
-          {c.detallePresupuesto && <span className="block text-[10px] text-neutral-400">{c.detallePresupuesto}</span>}
+          {c.detallePresupuesto && <span className="block text-[10px] text-neutral-500">{c.detallePresupuesto}</span>}
         </td>
         <td className="py-2.5 pr-3 text-neutral-700">{c.leads ?? "—"}</td>
         <td className="py-2.5 pr-3 text-neutral-700">{fmtDinero(c.costoPorLead)}</td>
@@ -328,7 +328,7 @@ function CampanaFila({ c }: { c: MetaAdsReporte["grupos"][number]["campanas"][nu
         </td>
         <td className="py-2.5 text-neutral-600">
           {c.observaciones && <p>{c.observaciones}</p>}
-          {c.recomendaciones && <p className="text-[11px] text-neutral-400 mt-0.5">💡 {c.recomendaciones}</p>}
+          {c.recomendaciones && <p className="text-[11px] text-neutral-500 mt-0.5">💡 {c.recomendaciones}</p>}
         </td>
       </tr>
       {c.segmentaciones.map((s) => (
@@ -338,7 +338,7 @@ function CampanaFila({ c }: { c: MetaAdsReporte["grupos"][number]["campanas"][nu
           <td className="py-2 pr-3 text-neutral-600">{fmtDinero(s.presupuesto)}</td>
           <td className="py-2 pr-3 text-neutral-600">{s.leads ?? "—"}</td>
           <td className="py-2 pr-3 text-neutral-600">{fmtDinero(s.costoPorLead)}</td>
-          <td className="py-2 pr-3 text-neutral-400 text-[11px]">segmentación</td>
+          <td className="py-2 pr-3 text-neutral-500 text-[11px]">segmentación</td>
           <td className="py-2 text-neutral-500">{s.observacion ?? ""}</td>
         </tr>
       ))}
@@ -362,7 +362,7 @@ function CampanaCard({ c }: { c: MetaAdsReporte["grupos"][number]["campanas"][nu
         <span>Costo por lead: <b>{fmtDinero(c.costoPorLead)}</b></span>
       </div>
       {c.observaciones && <p className="text-xs text-neutral-500 mt-1.5">{c.observaciones}</p>}
-      {c.recomendaciones && <p className="text-[11px] text-neutral-400 mt-1">💡 {c.recomendaciones}</p>}
+      {c.recomendaciones && <p className="text-[11px] text-neutral-500 mt-1">💡 {c.recomendaciones}</p>}
 
       {c.segmentaciones.length > 0 && (
         <div className="mt-2 pl-3 border-l-2 border-neutral-100 flex flex-col gap-1.5">

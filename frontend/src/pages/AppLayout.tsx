@@ -184,14 +184,14 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-56 shrink-0 bg-neutral-50 border-r border-neutral-200 border-neutral-200 p-4 flex flex-col">
+      <aside className="w-56 shrink-0 bg-neutral-50 border-r border-neutral-200 p-4 flex flex-col">
         <div className="flex items-center gap-2 mb-6 px-1">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-secondary-700 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-primary-500/20">
             TE
           </div>
           <div>
-            <p className="font-semibold text-sm leading-tight text-neutral-900 text-neutral-800">Taty's Enterprises</p>
-            <p className="text-[11px] text-neutral-500 text-neutral-400">BOS</p>
+            <p className="font-semibold text-sm leading-tight text-neutral-900">Taty's Enterprises</p>
+            <p className="text-[11px] text-neutral-500">BOS</p>
           </div>
         </div>
 
@@ -213,7 +213,7 @@ export function AppLayout() {
               return (
                 <div key={item.to}>
                   {mostrarHeader && (
-                    <p className="text-[10px] font-semibold uppercase text-neutral-400 text-neutral-500 tracking-wider mt-3 mb-1 px-1">
+                    <p className="text-[10px] font-semibold uppercase text-neutral-500 tracking-wider mt-3 mb-1 px-1">
                       {headerLabels[item.seccion!] ?? item.seccion}
                     </p>
                   )}
@@ -222,8 +222,8 @@ export function AppLayout() {
                     className={({ isActive }) =>
                       `px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between transition-all ${
                         isActive
-                          ? "bg-primary-50 text-primary-700 bg-primary-500/15 text-primary-600"
-                          : "text-neutral-600 text-neutral-500 hover:bg-neutral-100 hover:bg-neutral-100"
+                          ? "bg-primary-500/15 text-primary-700"
+                          : "text-neutral-600 hover:bg-neutral-100"
                       }`
                     }
                   >
@@ -240,14 +240,14 @@ export function AppLayout() {
           })()}
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-neutral-200 border-neutral-200">
-          <p className="text-xs text-neutral-500 text-neutral-500 mb-1">Sesión</p>
-          <p className="text-sm font-medium text-neutral-900 text-neutral-600">{usuario?.nombre}</p>
-          <p className="text-[11px] text-neutral-500 text-neutral-500 mb-3">{usuario?.rol}</p>
-          <button onClick={() => setModalPassword(true)} className="text-xs text-neutral-500 text-neutral-400 hover:underline block mb-1.5">
+        <div className="mt-auto pt-4 border-t border-neutral-200">
+          <p className="text-xs text-neutral-500 mb-1">Sesión</p>
+          <p className="text-sm font-medium text-neutral-900">{usuario?.nombre}</p>
+          <p className="text-[11px] text-neutral-500 mb-3">{usuario?.rol}</p>
+          <button onClick={() => setModalPassword(true)} className="text-xs text-neutral-500 hover:underline block mb-1.5">
             Cambiar contraseña
           </button>
-          <button onClick={logout} className="text-xs text-danger-600 text-danger-600 hover:underline">
+          <button onClick={logout} className="text-xs text-danger-600 hover:underline">
             Cerrar sesión
           </button>
         </div>

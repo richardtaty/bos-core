@@ -123,7 +123,7 @@ export function PodcastInteligenciaPage() {
                     <span className={`text-sm font-semibold ${a.nivel === "intervencion" ? "text-danger-600" : "text-amber-600"}`}>
                       {a.nivel === "intervencion" ? "🔴" : "🟡"} {a.titulo}
                     </span>
-                    <span className="text-xs text-neutral-400">{a.nombre}</span>
+                    <span className="text-xs text-neutral-500">{a.nombre}</span>
                   </div>
                   <p className="text-sm text-neutral-700">{a.evidencia}</p>
                   <p className="text-sm text-neutral-500">{a.comparacion}</p>

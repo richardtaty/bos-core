@@ -52,7 +52,7 @@ export function RegistrarInteraccionForm({ personaId, onDone }: { personaId: str
         className="w-full border border-neutral-200 rounded-lg px-2 py-1.5 text-sm mb-2"
       />
       {error && <p className="text-[11px] text-danger-600 mb-2">{error}</p>}
-      <button disabled={enviando} className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg font-medium disabled:opacity-50">
+      <button disabled={enviando} className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800">
         {enviando ? "Guardando..." : "Registrar interacción"}
       </button>
     </form>

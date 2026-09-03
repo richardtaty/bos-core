@@ -84,7 +84,7 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
 
         <div className="flex flex-col gap-3">
           <div>
-            <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Título *</label>
+            <label className="text-xs font-medium text-neutral-600 block mb-1">Título *</label>
             <input
               type="text"
               value={titulo}
@@ -96,7 +96,7 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Descripción</label>
+            <label className="text-xs font-medium text-neutral-600 block mb-1">Descripción</label>
             <textarea
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
@@ -108,7 +108,7 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Responsable *</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Responsable *</label>
               <select
                 value={responsableId}
                 onChange={(e) => setResponsableId(e.target.value)}
@@ -122,7 +122,7 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Departamento</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Departamento</label>
               <select
                 value={departamento}
                 onChange={(e) => setDepartamento(e.target.value)}
@@ -137,26 +137,26 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Prioridad</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Prioridad</label>
               <select value={prioridad} onChange={(e) => setPrioridad(e.target.value as typeof PRIORIDADES[number])} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                 {PRIORIDADES.map((p) => (<option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Fecha límite</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Fecha límite</label>
               <input type="date" value={fechaLimite} onChange={(e) => setFechaLimite(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Canal</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Canal</label>
               <select value={canal} onChange={(e) => setCanal(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                 {CANALES.map((c) => (<option key={c} value={c}>{c || "Sin canal"}</option>))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Tipo de contenido</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Tipo de contenido</label>
               <select value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                 {TIPOS_CONTENIDO.map((tc) => (<option key={tc} value={tc}>{tc || "Sin tipo"}</option>))}
               </select>
@@ -164,40 +164,40 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Fecha de publicación</label>
+            <label className="text-xs font-medium text-neutral-600 block mb-1">Fecha de publicación</label>
             <input type="date" value={fechaPublicacion} onChange={(e) => setFechaPublicacion(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
           </div>
 
           {/* ─── Marketing v2: campos nuevos ──────── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Tipo de tarea</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Tipo de tarea</label>
               <select value={tipoTarea} onChange={(e) => setTipoTarea(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                 {TIPOS_TAREA.map((tt) => (<option key={tt.valor} value={tt.valor}>{tt.etiqueta}</option>))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Tiempo estimado (min)</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Tiempo estimado (min)</label>
               <input type="number" value={tiempoEstimado} onChange={(e) => setTiempoEstimado(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" placeholder="Ej: 120" min="0" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Solicitante</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Solicitante</label>
               <select value={solicitanteId} onChange={(e) => setSolicitanteId(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                 <option value="">Sin solicitante</option>
                 {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nombre}</option>))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Sprint</label>
+              <label className="text-xs font-medium text-neutral-600 block mb-1">Sprint</label>
               <input type="text" value={sprint} onChange={(e) => setSprint(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" placeholder="Ej: Sprint 1 - Agosto" />
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Criterios de terminado</label>
+            <label className="text-xs font-medium text-neutral-600 block mb-1">Criterios de terminado</label>
             <textarea
               value={criteriosTerminado}
               onChange={(e) => setCriteriosTerminado(e.target.value)}
@@ -209,13 +209,13 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
         </div>
 
         <div className="flex gap-2 justify-end mt-5">
-          <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-neutral-600 text-neutral-400 hover:bg-neutral-100 hover:bg-neutral-100 rounded-lg">
+          <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">
             Cancelar
           </button>
           <button
             type="submit"
             disabled={guardando || !titulo.trim() || !responsableId}
-            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800"
           >
             {guardando ? "Creando..." : "Crear tarea"}
           </button>

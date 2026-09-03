@@ -55,11 +55,11 @@ export function MiDiaPage() {
 
   const Grupo = ({ titulo, items, colorClase }: { titulo: string; items: TareaPendiente[]; colorClase: string }) => (
     <div className="mb-6">
-      <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-2">
-        {titulo} <span className="text-neutral-400 text-neutral-500 font-normal">({items.length})</span>
+      <h3 className="text-sm font-medium text-neutral-700 mb-2">
+        {titulo} <span className="text-neutral-500 font-normal">({items.length})</span>
       </h3>
       {items.length === 0 ? (
-        <p className="text-xs text-neutral-400 text-neutral-500">Nada aquí.</p>
+        <p className="text-xs text-neutral-500">Nada aquí.</p>
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((t) => (
@@ -69,10 +69,10 @@ export function MiDiaPage() {
               className={`flex items-center justify-between p-3 rounded-lg border ${colorClase} hover:opacity-80`}
             >
               <div>
-                <p className="text-sm font-medium text-neutral-900 text-neutral-800">{t.personaNombre}</p>
-                <p className="text-xs text-neutral-500 text-neutral-400">{t.nota}</p>
+                <p className="text-sm font-medium text-neutral-900">{t.personaNombre}</p>
+                <p className="text-xs text-neutral-500">{t.nota}</p>
               </div>
-              <span className="text-xs text-neutral-500 text-neutral-400">{fmtFecha(t.fecha)}</span>
+              <span className="text-xs text-neutral-500">{fmtFecha(t.fecha)}</span>
             </Link>
           ))}
         </div>
@@ -82,17 +82,17 @@ export function MiDiaPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Hola, {usuario?.nombre.split(" ")[0]}</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Esto es lo que tienes pendiente hoy</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Hola, {usuario?.nombre.split(" ")[0]}</h1>
+      <p className="text-sm text-neutral-500 mb-6">Esto es lo que tienes pendiente hoy</p>
 
       {/* 🎂 Cumpleaños */}
       {(cumpleanosHoy.length > 0 || cumpleanosProximos.length > 0) && (
         <div className="mb-6">
-          <h2 className="text-sm font-semibold text-neutral-700 text-neutral-300 mb-3">🎂 Cumpleaños</h2>
+          <h2 className="text-sm font-semibold text-neutral-700 mb-3">🎂 Cumpleaños</h2>
 
           {cumpleanosHoy.length > 0 && (
             <div className="mb-3">
-              <p className="text-xs font-medium text-pink-600 text-pink-400 mb-1.5">Hoy</p>
+              <p className="text-xs font-medium text-pink-600 mb-1.5">Hoy</p>
               <div className="flex flex-col gap-2">
                 {cumpleanosHoy.map((c) => (
                   <Link
@@ -101,14 +101,14 @@ export function MiDiaPage() {
                     className="flex items-center justify-between p-3 rounded-lg border bg-pink-50 bg-pink-500/10 border-pink-200 border-pink-500/20 hover:opacity-80"
                   >
                     <div>
-                      <p className="text-sm font-medium text-neutral-900 text-neutral-800">
+                      <p className="text-sm font-medium text-neutral-900">
                         {c.personaNombre}{" "}
-                        <span className="font-normal text-neutral-500 text-neutral-400">
+                        <span className="font-normal text-neutral-500">
                           ({calcularEdad(c.fechaNacimiento)} años)
                         </span>
                       </p>
                     </div>
-                    <span className="text-xs text-pink-600 text-pink-400 font-medium">🎉 Hoy</span>
+                    <span className="text-xs text-pink-600 font-medium">🎉 Hoy</span>
                   </Link>
                 ))}
               </div>
@@ -117,7 +117,7 @@ export function MiDiaPage() {
 
           {cumpleanosProximos.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-neutral-500 text-neutral-400 mb-1.5">Próximos 14 días</p>
+              <p className="text-xs font-medium text-neutral-500 mb-1.5">Próximos 14 días</p>
               <div className="flex flex-col gap-2">
                 {cumpleanosProximos.map((c) => {
                   const [, m, d] = c.fechaNacimiento.split("-").map(Number);
@@ -129,12 +129,12 @@ export function MiDiaPage() {
                     <Link
                       key={c.personaId}
                       to={`/personas/${c.personaId}`}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-neutral-50 border-neutral-200 border-neutral-200 hover:opacity-80"
+                      className="flex items-center justify-between p-3 rounded-lg border bg-neutral-50 border-neutral-200 hover:opacity-80"
                     >
                       <div>
-                        <p className="text-sm font-medium text-neutral-900 text-neutral-800">{c.personaNombre}</p>
+                        <p className="text-sm font-medium text-neutral-900">{c.personaNombre}</p>
                       </div>
-                      <span className="text-xs text-neutral-500 text-neutral-400">
+                      <span className="text-xs text-neutral-500">
                         {diasRestantes === 1 ? "Mañana" : `En ${diasRestantes} días`} — {fmtFecha(cumpleEsteAno.toISOString())}
                       </span>
                     </Link>
@@ -148,7 +148,7 @@ export function MiDiaPage() {
 
       <Grupo titulo="Atrasadas" items={atrasadas} colorClase="bg-danger-50 bg-danger-500/10 border-danger-100 border-danger-500/20" />
       <Grupo titulo="Para hoy" items={hoy} colorClase="bg-warning-50 bg-warning-500/10 border-warning-100 border-warning-500/20" />
-      <Grupo titulo="Próximas" items={proximas} colorClase="bg-neutral-50 border-neutral-200 border-neutral-200" />
+      <Grupo titulo="Próximas" items={proximas} colorClase="bg-neutral-50 border-neutral-200" />
     </div>
   );
 }

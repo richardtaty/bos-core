@@ -127,7 +127,7 @@ export function PersonasPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por nombre, teléfono o email..."
-          className="flex-1 max-w-sm border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          className="flex-1 max-w-sm border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
         />
 
         <button

@@ -17,14 +17,14 @@ const SUBTITULO_POR_AREA: Record<string, string> = {
 };
 
 const COLUMNAS_KANBAN: { estado: string; titulo: string; color: string }[] = [
-  { estado: "solicitud", titulo: "📥 Bandeja", color: "bg-neutral-100 bg-neutral-100" },
-  { estado: "backlog", titulo: "📚 Backlog", color: "bg-neutral-100 bg-neutral-100" },
-  { estado: "por_hacer", titulo: "✅ Por hacer", color: "bg-blue-50 bg-blue-500/10" },
-  { estado: "en_proceso", titulo: "🔄 En proceso", color: "bg-primary-50 bg-primary-500/10" },
-  { estado: "bloqueada", titulo: "🚫 Bloqueadas", color: "bg-danger-50 bg-danger-500/10" },
-  { estado: "en_revision", titulo: "👁 En revisión", color: "bg-warning-50 bg-warning-500/10" },
-  { estado: "requiere_ajustes", titulo: "🔧 Ajustes", color: "bg-orange-50 bg-orange-500/10" },
-  { estado: "completada", titulo: "🎉 Completadas", color: "bg-success-50 bg-success-500/10" },
+  { estado: "solicitud", titulo: "📥 Bandeja", color: "bg-neutral-100" },
+  { estado: "backlog", titulo: "📚 Backlog", color: "bg-neutral-100" },
+  { estado: "por_hacer", titulo: "✅ Por hacer", color: "bg-blue-50" },
+  { estado: "en_proceso", titulo: "🔄 En proceso", color: "bg-primary-50" },
+  { estado: "bloqueada", titulo: "🚫 Bloqueadas", color: "bg-danger-50" },
+  { estado: "en_revision", titulo: "👁 En revisión", color: "bg-warning-50" },
+  { estado: "requiere_ajustes", titulo: "🔧 Ajustes", color: "bg-orange-50" },
+  { estado: "completada", titulo: "🎉 Completadas", color: "bg-success-50" },
 ];
 
 const PRIORIDAD_COLOR: Record<string, string> = {
@@ -117,12 +117,12 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800">Tablero Scrum</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Tablero Scrum</h1>
         <Link to="/moc/tareas" className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600">
           + Nueva tarea
         </Link>
       </div>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-4">
+      <p className="text-sm text-neutral-500 mb-4">
         {SUBTITULO_POR_AREA[area] ?? `Producción — ${area}`}
       </p>
 
@@ -157,13 +157,13 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
               >
                 <div className={`${col.color} rounded-t-xl px-3 py-2 border border-neutral-200 border-b-0`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-neutral-700 text-neutral-300">{col.titulo}</span>
-                    <span className="text-[10px] bg-white/60 bg-neutral-100 px-1.5 py-0.5 rounded-full text-neutral-600 text-neutral-300 font-medium">
+                    <span className="text-xs font-semibold text-neutral-700">{col.titulo}</span>
+                    <span className="text-[10px] bg-neutral-100 px-1.5 py-0.5 rounded-full text-neutral-600 font-medium">
                       {tareasCol.length}
                     </span>
                   </div>
                 </div>
-                <div className="bg-neutral-50 bg-neutral-50 rounded-b-xl border border-neutral-200 border-t-0 p-2 flex flex-col gap-2 min-h-[200px]">
+                <div className="bg-neutral-50 rounded-b-xl border border-neutral-200 border-t-0 p-2 flex flex-col gap-2 min-h-[200px]">
                   {tareasCol.map((t) => (
                     <div
                       key={t.id}
@@ -175,28 +175,28 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
                     >
                       <div className="flex items-center gap-1.5 mb-1">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORIDAD_COLOR[t.prioridad] ?? "bg-neutral-300"}`} title={t.prioridad} />
-                        <p className="text-xs font-medium text-neutral-900 text-neutral-800 truncate">{t.titulo}</p>
+                        <p className="text-xs font-medium text-neutral-900 truncate">{t.titulo}</p>
                       </div>
                       <div className="flex flex-wrap gap-1 text-[10px]">
                         {t.tipoTarea && (
-                          <span className="bg-neutral-100 bg-neutral-100 text-neutral-600 text-neutral-400 px-1 py-0.5 rounded">
+                          <span className="bg-neutral-100 text-neutral-600 px-1 py-0.5 rounded">
                             {TIPO_LABEL[t.tipoTarea] ?? t.tipoTarea}
                           </span>
                         )}
                         {t.fechaLimite && (
-                          <span className={`px-1 py-0.5 rounded ${new Date(t.fechaLimite) < new Date() ? "bg-danger-100 bg-danger-500/15 text-danger-600 text-danger-600" : "text-neutral-500"}`}>
+                          <span className={`px-1 py-0.5 rounded ${new Date(t.fechaLimite) < new Date() ? "bg-danger-100 text-danger-600" : "text-neutral-500"}`}>
                             📅 {new Date(t.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-neutral-400 text-neutral-500 mt-1">{t.responsableNombre}</p>
+                      <p className="text-[10px] text-neutral-500 mt-1">{t.responsableNombre}</p>
                       {t.estado === "bloqueada" && t.bloqueoMotivo && (
-                        <p className="text-[10px] text-danger-500 text-danger-600 mt-1 truncate">🚫 {t.bloqueoMotivo}</p>
+                        <p className="text-[10px] text-danger-600 mt-1 truncate">🚫 {t.bloqueoMotivo}</p>
                       )}
                     </div>
                   ))}
                   {tareasCol.length === 0 && (
-                    <p className="text-xs text-neutral-300 text-neutral-600 text-center py-4">—</p>
+                    <p className="text-xs text-neutral-600 text-center py-4">—</p>
                   )}
                 </div>
               </div>
@@ -214,7 +214,7 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
           usuarios={usuarios}
         />
       )}
-      {abriendoDetalle && <p className="text-xs text-neutral-400 mt-2">Abriendo tarea...</p>}
+      {abriendoDetalle && <p className="text-xs text-neutral-500 mt-2">Abriendo tarea...</p>}
     </div>
   );
 }

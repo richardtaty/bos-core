@@ -122,10 +122,10 @@ export function EquipoPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">
+          <h1 className="text-xl font-semibold text-neutral-900 mb-1">
             {esSuperAdmin ? "Equipo" : "Mi Equipo"}
           </h1>
-          <p className="text-sm text-neutral-500 text-neutral-400">
+          <p className="text-sm text-neutral-500">
             {esSuperAdmin
               ? "Administra los miembros y sus accesos a cada unidad de negocio"
               : "Miembros de tu departamento"}
@@ -144,42 +144,42 @@ export function EquipoPage() {
       {/* ── Formulario colapsable ──────────────────── */}
       {formAbierto && puedeCrear && (
         <form onSubmit={onSubmit} className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 mb-6 max-w-2xl shadow-sm">
-          <p className="text-sm font-semibold text-neutral-700 text-neutral-300 mb-4">
+          <p className="text-sm font-semibold text-neutral-700 mb-4">
             {esSuperAdmin ? "Nuevo miembro del equipo" : "Agregar a mi equipo"}
           </p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="col-span-2">
               <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Nombre completo *</label>
-              <input value={nombre} onChange={(e) => setNombre(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" />
+              <input value={nombre} onChange={(e) => setNombre(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" />
             </div>
 
             {esSuperAdmin ? (
               <div>
                 <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Rol *</label>
-                <select value={rol} onChange={(e) => setRol(e.target.value as Rol)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm">
+                <select value={rol} onChange={(e) => setRol(e.target.value as Rol)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm">
                   {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
                 </select>
               </div>
             ) : (
               <div>
                 <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Rol</label>
-                <input value="USUARIO" disabled className="w-full border border-slate-100 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-400" />
+                <input value="USUARIO" disabled className="w-full border border-slate-100 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-600" />
               </div>
             )}
 
             <div>
               <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Email *</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" />
             </div>
 
             <div>
               <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Contraseña temporal *</label>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder="Mínimo 6 caracteres" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" />
+              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required placeholder="Mínimo 6 caracteres" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" />
             </div>
 
             <div>
               <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Cargo</label>
-              <input value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Ej: Editor de Video" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" />
+              <input value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Ej: Editor de Video" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" />
             </div>
 
             {esSuperAdmin && (
@@ -193,8 +193,8 @@ export function EquipoPage() {
                   required={exigeDepartamento(rol)}
                   className={`w-full border rounded-lg px-3 py-2 text-sm ${
                     exigeDepartamento(rol)
-                      ? "border-primary-200 ring-1 ring-primary-200 border-primary-500/30 bg-neutral-50 text-neutral-200"
-                      : "border-neutral-200 border-neutral-200 bg-neutral-50 text-neutral-200"
+                      ? "border-primary-200 ring-1 ring-primary-200 border-primary-500/30 bg-neutral-50 text-neutral-800"
+                      : "border-neutral-200 bg-neutral-50 text-neutral-800"
                   }`}
                 >
                   <option value="">{exigeDepartamento(rol) ? "Seleccionar departamento *" : "Sin departamento"}</option>
@@ -215,7 +215,7 @@ export function EquipoPage() {
           </div>
           {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
           <div className="flex gap-2">
-            <button type="submit" disabled={creando} className="text-sm bg-primary-600 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50">
+            <button type="submit" disabled={creando} className="text-sm bg-primary-600 text-white px-4 py-2 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800">
               {creando ? "Creando..." : "Crear miembro"}
             </button>
             <button type="button" onClick={() => setFormAbierto(false)} className="text-sm border border-neutral-200 text-neutral-600 px-4 py-2 rounded-lg">
@@ -228,7 +228,7 @@ export function EquipoPage() {
       {/* ── Leyenda de departamentos ────────────────── */}
       {esSuperAdmin && deptos.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          <span className="text-[11px] text-neutral-400 uppercase tracking-wide">Unidades de negocio:</span>
+          <span className="text-[11px] text-neutral-500 uppercase tracking-wide">Unidades de negocio:</span>
           {deptos.map((d) => (
             <span key={d.id} className={`text-[11px] px-2 py-0.5 rounded-full border ${DEPTO_COLOR[d.nombre] ?? "bg-neutral-100 text-neutral-500 border-neutral-200"}`}>
               {d.nombre}
@@ -252,7 +252,7 @@ export function EquipoPage() {
               <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Link to={`/equipo/${u.id}`} className="text-sm font-semibold text-neutral-900 text-neutral-800 hover:text-primary-600 hover:underline truncate">
+                    <Link to={`/equipo/${u.id}`} className="text-sm font-semibold text-neutral-900 hover:text-primary-600 hover:underline truncate">
                       {u.nombre}
                     </Link>
                     {!u.activo && (
@@ -263,7 +263,7 @@ export function EquipoPage() {
                   </div>
                   <p className="text-xs text-neutral-500 mt-0.5">
                     {u.email}
-                    {u.cargo && <span className="text-neutral-400"> · {u.cargo}</span>}
+                    {u.cargo && <span className="text-neutral-500"> · {u.cargo}</span>}
                   </p>
                 </div>
 
@@ -272,7 +272,7 @@ export function EquipoPage() {
                     <select
                       value={u.rol}
                       onChange={(e) => onCambiarRol(u.id, e.target.value)}
-                      className="text-xs border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-2 py-1 font-medium"
+                      className="text-xs border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-2 py-1 font-medium"
                     >
                       {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
                     </select>
@@ -304,8 +304,8 @@ export function EquipoPage() {
 
               {/* ── Fila inferior: departamentos ──────── */}
               {esSuperAdmin && (
-                <div className="pt-2 border-t border-neutral-100 border-neutral-200">
-                  <p className="text-[10px] text-neutral-400 uppercase tracking-wide mb-1.5">Unidades de negocio</p>
+                <div className="pt-2 border-t border-neutral-200">
+                  <p className="text-[10px] text-neutral-500 uppercase tracking-wide mb-1.5">Unidades de negocio</p>
                   <div className="flex flex-wrap gap-1.5">
                     {deptos.map((d) => {
                       const activo = deptoIds.includes(d.id);
@@ -320,7 +320,7 @@ export function EquipoPage() {
                           className={`text-[11px] px-2.5 py-1 rounded-full border transition-all font-medium ${
                             activo
                               ? `${DEPTO_COLOR[d.nombre] ?? "bg-primary-100 text-primary-700 border-primary-300"} shadow-sm`
-                              : "bg-neutral-50 text-neutral-400 border-neutral-200 hover:border-neutral-300 hover:text-neutral-500"
+                              : "bg-neutral-50 text-neutral-500 border-neutral-200 hover:border-neutral-300 hover:text-neutral-500"
                           }`}
                         >
                           {activo ? "✓ " : "+ "}{d.nombre}
@@ -328,7 +328,7 @@ export function EquipoPage() {
                       );
                     })}
                     {deptoIds.length === 0 && (
-                      <span className="text-[11px] text-neutral-400 italic">Sin departamento asignado</span>
+                      <span className="text-[11px] text-neutral-500 italic">Sin departamento asignado</span>
                     )}
                   </div>
                 </div>
@@ -350,7 +350,7 @@ export function EquipoPage() {
       </div>
 
       {usuarios.length === 0 && (
-        <p className="text-sm text-neutral-400 text-center py-8">No hay miembros en el equipo todavía.</p>
+        <p className="text-sm text-neutral-600 text-center py-8">No hay miembros en el equipo todavía.</p>
       )}
 
       {/* ── Modal reset ─────────────────────────────── */}
@@ -358,7 +358,7 @@ export function EquipoPage() {
         <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50">
           <div className="bg-neutral-50 rounded-xl p-5 w-full max-w-sm shadow-xl border border-neutral-200">
             <p className="text-sm font-medium mb-1">Restablecer contraseña</p>
-            <p className="text-xs text-neutral-500 text-neutral-400 mb-3">{resetModal.nombre} — {resetModal.email}</p>
+            <p className="text-xs text-neutral-500 mb-3">{resetModal.nombre} — {resetModal.email}</p>
 
             {resetOk ? (
               <>
@@ -371,7 +371,7 @@ export function EquipoPage() {
               </>
             ) : (
               <>
-                <label className="text-xs text-neutral-600 text-neutral-400">Nueva contraseña (mínimo 6 caracteres)</label>
+                <label className="text-xs text-neutral-600">Nueva contraseña (mínimo 6 caracteres)</label>
                 <input
                   type="text"
                   value={passwordNueva}
@@ -384,7 +384,7 @@ export function EquipoPage() {
                   <button onClick={() => setResetModal(null)} className="text-sm px-3 py-1.5 rounded-lg border border-slate-200">
                     Cancelar
                   </button>
-                  <button onClick={confirmarReset} disabled={guardandoReset} className="text-sm px-3 py-1.5 rounded-lg bg-primary-600 text-white font-medium disabled:opacity-50">
+                  <button onClick={confirmarReset} disabled={guardandoReset} className="text-sm px-3 py-1.5 rounded-lg bg-primary-600 text-white font-medium disabled:bg-primary-100 disabled:text-primary-800">
                     {guardandoReset ? "Guardando..." : "Restablecer"}
                   </button>
                 </div>

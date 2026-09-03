@@ -92,7 +92,7 @@ export function TableroOperativoPage() {
           </div>
 
           {tareasFiltradas.length === 0 ? (
-            <p className="text-sm text-neutral-400 text-center py-8">No tienes tareas en esta vista. ¡Buen trabajo! 🎉</p>
+            <p className="text-sm text-neutral-600 text-center py-8">No tienes tareas en esta vista. ¡Buen trabajo! 🎉</p>
           ) : (
             <div className="flex flex-col gap-3">
               {tareasFiltradas.map((t) => (

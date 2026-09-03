@@ -26,8 +26,8 @@ export function BmfDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Business Market Finders</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Hola, {usuario?.nombre.split(" ")[0]} — Centro de Operaciones BMF</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Business Market Finders</h1>
+      <p className="text-sm text-neutral-500 mb-6">Hola, {usuario?.nombre.split(" ")[0]} — Centro de Operaciones BMF</p>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
@@ -49,12 +49,12 @@ export function BmfDashboardPage() {
         {/* Fundings recientes */}
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300">💵 Fundings recientes</h3>
-            <Link to="/bmf/fundings" className="text-xs text-primary-600 text-primary-600 hover:underline">Ver todos →</Link>
+            <h3 className="text-sm font-medium text-neutral-700">💵 Fundings recientes</h3>
+            <Link to="/bmf/fundings" className="text-xs text-primary-600 hover:underline">Ver todos →</Link>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 text-neutral-400 uppercase">
+              <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
                 <tr>
                   <th className="text-left px-4 py-2.5">Cliente</th>
                   <th className="text-left px-4 py-2.5">Agente</th>
@@ -64,15 +64,15 @@ export function BmfDashboardPage() {
               </thead>
               <tbody>
                 {fundings.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-4 text-center text-neutral-400">Sin fundings registrados</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-4 text-center text-neutral-600">Sin fundings registrados</td></tr>
                 ) : (
                   fundings.map((f) => (
-                    <tr key={f.id} className="border-t border-neutral-100 border-neutral-200 hover:bg-neutral-50 hover:bg-neutral-100">
-                      <td className="px-4 py-2.5 font-medium text-neutral-900 text-neutral-800">
+                    <tr key={f.id} className="border-t border-neutral-200 hover:bg-neutral-100">
+                      <td className="px-4 py-2.5 font-medium text-neutral-900">
                         <Link to={`/personas/${f.clienteId}`} className="hover:text-primary-600">{f.clienteNombre}</Link>
                       </td>
-                      <td className="px-4 py-2.5 text-neutral-600 text-neutral-400">{f.agenteNombre}</td>
-                      <td className="px-4 py-2.5 text-neutral-700 text-neutral-300">${Math.round(f.montoSolicitado).toLocaleString()}</td>
+                      <td className="px-4 py-2.5 text-neutral-600">{f.agenteNombre}</td>
+                      <td className="px-4 py-2.5 text-neutral-700">${Math.round(f.montoSolicitado).toLocaleString()}</td>
                       <td className="px-4 py-2.5">
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                           f.estado === "aprobado" || f.estado === "funding_enviado" ? "bg-success-100 text-success-700" :
@@ -90,7 +90,7 @@ export function BmfDashboardPage() {
 
         {/* Accesos rápidos */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Accesos rápidos</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Accesos rápidos</h3>
           <div className="flex flex-col gap-2">
             {[
               { to: "/bmf/lenders", label: "🏛 Lenders", desc: "Gestionar entidades financieras" },
@@ -105,8 +105,8 @@ export function BmfDashboardPage() {
                 to={item.to}
                 className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 hover:border-primary-500/30 hover:shadow-sm transition-all"
               >
-                <p className="font-medium text-sm text-neutral-900 text-neutral-800 mb-1">{item.label}</p>
-                <p className="text-xs text-neutral-500 text-neutral-400">{item.desc}</p>
+                <p className="font-medium text-sm text-neutral-900 mb-1">{item.label}</p>
+                <p className="text-xs text-neutral-500">{item.desc}</p>
               </Link>
             ))}
           </div>

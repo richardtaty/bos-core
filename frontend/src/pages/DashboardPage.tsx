@@ -90,8 +90,8 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Dashboard Ejecutivo</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Centro de Control — toda la empresa en una sola pantalla</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Dashboard Ejecutivo</h1>
+      <p className="text-sm text-neutral-500 mb-6">Centro de Control — toda la empresa en una sola pantalla</p>
 
       {/* ─── Fila 1: KPIs principales ─── */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
@@ -123,9 +123,9 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {esSuperAdmin && actividadHoy && actividadHoy.porUsuario.length > 0 && (
           <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Desglose por agente (hoy)</h3>
+            <h3 className="text-sm font-medium text-neutral-700 mb-3">Desglose por agente (hoy)</h3>
             <table className="w-full text-sm">
-              <thead className="text-xs text-neutral-500 text-neutral-400 uppercase">
+              <thead className="text-xs text-neutral-500 uppercase">
                 <tr>
                   <th className="text-left py-1.5">Usuario</th>
                   <th className="text-left py-1.5">Ingresos</th>
@@ -135,15 +135,15 @@ export function DashboardPage() {
               </thead>
               <tbody>
                 {actividadHoy.porUsuario.map((u) => (
-                  <tr key={u.usuarioId} className="border-t border-neutral-100 border-neutral-200">
-                    <td className="py-1.5 font-medium text-neutral-900 text-neutral-800">
-                      <Link to={`/equipo/${u.usuarioId}`} className="hover:text-primary-600 hover:text-primary-600 hover:underline">
+                  <tr key={u.usuarioId} className="border-t border-neutral-200">
+                    <td className="py-1.5 font-medium text-neutral-900">
+                      <Link to={`/equipo/${u.usuarioId}`} className="hover:text-primary-600 hover:underline">
                         {u.nombre}
                       </Link>
                     </td>
-                    <td className="py-1.5 text-success-700 text-success-600">${u.ingresos.toLocaleString()}</td>
-                    <td className="py-1.5 text-neutral-600 text-neutral-400">{u.contactosNuevos}</td>
-                    <td className="py-1.5 text-neutral-600 text-neutral-400">{u.dealsGanados}</td>
+                    <td className="py-1.5 text-success-700">${u.ingresos.toLocaleString()}</td>
+                    <td className="py-1.5 text-neutral-600">{u.contactosNuevos}</td>
+                    <td className="py-1.5 text-neutral-600">{u.dealsGanados}</td>
                   </tr>
                 ))}
               </tbody>
@@ -154,8 +154,8 @@ export function DashboardPage() {
         {/* Actividad reciente */}
         <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300">Actividad reciente</h3>
-            <Link to="/centro-actividad" className="text-xs text-primary-600 text-primary-600 hover:underline">Ver todo →</Link>
+            <h3 className="text-sm font-medium text-neutral-700">Actividad reciente</h3>
+            <Link to="/centro-actividad" className="text-xs text-primary-600 hover:underline">Ver todo →</Link>
           </div>
           <ActividadTimeline eventos={eventos} />
         </div>
@@ -165,11 +165,11 @@ export function DashboardPage() {
       {esSuperAdmin && ultimosDias.length > 0 && (
         <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300">Últimos 7 días</h3>
-            <Link to="/reporte-ventas" className="text-xs text-primary-600 text-primary-600 hover:underline">Ver reporte completo →</Link>
+            <h3 className="text-sm font-medium text-neutral-700">Últimos 7 días</h3>
+            <Link to="/reporte-ventas" className="text-xs text-primary-600 hover:underline">Ver reporte completo →</Link>
           </div>
           <table className="w-full text-sm">
-            <thead className="text-xs text-neutral-500 text-neutral-400 uppercase">
+            <thead className="text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left py-1.5">Día</th>
                 <th className="text-left py-1.5">Total</th>
@@ -178,12 +178,12 @@ export function DashboardPage() {
             </thead>
             <tbody>
               {ultimosDias.map((d) => (
-                <tr key={d.fecha} className="border-t border-neutral-100 border-neutral-200">
-                  <td className="py-1.5 font-medium text-neutral-900 text-neutral-800 capitalize">
+                <tr key={d.fecha} className="border-t border-neutral-200">
+                  <td className="py-1.5 font-medium text-neutral-900 capitalize">
                     {new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "short", day: "2-digit", month: "short" })}
                   </td>
-                  <td className="py-1.5 text-success-700 text-success-600 font-medium">${d.total.toLocaleString()}</td>
-                  <td className="py-1.5 text-neutral-500 text-neutral-400 text-xs">
+                  <td className="py-1.5 text-success-700 font-medium">${d.total.toLocaleString()}</td>
+                  <td className="py-1.5 text-neutral-500 text-xs">
                     {d.porUsuario.map((u) => `${u.nombre} $${u.total.toLocaleString()}`).join(" · ")}
                   </td>
                 </tr>
@@ -196,9 +196,9 @@ export function DashboardPage() {
       {/* ─── Fila 4: Pipelines ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Valor abierto por pipeline</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Valor abierto por pipeline</h3>
           {metricas.every((m) => m.valorAbierto === 0) ? (
-            <p className="text-xs text-neutral-400 text-neutral-500">Sin valor abierto todavía.</p>
+            <p className="text-xs text-neutral-500">Sin valor abierto todavía.</p>
           ) : (
             metricas
               .filter((m) => m.valorAbierto > 0)
@@ -207,11 +207,11 @@ export function DashboardPage() {
                 const maxValor = Math.max(1, ...metricas.map((x) => x.valorAbierto));
                 return (
                   <div key={m.nombre} className="flex items-center gap-2 mb-2 text-xs">
-                    <span className="w-28 truncate text-neutral-600 text-neutral-400">{m.nombre}</span>
-                    <div className="flex-1 h-2 bg-neutral-100 bg-neutral-100 rounded-full overflow-hidden">
+                    <span className="w-28 truncate text-neutral-600">{m.nombre}</span>
+                    <div className="flex-1 h-2 bg-neutral-100 rounded-full overflow-hidden">
                       <div className="h-full bg-success-500 rounded-full" style={{ width: `${(m.valorAbierto / maxValor) * 100}%` }} />
                     </div>
-                    <span className="w-16 text-right text-neutral-700 text-neutral-300">${Math.round(m.valorAbierto).toLocaleString()}</span>
+                    <span className="w-16 text-right text-neutral-700">${Math.round(m.valorAbierto).toLocaleString()}</span>
                   </div>
                 );
               })
@@ -219,9 +219,9 @@ export function DashboardPage() {
         </div>
 
         <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Pipeline</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Pipeline</h3>
           <table className="w-full text-sm">
-            <thead className="text-xs text-neutral-500 text-neutral-400 uppercase">
+            <thead className="text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left py-1.5">Nombre</th>
                 <th className="text-left py-1.5">Total</th>
@@ -231,11 +231,11 @@ export function DashboardPage() {
             </thead>
             <tbody>
               {[...metricas].sort((a, b) => b.total - a.total).map((m) => (
-                <tr key={m.nombre} className="border-t border-neutral-100 border-neutral-200">
-                  <td className="py-1.5 font-medium text-neutral-900 text-neutral-800 text-xs">{m.nombre}</td>
-                  <td className="py-1.5 text-neutral-600 text-neutral-400 text-xs">{m.total}</td>
-                  <td className="py-1.5 text-success-600 text-success-600 text-xs">{m.ganados}</td>
-                  <td className="py-1.5 text-neutral-600 text-neutral-400 text-xs">{m.tasaConversion}%</td>
+                <tr key={m.nombre} className="border-t border-neutral-200">
+                  <td className="py-1.5 font-medium text-neutral-900 text-xs">{m.nombre}</td>
+                  <td className="py-1.5 text-neutral-600 text-xs">{m.total}</td>
+                  <td className="py-1.5 text-success-600 text-xs">{m.ganados}</td>
+                  <td className="py-1.5 text-neutral-600 text-xs">{m.tasaConversion}%</td>
                 </tr>
               ))}
             </tbody>

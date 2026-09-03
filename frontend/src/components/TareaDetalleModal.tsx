@@ -187,14 +187,14 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
         onClick={(e) => e.stopPropagation()}
       >
         {/* ─── Encabezado ──────────────────────────── */}
-        <div className="flex items-start justify-between p-5 pb-3 border-b border-neutral-100 border-neutral-200">
+        <div className="flex items-start justify-between p-5 pb-3 border-b border-neutral-200">
           <div className="flex-1 min-w-0">
             {editando ? (
               <input
                 type="text"
                 value={editTitulo}
                 onChange={(e) => setEditTitulo(e.target.value)}
-                className="w-full text-lg font-semibold text-neutral-900 border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 mb-2"
+                className="w-full text-lg font-semibold text-neutral-900 border border-neutral-200 bg-neutral-50 placeholder:text-neutral-400 rounded-lg px-3 py-2 mb-2"
               />
             ) : (
               <h2 className="text-lg font-semibold text-neutral-900">{tarea.titulo}</h2>
@@ -213,7 +213,7 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
               )}
             </div>
           </div>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 hover:text-neutral-300 text-lg leading-none ml-3">&times;</button>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 text-lg leading-none ml-3">&times;</button>
         </div>
 
         {/* ─── Cuerpo ──────────────────────────────── */}
@@ -224,20 +224,20 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
                ═══════════════════════════════════════════ */
             <div className="flex flex-col gap-3">
               <div>
-                <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Descripción</label>
+                <label className="text-xs font-medium text-neutral-600 block mb-1">Descripción</label>
                 <textarea value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} rows={3}
                   className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Responsable</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Responsable</label>
                   <select value={editResponsableId} onChange={(e) => setEditResponsableId(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                     {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nombre}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Departamento</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Departamento</label>
                   <select value={editDepartamento} onChange={(e) => setEditDepartamento(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                     {DEPARTAMENTOS.map((d) => (<option key={d} value={d}>{d}</option>))}
@@ -246,74 +246,74 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Prioridad</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Prioridad</label>
                   <select value={editPrioridad} onChange={(e) => setEditPrioridad(e.target.value as typeof PRIORIDADES[number])}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                     {PRIORIDADES.map((p) => (<option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Fecha límite</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Fecha límite</label>
                   <input type="date" value={editFechaLimite} onChange={(e) => setEditFechaLimite(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Canal</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Canal</label>
                   <select value={editCanal} onChange={(e) => setEditCanal(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                     {CANALES.map((c) => (<option key={c} value={c}>{c || "Sin canal"}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Tipo contenido</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Tipo contenido</label>
                   <input type="text" value={editTipoContenido} onChange={(e) => setEditTipoContenido(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Tipo de tarea</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Tipo de tarea</label>
                   <select value={editTipoTarea} onChange={(e) => setEditTipoTarea(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                     {TIPOS_TAREA.map((tt) => (<option key={tt.valor} value={tt.valor}>{tt.etiqueta}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Tiempo est. (min)</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Tiempo est. (min)</label>
                   <input type="number" value={editTiempoEstimado} onChange={(e) => setEditTiempoEstimado(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" min="0" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Sprint</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Sprint</label>
                   <input type="text" value={editSprint} onChange={(e) => setEditSprint(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">% Avance</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">% Avance</label>
                   <input type="number" value={editPorcentaje} onChange={(e) => setEditPorcentaje(e.target.value)}
                     className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" min="0" max="100" />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Criterios de terminado</label>
+                <label className="text-xs font-medium text-neutral-600 block mb-1">Criterios de terminado</label>
                 <textarea value={editCriteriosTerminado} onChange={(e) => setEditCriteriosTerminado(e.target.value)} rows={2}
                   className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs font-medium text-neutral-600 text-neutral-300 block mb-1">Fecha publicación</label>
+                <label className="text-xs font-medium text-neutral-600 block mb-1">Fecha publicación</label>
                 <input type="date" value={editFechaPublicacion} onChange={(e) => setEditFechaPublicacion(e.target.value)}
                   className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
               </div>
-              <div className="flex gap-2 justify-end pt-2 border-t border-neutral-100 border-neutral-200">
-                <button onClick={() => setEditando(false)} className="px-4 py-2 text-sm text-neutral-600 text-neutral-300 hover:bg-neutral-100 hover:bg-neutral-100 rounded-lg">
+              <div className="flex gap-2 justify-end pt-2 border-t border-neutral-200">
+                <button onClick={() => setEditando(false)} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">
                   Cancelar
                 </button>
                 <button onClick={guardarEdicion} disabled={guardando || !editTitulo.trim()}
-                  className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50">
+                  className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800">
                   {guardando ? "Guardando..." : "Guardar cambios"}
                 </button>
               </div>
@@ -346,31 +346,31 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
               {/* Descripción */}
               {tarea.descripcion && (
                 <div>
-                  <p className="text-xs font-medium text-neutral-600 text-neutral-300 mb-1">Descripción</p>
-                  <p className="text-sm text-neutral-700 text-neutral-300 whitespace-pre-wrap">{tarea.descripcion}</p>
+                  <p className="text-xs font-medium text-neutral-600 mb-1">Descripción</p>
+                  <p className="text-sm text-neutral-700 whitespace-pre-wrap">{tarea.descripcion}</p>
                 </div>
               )}
 
               {/* Criterios de terminado */}
               {tarea.criteriosTerminado && (
                 <div>
-                  <p className="text-xs font-medium text-neutral-600 text-neutral-300 mb-1">Criterios de terminado</p>
-                  <p className="text-sm text-neutral-700 text-neutral-300 whitespace-pre-wrap">{tarea.criteriosTerminado}</p>
+                  <p className="text-xs font-medium text-neutral-600 mb-1">Criterios de terminado</p>
+                  <p className="text-sm text-neutral-700 whitespace-pre-wrap">{tarea.criteriosTerminado}</p>
                 </div>
               )}
 
               {/* Bloqueo */}
               {tarea.estado === "bloqueada" && tarea.bloqueoMotivo && (
-                <div className="bg-danger-50 bg-danger-500/10 border border-danger-100 border-danger-500/20 rounded-lg p-3">
-                  <p className="text-sm font-medium text-danger-700 text-danger-600">🚫 Bloqueada</p>
-                  <p className="text-xs text-danger-600 text-danger-600 mt-1">{tarea.bloqueoMotivo}</p>
+                <div className="bg-danger-500/10 border border-danger-500/20 rounded-lg p-3">
+                  <p className="text-sm font-medium text-danger-700">🚫 Bloqueada</p>
+                  <p className="text-xs text-danger-600 mt-1">{tarea.bloqueoMotivo}</p>
                   {tarea.bloqueoDependeDe && <p className="text-xs text-danger-500 mt-0.5">Depende de: {tarea.bloqueoDependeDe}</p>}
                 </div>
               )}
 
               {/* Acciones de estado */}
               <div>
-                <p className="text-xs font-medium text-neutral-600 text-neutral-300 mb-2">Cambiar estado</p>
+                <p className="text-xs font-medium text-neutral-600 mb-2">Cambiar estado</p>
                 <div className="flex gap-1.5 flex-wrap">
                   {!["completada", "aprobado", "publicado", "cancelado"].includes(tarea.estado) && (
                     <button onClick={completar}
@@ -380,7 +380,7 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
                   )}
                   {estadosSiguientes.map((estado) => (
                     <button key={estado} onClick={() => cambiarEstado(estado)}
-                      className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 hover:bg-neutral-100 text-neutral-600 text-neutral-300">
+                      className="text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-100 text-neutral-600">
                       → {ESTADO_LABEL[estado] ?? estado.replace("_", " ")}
                     </button>
                   ))}
@@ -388,18 +388,18 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
               </div>
 
               {/* Checklist */}
-              <div className="border-t border-neutral-100 border-neutral-200 pt-4">
+              <div className="border-t border-neutral-200 pt-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <p className="text-xs font-medium text-neutral-700 text-neutral-300">Checklist</p>
+                  <p className="text-xs font-medium text-neutral-700">Checklist</p>
                   {checklist.length > 0 && (
-                    <span className="text-[10px] text-neutral-400">({completados}/{checklist.length})</span>
+                    <span className="text-[10px] text-neutral-500">({completados}/{checklist.length})</span>
                   )}
                 </div>
                 {checklist.map((item) => (
                   <div key={item.id} className="flex items-center gap-2 mb-1.5 text-sm">
                     <input type="checkbox" checked={!!item.completado}
                       onChange={() => toggleItem(item)} className="rounded" />
-                    <span className={`flex-1 ${item.completado ? "line-through text-neutral-400" : "text-neutral-700 text-neutral-300"}`}>
+                    <span className={`flex-1 ${item.completado ? "line-through text-neutral-500" : "text-neutral-700"}`}>
                       {item.texto}
                     </span>
                     <button onClick={() => eliminarItem(item.id)}
@@ -418,16 +418,16 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
               </div>
 
               {/* Comentarios */}
-              <div className="border-t border-neutral-100 border-neutral-200 pt-4">
-                <p className="text-xs font-medium text-neutral-700 text-neutral-300 mb-2">Comentarios</p>
+              <div className="border-t border-neutral-200 pt-4">
+                <p className="text-xs font-medium text-neutral-700 mb-2">Comentarios</p>
                 {(tarea.comentarios ?? []).length === 0 ? (
-                  <p className="text-xs text-neutral-400 mb-2">Sin comentarios.</p>
+                  <p className="text-xs text-neutral-600 mb-2">Sin comentarios.</p>
                 ) : (
                   <div className="flex flex-col gap-2 mb-3">
                     {(tarea.comentarios ?? []).map((c: ComentarioTarea) => (
-                      <div key={c.id} className="bg-neutral-50 bg-neutral-100 rounded-lg p-2 text-xs">
-                        <p className="text-neutral-700 text-neutral-300">{c.texto}</p>
-                        <p className="text-neutral-400 mt-1">{c.autorNombre} · {new Date(c.fecha).toLocaleString("es-ES")}</p>
+                      <div key={c.id} className="bg-neutral-100 rounded-lg p-2 text-xs">
+                        <p className="text-neutral-700">{c.texto}</p>
+                        <p className="text-neutral-500 mt-1">{c.autorNombre} · {new Date(c.fecha).toLocaleString("es-ES")}</p>
                       </div>
                     ))}
                   </div>
@@ -448,8 +448,8 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
 
         {/* ─── Footer con botón editar ─────────────── */}
         {!editando && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-100 border-neutral-200 bg-neutral-50 bg-neutral-100 rounded-b-xl">
-            <span className="text-[10px] text-neutral-400">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-200 bg-neutral-100 rounded-b-xl">
+            <span className="text-[10px] text-neutral-500">
               Creado {new Date(tarea.createdAt).toLocaleDateString("es-ES")}
             </span>
             <div className="flex gap-2">
@@ -460,7 +460,7 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
                 </button>
               )}
               <button onClick={onClose}
-                className="text-xs px-4 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 text-neutral-300 hover:bg-neutral-100 hover:bg-neutral-100">
+                className="text-xs px-4 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100">
                 Cerrar
               </button>
             </div>
@@ -473,8 +473,8 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
 
 function Info({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
-    <div className="bg-neutral-50 bg-neutral-100 rounded-lg p-2.5">
-      <p className="text-[10px] text-neutral-400 uppercase tracking-wide">{label}</p>
+    <div className="bg-neutral-100 rounded-lg p-2.5">
+      <p className="text-[10px] text-neutral-500 uppercase tracking-wide">{label}</p>
       <p className="text-sm text-neutral-800 font-medium mt-0.5">{icon} {value}</p>
     </div>
   );

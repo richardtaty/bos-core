@@ -78,8 +78,8 @@ export function BmfLendersPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Lenders</h1>
-          <p className="text-sm text-neutral-500 text-neutral-400">Entidades financieras — {lenders.length} registradas</p>
+          <h1 className="text-xl font-semibold text-neutral-900 mb-1">Lenders</h1>
+          <p className="text-sm text-neutral-500">Entidades financieras — {lenders.length} registradas</p>
         </div>
         {esAdmin && (
           <button onClick={abrirNuevo} className="bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors">
@@ -90,7 +90,7 @@ export function BmfLendersPage() {
 
       <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 text-neutral-400 uppercase">
+          <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
             <tr>
               <th className="text-left px-4 py-2.5">Nombre</th>
               <th className="text-left px-4 py-2.5">Contacto</th>
@@ -103,15 +103,15 @@ export function BmfLendersPage() {
           </thead>
           <tbody>
             {lenders.length === 0 ? (
-              <tr><td colSpan={esAdmin ? 7 : 6} className="px-4 py-4 text-center text-neutral-400">Sin lenders registrados</td></tr>
+              <tr><td colSpan={esAdmin ? 7 : 6} className="px-4 py-4 text-center text-neutral-600">Sin lenders registrados</td></tr>
             ) : (
               lenders.map((l) => (
-                <tr key={l.id} className="border-t border-neutral-100 border-neutral-200 hover:bg-neutral-50 hover:bg-neutral-100">
-                  <td className="px-4 py-2.5 font-medium text-neutral-900 text-neutral-800">{l.nombre}</td>
-                  <td className="px-4 py-2.5 text-neutral-600 text-neutral-400">{l.contacto || "—"}</td>
-                  <td className="px-4 py-2.5 text-neutral-500 text-neutral-400 text-xs">{l.email || "—"}</td>
-                  <td className="px-4 py-2.5 text-neutral-600 text-neutral-400 text-xs">{l.productos || "—"}</td>
-                  <td className="px-4 py-2.5 text-neutral-600 text-neutral-400 text-xs">
+                <tr key={l.id} className="border-t border-neutral-200 hover:bg-neutral-100">
+                  <td className="px-4 py-2.5 font-medium text-neutral-900">{l.nombre}</td>
+                  <td className="px-4 py-2.5 text-neutral-600">{l.contacto || "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-500 text-xs">{l.email || "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-600 text-xs">{l.productos || "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-600 text-xs">
                     {l.montoMinimo ? `$${l.montoMinimo.toLocaleString()}` : "—"} – {l.montoMaximo ? `$${l.montoMaximo.toLocaleString()}` : "—"}
                   </td>
                   <td className="px-4 py-2.5">
@@ -121,7 +121,7 @@ export function BmfLendersPage() {
                   </td>
                   {esAdmin && (
                     <td className="px-4 py-2.5">
-                      <button onClick={() => abrirEditar(l)} className="text-xs text-primary-600 text-primary-600 hover:underline">Editar</button>
+                      <button onClick={() => abrirEditar(l)} className="text-xs text-primary-600 hover:underline">Editar</button>
                     </td>
                   )}
                 </tr>
@@ -135,7 +135,7 @@ export function BmfLendersPage() {
       {modalAbierto && (
         <div className="fixed inset-0 bg-neutral-900/40 flex items-center justify-center z-50" onClick={() => setModalAbierto(false)}>
           <div className="bg-neutral-50 rounded-xl p-5 border border-neutral-200 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-neutral-900 text-neutral-800 mb-4">{editandoId ? "Editar Lender" : "Nuevo Lender"}</h3>
+            <h3 className="font-semibold text-neutral-900 mb-4">{editandoId ? "Editar Lender" : "Nuevo Lender"}</h3>
             {error && <p className="text-xs text-danger-600 mb-3">{error}</p>}
             <div className="flex flex-col gap-3">
               <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm" placeholder="Nombre *" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
@@ -158,7 +158,7 @@ export function BmfLendersPage() {
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setModalAbierto(false)} className="border border-neutral-200 px-3 py-1.5 rounded-lg text-sm text-neutral-600">Cancelar</button>
-              <button onClick={guardar} disabled={guardando} className="bg-primary-500 text-white px-4 py-1.5 rounded-lg text-sm disabled:opacity-50">
+              <button onClick={guardar} disabled={guardando} className="bg-primary-500 text-white px-4 py-1.5 rounded-lg text-sm disabled:bg-primary-100 disabled:text-primary-800">
                 {guardando ? "Guardando..." : "Guardar"}
               </button>
             </div>

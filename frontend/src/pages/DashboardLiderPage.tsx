@@ -31,8 +31,8 @@ export function DashboardLiderPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Dashboard de Líder</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">{data.departamento} — Hola, {usuario?.nombre.split(" ")[0]}</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Dashboard de Líder</h1>
+      <p className="text-sm text-neutral-500 mb-6">{data.departamento} — Hola, {usuario?.nombre.split(" ")[0]}</p>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -45,22 +45,22 @@ export function DashboardLiderPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Equipo */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Mi equipo</h3>
-          <div className="bg-neutral-50 border border-neutral-200 rounded-xl divide-y divide-neutral-100 divide-neutral-200">
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Mi equipo</h3>
+          <div className="bg-neutral-50 border border-neutral-200 rounded-xl divide-y divide-neutral-200">
             {data.kpisIndividuales.map((m) => (
               <Link
                 key={m.usuarioId}
                 to={`/equipo/${m.usuarioId}`}
-                className="p-3 flex items-center justify-between hover:bg-neutral-50 hover:bg-neutral-100"
+                className="p-3 flex items-center justify-between hover:bg-neutral-100"
               >
                 <div>
-                  <p className="text-sm font-medium text-neutral-900 text-neutral-800">{m.nombre}</p>
-                  <p className="text-xs text-neutral-500 text-neutral-400">{m.cargo}</p>
+                  <p className="text-sm font-medium text-neutral-900">{m.nombre}</p>
+                  <p className="text-xs text-neutral-500">{m.cargo}</p>
                 </div>
-                <div className="flex gap-3 text-xs text-neutral-500 text-neutral-400">
-                  <span className="text-success-600 text-success-600">✅ {m.completadas}</span>
-                  <span className="text-primary-600 text-primary-600">🔄 {m.enProgreso}</span>
-                  {m.atrasadas > 0 && <span className="text-danger-600 text-danger-600">⚠ {m.atrasadas}</span>}
+                <div className="flex gap-3 text-xs text-neutral-500">
+                  <span className="text-success-600">✅ {m.completadas}</span>
+                  <span className="text-primary-600">🔄 {m.enProgreso}</span>
+                  {m.atrasadas > 0 && <span className="text-danger-600">⚠ {m.atrasadas}</span>}
                 </div>
               </Link>
             ))}
@@ -71,33 +71,33 @@ export function DashboardLiderPage() {
         <div className="flex flex-col gap-4">
           {data.vencidas > 0 && (
             <div className="bg-danger-50 bg-danger-500/10 border border-danger-200 border-danger-500/20 rounded-xl p-4">
-              <h3 className="text-sm font-medium text-danger-700 text-danger-600 mb-2">⚠ {data.vencidas} tareas vencidas</h3>
+              <h3 className="text-sm font-medium text-danger-700 mb-2">⚠ {data.vencidas} tareas vencidas</h3>
             </div>
           )}
 
           <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-2">Próximas entregas</h3>
+            <h3 className="text-sm font-medium text-neutral-700 mb-2">Próximas entregas</h3>
             {data.proximasEntregas.length === 0 ? (
-              <p className="text-xs text-neutral-400 text-neutral-500">Sin entregas próximas.</p>
+              <p className="text-xs text-neutral-500">Sin entregas próximas.</p>
             ) : (
               data.proximasEntregas.slice(0, 5).map((t) => (
-                <div key={t.id} className="flex justify-between items-center py-1.5 border-b border-neutral-50 border-neutral-200 text-xs">
-                  <span className="text-neutral-700 text-neutral-300">{t.titulo}</span>
-                  <span className="text-neutral-400 text-neutral-500">{t.fechaLimite ? new Date(t.fechaLimite).toLocaleDateString("es-ES") : "—"}</span>
+                <div key={t.id} className="flex justify-between items-center py-1.5 border-b border-neutral-200 text-xs">
+                  <span className="text-neutral-700">{t.titulo}</span>
+                  <span className="text-neutral-500">{t.fechaLimite ? new Date(t.fechaLimite).toLocaleDateString("es-ES") : "—"}</span>
                 </div>
               ))
             )}
           </div>
 
           <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-            <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-2">Próximas publicaciones</h3>
+            <h3 className="text-sm font-medium text-neutral-700 mb-2">Próximas publicaciones</h3>
             {data.proximasPublicaciones.length === 0 ? (
-              <p className="text-xs text-neutral-400 text-neutral-500">Sin publicaciones agendadas.</p>
+              <p className="text-xs text-neutral-500">Sin publicaciones agendadas.</p>
             ) : (
               data.proximasPublicaciones.slice(0, 5).map((t) => (
-                <div key={t.id} className="flex justify-between items-center py-1.5 border-b border-neutral-50 border-neutral-200 text-xs">
-                  <span className="text-neutral-700 text-neutral-300">{t.titulo}</span>
-                  <span className="text-neutral-400 text-neutral-500">{t.canal}</span>
+                <div key={t.id} className="flex justify-between items-center py-1.5 border-b border-neutral-200 text-xs">
+                  <span className="text-neutral-700">{t.titulo}</span>
+                  <span className="text-neutral-500">{t.canal}</span>
                 </div>
               ))
             )}
@@ -106,9 +106,9 @@ export function DashboardLiderPage() {
           {/* Cuellos */}
           {data.cuellos.length > 0 && (
             <div className="bg-warning-50 bg-warning-500/10 border border-warning-200 border-warning-500/20 rounded-xl p-4">
-              <h3 className="text-sm font-medium text-warning-700 text-warning-600 mb-2">🚧 Cuellos de botella</h3>
+              <h3 className="text-sm font-medium text-warning-700 mb-2">🚧 Cuellos de botella</h3>
               {data.cuellos.slice(0, 3).map((t) => (
-                <p key={t.id} className="text-xs text-warning-700 text-warning-600 py-0.5">
+                <p key={t.id} className="text-xs text-warning-700 py-0.5">
                   {t.titulo} — {t.responsableNombre} ({t.estado.replace("_", " ")})
                 </p>
               ))}

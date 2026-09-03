@@ -53,14 +53,14 @@ export function EgresoModal({ onClose, onSaved, ofertas }: Props) {
         <div className="space-y-3">
           <div>
             <label className="block text-xs text-neutral-600 mb-1">Categoría</label>
-            <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm">
+            <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm">
               {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
           <div>
             <label className="block text-xs text-neutral-600 mb-1">Evento / Línea (opcional)</label>
-            <select value={ofertaId} onChange={(e) => setOfertaId(e.target.value)} className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm">
+            <select value={ofertaId} onChange={(e) => setOfertaId(e.target.value)} className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm">
               <option value="">— General (sin atribuir) —</option>
               {ofertas.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
             </select>
@@ -68,23 +68,23 @@ export function EgresoModal({ onClose, onSaved, ofertas }: Props) {
 
           <div>
             <label className="block text-xs text-neutral-600 mb-1">Fecha</label>
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" required />
+            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" required />
           </div>
 
           <div>
             <label className="block text-xs text-neutral-600 mb-1">Monto (USD)</label>
-            <input type="number" value={monto} onChange={(e) => setMonto(e.target.value)} min="0" step="0.01" placeholder="0.00" className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm font-mono" required />
+            <input type="number" value={monto} onChange={(e) => setMonto(e.target.value)} min="0" step="0.01" placeholder="0.00" className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm font-mono" required />
           </div>
 
           <div>
             <label className="block text-xs text-neutral-600 mb-1">Nota (opcional)</label>
-            <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={2} className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" />
+            <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={2} className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-5">
           <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">Cancelar</button>
-          <button type="submit" disabled={guardando} className="px-5 py-2 text-sm font-medium bg-danger-500 text-white rounded-lg hover:bg-danger-600 disabled:opacity-50">
+          <button type="submit" disabled={guardando} className="px-5 py-2 text-sm font-medium bg-danger-500 text-white rounded-lg hover:bg-danger-600 disabled:bg-danger-100 disabled:text-danger-800">
             {guardando ? "Guardando..." : "Registrar egreso"}
           </button>
         </div>

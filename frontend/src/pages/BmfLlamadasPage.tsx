@@ -57,8 +57,8 @@ export function BmfLlamadasPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Llamadas</h1>
-          <p className="text-sm text-neutral-500 text-neutral-400">{stats.total} llamadas registradas</p>
+          <h1 className="text-xl font-semibold text-neutral-900 mb-1">Llamadas</h1>
+          <p className="text-sm text-neutral-500">{stats.total} llamadas registradas</p>
         </div>
         <button onClick={() => setModalAbierto(true)} className="bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors">
           + Registrar Llamada
@@ -69,8 +69,8 @@ export function BmfLlamadasPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         {stats.porAgente.slice(0, 4).map((a) => (
           <div key={a.agenteId} className="bg-neutral-50 border border-neutral-200 rounded-xl p-3 text-sm">
-            <p className="text-xs text-neutral-400">{a.agenteNombre}</p>
-            <p className="font-semibold text-neutral-900 text-neutral-800">{a.total} llamadas</p>
+            <p className="text-xs text-neutral-500">{a.agenteNombre}</p>
+            <p className="font-semibold text-neutral-900">{a.total} llamadas</p>
             <p className="text-[10px] text-neutral-500">✅{a.contesto} ❌{a.noContesto} 📼{a.buzon}</p>
           </div>
         ))}
@@ -79,7 +79,7 @@ export function BmfLlamadasPage() {
       {/* Tabla */}
       <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 text-neutral-400 uppercase">
+          <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
             <tr>
               <th className="text-left px-4 py-2.5">Fecha</th>
               <th className="text-left px-4 py-2.5">Cliente</th>
@@ -91,16 +91,16 @@ export function BmfLlamadasPage() {
           </thead>
           <tbody>
             {llamadas.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-4 text-center text-neutral-400">Sin llamadas registradas</td></tr>
+              <tr><td colSpan={6} className="px-4 py-4 text-center text-neutral-600">Sin llamadas registradas</td></tr>
             ) : (
               llamadas.map((l) => (
-                <tr key={l.id} className="border-t border-neutral-100 border-neutral-200">
-                  <td className="px-4 py-2.5 text-neutral-500 text-neutral-400 text-xs">{new Date(l.fecha).toLocaleString("es-MX")}</td>
-                  <td className="px-4 py-2.5 font-medium text-neutral-900 text-neutral-800">
+                <tr key={l.id} className="border-t border-neutral-200">
+                  <td className="px-4 py-2.5 text-neutral-500 text-xs">{new Date(l.fecha).toLocaleString("es-MX")}</td>
+                  <td className="px-4 py-2.5 font-medium text-neutral-900">
                     <Link to={`/personas/${l.personaId}`} className="hover:text-primary-600">{l.personaNombre}</Link>
                   </td>
-                  <td className="px-4 py-2.5 text-neutral-600 text-neutral-400">{l.agenteNombre}</td>
-                  <td className="px-4 py-2.5 text-neutral-500 text-neutral-400">{l.duracionMinutos ? `${l.duracionMinutos}min` : "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-600">{l.agenteNombre}</td>
+                  <td className="px-4 py-2.5 text-neutral-500">{l.duracionMinutos ? `${l.duracionMinutos}min` : "—"}</td>
                   <td className="px-4 py-2.5">
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                       l.resultado === "contestó" ? "bg-success-100 text-success-700" :
@@ -109,7 +109,7 @@ export function BmfLlamadasPage() {
                       "bg-warning-100 text-warning-700"
                     }`}>{l.resultado}</span>
                   </td>
-                  <td className="px-4 py-2.5 text-neutral-500 text-neutral-400 text-xs max-w-[200px] truncate">{l.observaciones || "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-500 text-xs max-w-[200px] truncate">{l.observaciones || "—"}</td>
                 </tr>
               ))
             )}
@@ -121,7 +121,7 @@ export function BmfLlamadasPage() {
       {modalAbierto && (
         <div className="fixed inset-0 bg-neutral-900/40 flex items-center justify-center z-50" onClick={() => setModalAbierto(false)}>
           <div className="bg-neutral-50 rounded-xl p-5 border border-neutral-200 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold text-neutral-900 text-neutral-800 mb-4">Registrar Llamada</h3>
+            <h3 className="font-semibold text-neutral-900 mb-4">Registrar Llamada</h3>
             {error && <p className="text-xs text-danger-600 mb-3">{error}</p>}
             <div className="flex flex-col gap-3">
               <input className="border border-neutral-200 rounded-lg px-3 py-2 text-sm" placeholder="ID del cliente *" value={form.personaId} onChange={(e) => setForm({ ...form, personaId: e.target.value })} />
@@ -133,7 +133,7 @@ export function BmfLlamadasPage() {
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setModalAbierto(false)} className="border border-neutral-200 px-3 py-1.5 rounded-lg text-sm text-neutral-600">Cancelar</button>
-              <button onClick={registrar} disabled={guardando} className="bg-primary-500 text-white px-4 py-1.5 rounded-lg text-sm disabled:opacity-50">
+              <button onClick={registrar} disabled={guardando} className="bg-primary-500 text-white px-4 py-1.5 rounded-lg text-sm disabled:bg-primary-100 disabled:text-primary-800">
                 {guardando ? "Registrando..." : "Registrar"}
               </button>
             </div>

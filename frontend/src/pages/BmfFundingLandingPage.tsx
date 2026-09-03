@@ -224,7 +224,7 @@ export function BmfFundingLandingPage() {
               <h3 className="mt-2 text-lg font-bold">{s.t}</h3>
               <p className="mt-2 text-sm leading-relaxed text-neutral-600">{s.d}</p>
               {i < 3 && (
-                <span className="absolute -right-3 top-1/2 hidden -translate-y-1/2 text-2xl text-neutral-300 md:block" aria-hidden>→</span>
+                <span className="absolute -right-3 top-1/2 hidden -translate-y-1/2 text-2xl text-neutral-600 md:block" aria-hidden>→</span>
               )}
             </div>
           ))}

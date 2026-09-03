@@ -109,25 +109,25 @@ export function SeguridadPage() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Seguridad de acceso</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Verificación en dos pasos para tu cuenta SUPER_ADMIN</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Seguridad de acceso</h1>
+      <p className="text-sm text-neutral-500 mb-6">Verificación en dos pasos para tu cuenta SUPER_ADMIN</p>
 
       {ok && <p className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-4">{ok}</p>}
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{error}</p>}
 
       {/* Estado actual */}
       <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 mb-4">
-        <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Estado de seguridad</h3>
+        <h3 className="text-sm font-medium text-neutral-700 mb-3">Estado de seguridad</h3>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div>
-            <span className="text-neutral-400">PIN:</span>{" "}
+            <span className="text-neutral-600">PIN:</span>{" "}
             <span className={status?.habilitado ? "text-green-600 font-medium" : "text-red-500"}>
               {status?.habilitado ? "Activado ✓" : "No activado"}
             </span>
           </div>
-          {status?.ultimoAcceso && <div><span className="text-neutral-400">Último acceso:</span> <span className="text-neutral-700">{new Date(status.ultimoAcceso).toLocaleString("es-ES")}</span></div>}
-          {status?.ultimoCambio && <div><span className="text-neutral-400">Último cambio:</span> <span className="text-neutral-700">{new Date(status.ultimoCambio).toLocaleString("es-ES")}</span></div>}
-          {status?.tieneDispositivoConfiable && <div><span className="text-neutral-400">Dispositivo:</span> <span className="text-green-600">Confiado (12h)</span></div>}
+          {status?.ultimoAcceso && <div><span className="text-neutral-600">Último acceso:</span> <span className="text-neutral-700">{new Date(status.ultimoAcceso).toLocaleString("es-ES")}</span></div>}
+          {status?.ultimoCambio && <div><span className="text-neutral-600">Último cambio:</span> <span className="text-neutral-700">{new Date(status.ultimoCambio).toLocaleString("es-ES")}</span></div>}
+          {status?.tieneDispositivoConfiable && <div><span className="text-neutral-600">Dispositivo:</span> <span className="text-green-600">Confiado (12h)</span></div>}
         </div>
       </div>
 
@@ -135,21 +135,21 @@ export function SeguridadPage() {
       <div className="space-y-3">
         {!status?.habilitado ? (
           <button onClick={() => { setModoSetup(true); setModoChange(false); setModoDisable(false); setError(null); setOk(null); }} className="w-full text-left bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 transition-colors">
-            <p className="font-medium text-sm text-neutral-900 text-neutral-800">🔐 Activar verificación mediante PIN</p>
+            <p className="font-medium text-sm text-neutral-900">🔐 Activar verificación mediante PIN</p>
             <p className="text-xs text-neutral-500 mt-0.5">Protege tu cuenta con un segundo factor de autenticación.</p>
           </button>
         ) : (
           <>
             <button onClick={() => { setModoChange(true); setModoSetup(false); setModoDisable(false); setError(null); setOk(null); }} className="w-full text-left bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 transition-colors">
-              <p className="font-medium text-sm text-neutral-900 text-neutral-800">🔄 Cambiar PIN</p>
+              <p className="font-medium text-sm text-neutral-900">🔄 Cambiar PIN</p>
               <p className="text-xs text-neutral-500 mt-0.5">Actualiza tu PIN por uno nuevo.</p>
             </button>
             <button onClick={onRegenerarCodigos} className="w-full text-left bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 transition-colors">
-              <p className="font-medium text-sm text-neutral-900 text-neutral-800">📋 Regenerar códigos de recuperación</p>
+              <p className="font-medium text-sm text-neutral-900">📋 Regenerar códigos de recuperación</p>
               <p className="text-xs text-neutral-500 mt-0.5">Genera nuevos códigos. Los anteriores se invalidan.</p>
             </button>
             <button onClick={onCerrarSesiones} className="w-full text-left bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 transition-colors">
-              <p className="font-medium text-sm text-neutral-900 text-neutral-800">🚪 Cerrar todas las sesiones</p>
+              <p className="font-medium text-sm text-neutral-900">🚪 Cerrar todas las sesiones</p>
               <p className="text-xs text-neutral-500 mt-0.5">Revoque todos los dispositivos y sesiones abiertas.</p>
             </button>
             <button onClick={() => { setModoDisable(true); setModoSetup(false); setModoChange(false); setError(null); setOk(null); }} className="w-full text-left bg-neutral-50 border border-red-200 rounded-xl p-4 hover:border-red-300 transition-colors">
@@ -169,7 +169,7 @@ export function SeguridadPage() {
             <input type="password" value={pinConfirm} onChange={e => setPinConfirm(e.target.value)} placeholder="Confirmar PIN" maxLength={10} className="w-full border rounded-lg px-3 py-2 text-sm mb-2" />
             <input type="password" value={passwordActual} onChange={e => setPasswordActual(e.target.value)} placeholder="Contraseña actual" className="w-full border rounded-lg px-3 py-2 text-sm mb-3" />
             <div className="flex gap-2">
-              <button onClick={onSetup} disabled={guardando} className="text-sm bg-primary-600 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50">{guardando ? "..." : "Activar"}</button>
+              <button onClick={onSetup} disabled={guardando} className="text-sm bg-primary-600 text-white px-4 py-2 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800">{guardando ? "..." : "Activar"}</button>
               <button onClick={() => { setModoSetup(false); setError(null); }} className="text-sm border px-4 py-2 rounded-lg">Cancelar</button>
             </div>
           </div>
@@ -185,7 +185,7 @@ export function SeguridadPage() {
             <input type="password" value={pin} onChange={e => setPin(e.target.value)} placeholder="Nuevo PIN (mínimo 4 dígitos)" maxLength={10} className="w-full border rounded-lg px-3 py-2 text-sm mb-2" />
             <input type="password" value={pinConfirm} onChange={e => setPinConfirm(e.target.value)} placeholder="Confirmar nuevo PIN" maxLength={10} className="w-full border rounded-lg px-3 py-2 text-sm mb-3" />
             <div className="flex gap-2">
-              <button onClick={onChange} disabled={guardando} className="text-sm bg-primary-600 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50">{guardando ? "..." : "Cambiar"}</button>
+              <button onClick={onChange} disabled={guardando} className="text-sm bg-primary-600 text-white px-4 py-2 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800">{guardando ? "..." : "Cambiar"}</button>
               <button onClick={() => { setModoChange(false); setError(null); }} className="text-sm border px-4 py-2 rounded-lg">Cancelar</button>
             </div>
           </div>
@@ -200,7 +200,7 @@ export function SeguridadPage() {
             <input type="password" value={pinActual} onChange={e => setPinActual(e.target.value)} placeholder="PIN actual" maxLength={10} className="w-full border rounded-lg px-3 py-2 text-sm mb-2" />
             <input type="password" value={passwordActual} onChange={e => setPasswordActual(e.target.value)} placeholder="Contraseña actual" className="w-full border rounded-lg px-3 py-2 text-sm mb-3" />
             <div className="flex gap-2">
-              <button onClick={onDisable} disabled={guardando} className="text-sm bg-red-600 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50">{guardando ? "..." : "Desactivar"}</button>
+              <button onClick={onDisable} disabled={guardando} className="text-sm bg-red-600 text-white px-4 py-2 rounded-lg font-medium disabled:bg-red-100 disabled:text-red-800">{guardando ? "..." : "Desactivar"}</button>
               <button onClick={() => { setModoDisable(false); setError(null); }} className="text-sm border px-4 py-2 rounded-lg">Cancelar</button>
             </div>
           </div>

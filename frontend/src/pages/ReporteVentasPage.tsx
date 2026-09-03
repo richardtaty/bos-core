@@ -72,8 +72,8 @@ export function ReporteVentasPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Reporte de ventas</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-4">
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Reporte de ventas</h1>
+      <p className="text-sm text-neutral-500 mb-4">
         {esSuperAdmin ? "Por día y por agente, con cada abono individual" : "Tus ventas por día, con cada abono individual"}
       </p>
 
@@ -81,69 +81,69 @@ export function ReporteVentasPage() {
         <div className="flex items-end gap-3 mb-6">
           <div>
             <label className="text-xs text-neutral-600 block mb-1">Desde</label>
-            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm" />
+            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-neutral-600 text-neutral-400 block mb-1">Hasta</label>
-            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm" />
+            <label className="text-xs text-neutral-600 block mb-1">Hasta</label>
+            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
         </div>
       )}
       {!esSuperAdmin && (
-        <p className="text-xs text-neutral-500 text-neutral-400 mb-4">Últimos 7 días</p>
+        <p className="text-xs text-neutral-500 mb-4">Últimos 7 días</p>
       )}
 
       {cargando || !resumen ? (
-        <p className="text-sm text-neutral-500 text-neutral-400">Cargando...</p>
+        <p className="text-sm text-neutral-500">Cargando...</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 mb-6 max-w-md">
             <div className="bg-success-50 bg-success-500/10 rounded-xl p-4">
-              <p className="text-xs text-success-700 text-success-600 mb-1">Total del período</p>
-              <p className="text-2xl font-semibold text-success-700 text-success-600">${resumen.totalGeneral.toLocaleString()}</p>
+              <p className="text-xs text-success-700 mb-1">Total del período</p>
+              <p className="text-2xl font-semibold text-success-700">${resumen.totalGeneral.toLocaleString()}</p>
             </div>
             <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-              <p className="text-xs text-neutral-500 text-neutral-400 mb-1">Cantidad de abonos</p>
-              <p className="text-2xl font-semibold text-neutral-900 text-neutral-800">{resumen.cantidadAbonos}</p>
+              <p className="text-xs text-neutral-500 mb-1">Cantidad de abonos</p>
+              <p className="text-2xl font-semibold text-neutral-900">{resumen.cantidadAbonos}</p>
             </div>
           </div>
 
-          {resumen.dias.length === 0 && <p className="text-sm text-neutral-400 text-neutral-500">Sin ventas en este rango de fechas.</p>}
+          {resumen.dias.length === 0 && <p className="text-sm text-neutral-500">Sin ventas en este rango de fechas.</p>}
 
           <div className="flex flex-col gap-2">
             {resumen.dias.map((dia) => (
               <div key={dia.fecha} className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setDiaAbierto(diaAbierto === dia.fecha ? null : dia.fecha)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50 hover:bg-neutral-100"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-100"
                 >
-                  <span className="text-sm font-medium text-neutral-900 text-neutral-800 capitalize">{fmtFechaCorta(dia.fecha)}</span>
-                  <span className="text-sm font-semibold text-success-700 text-success-600">${dia.total.toLocaleString()}</span>
+                  <span className="text-sm font-medium text-neutral-900 capitalize">{fmtFechaCorta(dia.fecha)}</span>
+                  <span className="text-sm font-semibold text-success-700">${dia.total.toLocaleString()}</span>
                 </button>
 
                 {diaAbierto === dia.fecha && (
-                  <div className="border-t border-neutral-100 border-neutral-200 px-4 py-3">
+                  <div className="border-t border-neutral-200 px-4 py-3">
                     {esSuperAdmin && (
                       <div className="mb-3">
-                        <p className="text-xs text-neutral-500 text-neutral-400 mb-1.5">Por agente</p>
+                        <p className="text-xs text-neutral-500 mb-1.5">Por agente</p>
                         <div className="flex flex-col gap-1">
                           {dia.porUsuario.map((u) => (
                             <div key={u.usuarioId} className="flex justify-between text-sm">
-                              <span className="text-neutral-700 text-neutral-300">{u.nombre}</span>
-                              <span className="font-medium text-neutral-900 text-neutral-800">${u.total.toLocaleString()}</span>
+                              <span className="text-neutral-700">{u.nombre}</span>
+                              <span className="font-medium text-neutral-900">${u.total.toLocaleString()}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    <p className="text-xs text-neutral-500 text-neutral-400 mb-1.5">Abonos de este día</p>
+                    <p className="text-xs text-neutral-500 mb-1.5">Abonos de este día</p>
                     <div className="flex flex-col gap-1.5">
                       {abonosDelDia(dia.fecha).map((a) => (
-                        <div key={a.id} className="flex items-center justify-between text-xs bg-neutral-50 bg-neutral-100 rounded-lg px-3 py-2">
+                        <div key={a.id} className="flex items-center justify-between text-xs bg-neutral-100 rounded-lg px-3 py-2">
                           <div>
-                            <p className="text-neutral-800 text-neutral-300 font-medium">{a.personaNombre ?? "Sin contacto"} · {a.pipelineNombre}</p>
-                            <p className="text-neutral-500 text-neutral-400">{a.nota || "sin nota"} · {fmtFechaHora(a.fecha)}{esSuperAdmin ? ` · ${a.autorNombre}` : ""}</p>
+                            <p className="text-neutral-800 font-medium">{a.personaNombre ?? "Sin contacto"} · {a.pipelineNombre}</p>
+                            <p className="text-neutral-500">{a.nota || "sin nota"} · {fmtFechaHora(a.fecha)}{esSuperAdmin ? ` · ${a.autorNombre}` : ""}</p>
                           </div>
                           <span className="font-semibold text-success-700 shrink-0 ml-3">${a.monto.toLocaleString()}</span>
                         </div>

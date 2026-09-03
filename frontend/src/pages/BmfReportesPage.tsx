@@ -36,13 +36,13 @@ export function BmfReportesPage() {
 
   function renderTabla() {
     if (cargando) return <p className="text-sm text-neutral-500 py-4">Cargando...</p>;
-    if (!data.length) return <p className="text-sm text-neutral-400 py-4">Sin datos para este reporte</p>;
+    if (!data.length) return <p className="text-sm text-neutral-600 py-4">Sin datos para este reporte</p>;
 
     switch (tab) {
       case "produccion-agente":
         return (
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 uppercase">
+            <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left px-4 py-2.5">Agente</th>
                 <th className="text-left px-4 py-2.5">Total Fundings</th>
@@ -70,7 +70,7 @@ export function BmfReportesPage() {
         const meses = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
         return (
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 uppercase">
+            <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left px-4 py-2.5">Mes</th>
                 <th className="text-left px-4 py-2.5">Total</th>
@@ -97,7 +97,7 @@ export function BmfReportesPage() {
       case "pipeline":
         return (
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 uppercase">
+            <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left px-4 py-2.5">Estado</th>
                 <th className="text-left px-4 py-2.5">Cantidad</th>
@@ -118,7 +118,7 @@ export function BmfReportesPage() {
       case "ranking":
         return (
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 uppercase">
+            <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left px-4 py-2.5">#</th>
                 <th className="text-left px-4 py-2.5">Agente</th>
@@ -132,7 +132,7 @@ export function BmfReportesPage() {
             <tbody>
               {data.map((d: any, i: number) => (
                 <tr key={i} className="border-t border-neutral-100">
-                  <td className="px-4 py-2.5 font-bold text-neutral-400">{i + 1}</td>
+                  <td className="px-4 py-2.5 font-bold text-neutral-500">{i + 1}</td>
                   <td className="px-4 py-2.5 font-medium">{d.agenteNombre}</td>
                   <td className="px-4 py-2.5">{d.totalFundings}</td>
                   <td className="px-4 py-2.5">${Math.round(d.montoSolicitado).toLocaleString()}</td>
@@ -147,7 +147,7 @@ export function BmfReportesPage() {
       case "llamadas":
         return (
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 bg-neutral-100 text-xs text-neutral-500 uppercase">
+            <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
               <tr>
                 <th className="text-left px-4 py-2.5">Agente</th>
                 <th className="text-left px-4 py-2.5">Total</th>
@@ -174,8 +174,8 @@ export function BmfReportesPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800 mb-1">Reportes BMF</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Métricas y análisis de la unidad de negocio</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Reportes BMF</h1>
+      <p className="text-sm text-neutral-500 mb-6">Métricas y análisis de la unidad de negocio</p>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -185,7 +185,7 @@ export function BmfReportesPage() {
             onClick={() => setTab(t.key)}
             className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
               tab === t.key
-                ? "bg-primary-50 border-primary-300 text-primary-700 bg-primary-500/20 border-primary-500/30 text-primary-600"
+                ? "bg-primary-100 text-primary-700"
                 : "border-neutral-200 text-neutral-600 hover:border-primary-200"
             }`}
           >

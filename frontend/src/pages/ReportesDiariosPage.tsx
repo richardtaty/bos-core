@@ -110,19 +110,19 @@ export function ReportesDiariosPage() {
     return (
       <div>
         <h1 className="text-xl font-semibold text-neutral-900 mb-1">Reportes diarios — Equipo</h1>
-        <p className="text-sm text-neutral-500 text-neutral-400 mb-4">
+        <p className="text-sm text-neutral-500 mb-4">
           {panel.resumen.entregados}/{panel.resumen.total} entregados · {panel.resumen.pendientes} pendientes
         </p>
         <div className="flex flex-col gap-3">
           {panel.miembros.map((m) => {
             const r = panel.reportes.find((rep) => rep.usuarioId === m.usuarioId);
             const estadoColor: Record<string, string> = {
-              no_iniciado: "bg-neutral-100 bg-neutral-100 text-neutral-600",
-              en_elaboracion: "bg-blue-100 bg-blue-500/15 text-blue-700",
-              enviado: "bg-warning-100 bg-warning-500/15 text-warning-700",
-              revisado: "bg-success-100 bg-success-500/15 text-success-700",
-              requiere_correccion: "bg-danger-100 bg-danger-500/15 text-danger-700",
-              aprobado: "bg-success-200 bg-success-500/20 text-success-800",
+              no_iniciado: "bg-neutral-100 text-neutral-600",
+              en_elaboracion: "bg-blue-100 text-blue-700",
+              enviado: "bg-warning-100 text-warning-700",
+              revisado: "bg-success-100 text-success-700",
+              requiere_correccion: "bg-danger-100 text-danger-700",
+              aprobado: "bg-success-200 text-success-800",
             };
             const estadoLabel: Record<string, string> = {
               no_iniciado: "No iniciado", en_elaboracion: "En elaboración",
@@ -137,7 +137,7 @@ export function ReportesDiariosPage() {
                     <p className="text-xs text-neutral-500">{m.cargo}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${r ? estadoColor[r.estado] ?? "" : "bg-neutral-100 text-neutral-400"}`}>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${r ? estadoColor[r.estado] ?? "" : "bg-neutral-100 text-neutral-600"}`}>
                       {r ? estadoLabel[r.estado] ?? r.estado : "Sin reporte"}
                     </span>
                     {r && (r.estado === "enviado" || r.estado === "requiere_correccion") && (
@@ -151,7 +151,7 @@ export function ReportesDiariosPage() {
                   </div>
                 </div>
                 {r?.dificultades && (
-                  <p className="text-xs text-danger-600 text-danger-600 mt-2">⚠ {r.dificultades}</p>
+                  <p className="text-xs text-danger-600 mt-2">⚠ {r.dificultades}</p>
                 )}
               </div>
             );
@@ -167,7 +167,7 @@ export function ReportesDiariosPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-neutral-900 mb-1">Mi reporte diario</h1>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">
+      <p className="text-sm text-neutral-500 mb-6">
         {new Date().toLocaleDateString("es-ES", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
         {" · "}
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -191,17 +191,17 @@ export function ReportesDiariosPage() {
         <Campo label="Observaciones adicionales" value={observaciones} onChange={setObservaciones} />
 
         {/* ─── Archivos adjuntos ──────────────────── */}
-        <div className="border-t border-neutral-100 border-neutral-200 pt-4">
-          <p className="text-xs font-medium text-neutral-700 text-neutral-300 mb-2">
+        <div className="border-t border-neutral-200 pt-4">
+          <p className="text-xs font-medium text-neutral-700 mb-2">
             📎 Archivos adjuntos ({archivos.length})
           </p>
           {archivos.length === 0 ? (
-            <p className="text-xs text-neutral-400 text-neutral-500 mb-3">Sin archivos adjuntos. Agrega documentos, capturas o evidencias.</p>
+            <p className="text-xs text-neutral-500 mb-3">Sin archivos adjuntos. Agrega documentos, capturas o evidencias.</p>
           ) : (
             <div className="flex flex-col gap-1.5 mb-3">
               {archivos.map((a) => (
-                <div key={a.id} className="flex items-center justify-between bg-neutral-50 bg-neutral-100 rounded-lg px-3 py-2">
-                  <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 text-primary-600 hover:underline truncate mr-2">
+                <div key={a.id} className="flex items-center justify-between bg-neutral-100 rounded-lg px-3 py-2">
+                  <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline truncate mr-2">
                     {a.nombre}
                   </a>
                   <button onClick={() => eliminarArchivo(a.id)} className="text-xs text-danger-500 hover:underline shrink-0">✕</button>
@@ -227,25 +227,25 @@ export function ReportesDiariosPage() {
             <button
               onClick={agregarArchivo}
               disabled={agregandoArchivo || !nuevoArchivoNombre.trim() || !nuevoArchivoUrl.trim()}
-              className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg hover:bg-primary-600 disabled:opacity-50 shrink-0"
+              className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800 shrink-0"
             >
               {agregandoArchivo ? "..." : "Agregar"}
             </button>
           </div>
         </div>
 
-        <div className="flex gap-2 justify-end pt-2 border-t border-neutral-100 border-neutral-200">
+        <div className="flex gap-2 justify-end pt-2 border-t border-neutral-200">
           <button
             onClick={() => guardar(false)}
             disabled={guardando}
-            className="px-4 py-2 text-sm bg-neutral-100 bg-neutral-100 text-neutral-700 text-neutral-600 rounded-lg hover:bg-neutral-200 disabled:opacity-50"
+            className="px-4 py-2 text-sm bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 disabled:opacity-50"
           >
             {guardando ? "Guardando..." : "Guardar borrador"}
           </button>
           <button
             onClick={() => guardar(true)}
             disabled={guardando || reporte.estado === "aprobado"}
-            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+            className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800"
           >
             Enviar al líder
           </button>
@@ -258,7 +258,7 @@ export function ReportesDiariosPage() {
 function Campo({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div>
-      <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">{label}</label>
+      <label className="text-xs font-medium text-neutral-600 block mb-1">{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}

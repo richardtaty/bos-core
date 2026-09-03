@@ -58,7 +58,7 @@ export function RecursosPage() {
             + Agregar recurso
           </button>
       </div>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-4">Enlaces y herramientas del equipo · Las contraseñas se guardan en el gestor seguro</p>
+      <p className="text-sm text-neutral-500 mb-4">Enlaces y herramientas del equipo · Las contraseñas se guardan en el gestor seguro</p>
 
       {/* Filtro por cliente */}
       <div className="flex items-center gap-2 mb-4">
@@ -71,7 +71,7 @@ export function RecursosPage() {
 
       {/* Lista agrupada por cliente */}
       {recursos.length === 0 ? (
-        <p className="text-sm text-neutral-400 text-center py-8">No hay recursos registrados todavía.</p>
+        <p className="text-sm text-neutral-600 text-center py-8">No hay recursos registrados todavía.</p>
       ) : (
         <div className="flex flex-col gap-6">
           {Object.entries(
@@ -83,16 +83,16 @@ export function RecursosPage() {
             }, {} as Record<string, Recurso[]>)
           ).map(([clienteKey, items]) => (
             <div key={clienteKey}>
-              <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-2">{clienteKey}</h3>
+              <h3 className="text-sm font-medium text-neutral-700 mb-2">{clienteKey}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {items.map((r) => (
                   <div key={r.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-3 flex items-start justify-between">
                     <div>
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 text-primary-600 hover:underline">
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 hover:underline">
                         {r.nombre}
                       </a>
-                      {r.descripcion && <p className="text-xs text-neutral-500 text-neutral-400 mt-0.5">{r.descripcion}</p>}
-                      <p className="text-[10px] text-neutral-400 text-neutral-500 mt-1">Agregado por {r.autorNombre}</p>
+                      {r.descripcion && <p className="text-xs text-neutral-500 mt-0.5">{r.descripcion}</p>}
+                      <p className="text-[10px] text-neutral-500 mt-1">Agregado por {r.autorNombre}</p>
                     </div>
                     {esAdmin && (
                       <button onClick={() => eliminar(r.id)} className="text-xs text-danger-500 hover:underline shrink-0">✕</button>
@@ -112,24 +112,24 @@ export function RecursosPage() {
             <h3 className="text-lg font-semibold text-neutral-900 mb-4">Nuevo recurso</h3>
             <div className="flex flex-col gap-3">
               <div>
-                <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Nombre *</label>
+                <label className="text-xs font-medium text-neutral-600 block mb-1">Nombre *</label>
                 <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" placeholder="Ej: Google Drive" />
               </div>
               <div>
-                <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">URL *</label>
+                <label className="text-xs font-medium text-neutral-600 block mb-1">URL *</label>
                 <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" placeholder="https://..." />
               </div>
               <div>
-                <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Descripción</label>
+                <label className="text-xs font-medium text-neutral-600 block mb-1">Descripción</label>
                 <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Cliente</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Cliente</label>
                   <input type="text" value={cliente} onChange={(e) => setCliente(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm" placeholder="Ej: Yerling" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-neutral-600 text-neutral-400 block mb-1">Categoría</label>
+                  <label className="text-xs font-medium text-neutral-600 block mb-1">Categoría</label>
                   <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
                     <option value="">General</option>
                     <option value="diseno">Diseño</option>
@@ -143,8 +143,8 @@ export function RecursosPage() {
               </div>
             </div>
             <div className="flex gap-2 justify-end mt-5">
-              <button onClick={() => setMostrarForm(false)} className="px-4 py-2 text-sm text-neutral-600 text-neutral-400 hover:bg-neutral-100 hover:bg-neutral-100 rounded-lg">Cancelar</button>
-              <button onClick={crear} disabled={guardando || !nombre.trim() || !url.trim()} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50">
+              <button onClick={() => setMostrarForm(false)} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">Cancelar</button>
+              <button onClick={crear} disabled={guardando || !nombre.trim() || !url.trim()} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800">
                 {guardando ? "Creando..." : "Crear recurso"}
               </button>
             </div>

@@ -60,7 +60,7 @@ function MetasEditor() {
         <button
           onClick={guardar}
           disabled={guardando}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:bg-primary-100 disabled:text-primary-800"
         >
           Guardar metas
         </button>
@@ -99,7 +99,7 @@ export function PodcastEquipoPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-neutral-400 border-b border-neutral-200">
+              <tr className="text-left text-xs text-neutral-600 border-b border-neutral-200">
                 <th className="py-2 pr-3">Empleado</th>
                 <th className="py-2 px-3 text-right">Score</th>
                 <th className="py-2 px-3 text-right">Contactados</th>

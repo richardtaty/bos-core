@@ -28,28 +28,28 @@ export function CambiarPasswordModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-neutral-900/40 bg-black/60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <form onSubmit={onSubmit} className="bg-neutral-50 rounded-xl shadow-lg w-full max-w-sm p-6 border border-neutral-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-neutral-900 text-neutral-800">Cambiar contraseña</h2>
-          <button type="button" onClick={onClose} className="text-neutral-400 text-neutral-500 hover:text-neutral-600 hover:text-neutral-300">✕</button>
+          <h2 className="text-lg font-semibold text-neutral-900">Cambiar contraseña</h2>
+          <button type="button" onClick={onClose} className="text-neutral-500 hover:text-neutral-600">✕</button>
         </div>
 
         {ok ? (
           <>
-            <p className="text-sm text-success-700 text-success-600 bg-success-50 bg-success-500/10 rounded-lg p-3 mb-4">Contraseña actualizada correctamente.</p>
+            <p className="text-sm text-success-700 bg-success-500/10 rounded-lg p-3 mb-4">Contraseña actualizada correctamente.</p>
             <button type="button" onClick={onClose} className="w-full text-sm bg-primary-500 text-white py-2 rounded-lg font-medium">Listo</button>
           </>
         ) : (
           <>
-            <label className="text-xs text-neutral-600 text-neutral-400">Contraseña actual</label>
-            <input value={passwordActual} onChange={(e) => setPasswordActual(e.target.value)} type="password" required className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3" />
-            <label className="text-xs text-neutral-600 text-neutral-400">Contraseña nueva</label>
-            <input value={passwordNueva} onChange={(e) => setPasswordNueva(e.target.value)} type="password" required className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3" />
-            <label className="text-xs text-neutral-600 text-neutral-400">Confirmar contraseña nueva</label>
-            <input value={confirmar} onChange={(e) => setConfirmar(e.target.value)} type="password" required className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3" />
-            {error && <p className="text-xs text-danger-600 text-danger-600 mb-3">{error}</p>}
-            <button disabled={enviando} className="w-full text-sm bg-primary-500 text-white py-2 rounded-lg font-medium disabled:opacity-50">
+            <label className="text-xs text-neutral-600">Contraseña actual</label>
+            <input value={passwordActual} onChange={(e) => setPasswordActual(e.target.value)} type="password" required className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3" />
+            <label className="text-xs text-neutral-600">Contraseña nueva</label>
+            <input value={passwordNueva} onChange={(e) => setPasswordNueva(e.target.value)} type="password" required className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3" />
+            <label className="text-xs text-neutral-600">Confirmar contraseña nueva</label>
+            <input value={confirmar} onChange={(e) => setConfirmar(e.target.value)} type="password" required className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3" />
+            {error && <p className="text-xs text-danger-600 mb-3">{error}</p>}
+            <button disabled={enviando} className="w-full text-sm bg-primary-500 text-white py-2 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800">
               {enviando ? "Guardando..." : "Actualizar contraseña"}
             </button>
           </>

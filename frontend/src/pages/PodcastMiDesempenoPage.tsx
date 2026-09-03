@@ -39,7 +39,7 @@ export function PodcastMiDesempenoPage() {
         <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 flex flex-col items-center justify-center">
           <p className="text-xs text-neutral-500 mb-1">Performance Score</p>
           <p className={`text-5xl font-bold ${nivelScore}`}>{d.score.total}</p>
-          <p className="text-xs text-neutral-400 mt-1">de 100</p>
+          <p className="text-xs text-neutral-500 mt-1">de 100</p>
         </div>
         <div className="md:col-span-2 bg-neutral-50 border border-neutral-200 rounded-xl p-5 flex flex-col gap-3 justify-center">
           <ScoreBar label="Actividad (20%)" valor={d.score.actividad} max={20} />
@@ -54,7 +54,7 @@ export function PodcastMiDesempenoPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-neutral-400 border-b border-neutral-200">
+              <tr className="text-left text-xs text-neutral-600 border-b border-neutral-200">
                 <th className="py-2 pr-2">KPI</th>
                 <th className="py-2 px-2 text-right">Hoy</th>
                 <th className="py-2 px-2 text-right">Ayer</th>

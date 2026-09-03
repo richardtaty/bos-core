@@ -203,22 +203,22 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
     }
   };
 
-  if (!tablero) return <p className="text-sm text-neutral-500 text-neutral-400">Cargando tablero...</p>;
+  if (!tablero) return <p className="text-sm text-neutral-500">Cargando tablero...</p>;
 
   return (
     <div>
       {metricas && (
         <div className="grid grid-cols-3 gap-3 mb-5 max-w-lg">
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3">
-            <p className="text-xs text-neutral-500 text-neutral-400">Tasa de conversión</p>
+            <p className="text-xs text-neutral-500">Tasa de conversión</p>
             <p className="text-lg font-semibold text-neutral-800">{metricas.tasaConversion}%</p>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3">
-            <p className="text-xs text-neutral-500 text-neutral-400">Valor abierto</p>
+            <p className="text-xs text-neutral-500">Valor abierto</p>
             <p className="text-lg font-semibold text-neutral-800">${metricas.valorAbierto.toLocaleString()}</p>
           </div>
           <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-3">
-            <p className="text-xs text-neutral-500 text-neutral-400">Registros abiertos</p>
+            <p className="text-xs text-neutral-500">Registros abiertos</p>
             <p className="text-lg font-semibold text-neutral-800">{metricas.abiertos}</p>
           </div>
         </div>
@@ -230,12 +230,12 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
             key={etapa.id}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => onDrop(e, etapa.id, etapa.esPerdida)}
-            className="bg-neutral-100 bg-neutral-100 rounded-xl p-2.5 w-64 shrink-0 flex flex-col"
+            className="bg-neutral-100 rounded-xl p-2.5 w-64 shrink-0 flex flex-col"
             style={{ maxHeight: altoColumna }}
           >
             <div className="flex items-center justify-between px-1 mb-2 shrink-0">
-              <p className="text-xs font-semibold text-neutral-600 text-neutral-400">{etapa.nombre}</p>
-              <span className="text-[11px] bg-neutral-100 rounded-full px-1.5 py-0.5 text-neutral-500 text-neutral-400">{etapa.registros.length}</span>
+              <p className="text-xs font-semibold text-neutral-600">{etapa.nombre}</p>
+              <span className="text-[11px] bg-neutral-100 rounded-full px-1.5 py-0.5 text-neutral-500">{etapa.registros.length}</span>
             </div>
             <div className="flex flex-col gap-2 overflow-y-auto min-h-0 pipeline-cards-scroll">
               {etapa.registros.map((r) => (
@@ -245,10 +245,10 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
                   onDragStart={() => setArrastrando(r.id)}
                   className="bg-neutral-50 rounded-lg border border-neutral-200 p-2.5 text-sm cursor-move shadow-sm "
                 >
-                  <p className="font-medium text-neutral-800 text-neutral-200">{r.personaNombre ?? "Sin persona asignada"}</p>
+                  <p className="font-medium text-neutral-800">{r.personaNombre ?? "Sin persona asignada"}</p>
                   {r.valor != null && (
                     <>
-                      <p className="text-xs text-neutral-500 text-neutral-400">
+                      <p className="text-xs text-neutral-500">
                         ${r.valor.toLocaleString()}
                         {(r.totalPagado ?? 0) > 0 && <span className="text-success-600"> · pagado ${r.totalPagado!.toLocaleString()}</span>}
                       </p>
@@ -257,7 +257,7 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
                       )}
                       {r.saldoPendiente === 0 && <p className="text-[11px] text-success-600 font-medium">Saldado ✓</p>}
                       {(r.proximoPago ?? 0) > 0 && (
-                        <p className="text-[11px] text-neutral-500 text-neutral-400">
+                        <p className="text-[11px] text-neutral-500">
                           Próximo pago: ${r.proximoPago!.toLocaleString()}
                           {r.metodoPago ? ` · ${r.metodoPago}` : ""}
                         </p>
@@ -289,18 +289,18 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
       </div>
 
       {pendienteMotivo && (
-        <div className="fixed inset-0 bg-neutral-900/40 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-neutral-50 rounded-xl p-5 w-full max-w-sm border border-neutral-200">
             <p className="text-sm font-medium mb-2 text-neutral-800">Motivo de pérdida requerido</p>
-            <p className="text-xs text-neutral-500 text-neutral-400 mb-3">No se puede mover un registro a esta etapa sin indicar por qué se perdió.</p>
+            <p className="text-xs text-neutral-500 mb-3">No se puede mover un registro a esta etapa sin indicar por qué se perdió.</p>
             <input
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               placeholder="Ej: Precio, timing, sin respuesta..."
-              className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm mb-3"
+              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm mb-3"
             />
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setPendienteMotivo(null); setMotivo(""); }} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-300">
+              <button onClick={() => { setPendienteMotivo(null); setMotivo(""); }} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600">
                 Cancelar
               </button>
               <button
@@ -310,7 +310,7 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
                   setMotivo("");
                 }}
                 disabled={!motivo}
-                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:opacity-50"
+                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:bg-primary-100 disabled:text-primary-800"
               >
                 Confirmar
               </button>
@@ -320,12 +320,12 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
       )}
 
       {pagoModal && (
-        <div className="fixed inset-0 bg-neutral-900/40 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-neutral-50 rounded-xl p-5 w-full max-w-sm border border-neutral-200">
             <p className="text-sm font-medium mb-1 text-neutral-800">Registrar pago — {pagoModal.personaNombre}</p>
 
             {!editandoValor ? (
-              <p className="text-xs text-neutral-500 text-neutral-400 mb-1">
+              <p className="text-xs text-neutral-500 mb-1">
                 Total ${pagoModal.valor?.toLocaleString()} · Pagado ${(pagoModal.totalPagado ?? 0).toLocaleString()} · Saldo actual ${saldoActual.toLocaleString()}
                 {" · "}
                 <button type="button" onClick={() => setEditandoValor(true)} className="text-primary-600 hover:underline">
@@ -333,20 +333,20 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
                 </button>
               </p>
             ) : (
-              <div className="bg-neutral-50 bg-neutral-100 border border-neutral-200 rounded-lg p-2.5 mb-2">
-                <label className="text-xs text-neutral-600 text-neutral-400">Precio total correcto del trato (USD)</label>
+              <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-2.5 mb-2">
+                <label className="text-xs text-neutral-600">Precio total correcto del trato (USD)</label>
                 <div className="flex gap-2 mt-1">
                   <input
                     type="number"
                     value={nuevoValor}
                     onChange={(e) => setNuevoValor(e.target.value)}
-                    className="flex-1 border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-2 py-1.5 text-sm"
+                    className="flex-1 border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-2 py-1.5 text-sm"
                   />
                   <button
                     type="button"
                     onClick={guardarNuevoValor}
                     disabled={guardandoValor}
-                    className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg font-medium disabled:opacity-50"
+                    className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800"
                   >
                     {guardandoValor ? "..." : "Guardar"}
                   </button>
@@ -359,31 +359,31 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
 
             <div className="mb-3" />
 
-            <label className="text-xs text-neutral-600 text-neutral-400">Monto del pago (USD)</label>
+            <label className="text-xs text-neutral-600">Monto del pago (USD)</label>
             <input
               type="number"
               value={montoPago}
               onChange={(e) => setMontoPago(e.target.value)}
-              className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
               placeholder="0"
             />
 
-            <label className="text-xs text-neutral-600 text-neutral-400">Nota (opcional)</label>
+            <label className="text-xs text-neutral-600">Nota (opcional)</label>
             <input
               value={notaPago}
               onChange={(e) => setNotaPago(e.target.value)}
-              className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
               placeholder="Ej: Pago inicial, transferencia..."
             />
 
-            <label className="text-xs text-neutral-600 text-neutral-400">Fecha en que se hizo el pago</label>
+            <label className="text-xs text-neutral-600">Fecha en que se hizo el pago</label>
             <input
               type="date"
               value={fechaPago}
               onChange={(e) => setFechaPago(e.target.value)}
-              className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
             />
-            <p className="text-[11px] text-neutral-400 text-neutral-500 -mt-2 mb-3">Cambia esto si estás registrando una venta de un día anterior.</p>
+            <p className="text-[11px] text-neutral-500 -mt-2 mb-3">Cambia esto si estás registrando una venta de un día anterior.</p>
 
             {montoNum > 0 && (
               <p className={`text-xs mb-3 ${saldoDespues > 0 ? "text-warning-600" : "text-success-600"}`}>
@@ -393,15 +393,15 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
 
             {requiereFecha && (
               <>
-                <label className="text-xs text-neutral-600 text-neutral-400">Próxima fecha de cobro *</label>
+                <label className="text-xs text-neutral-600">Próxima fecha de cobro *</label>
                 <input
                   type="date"
                   value={fechaProximoCobro}
                   onChange={(e) => setFechaProximoCobro(e.target.value)}
-                  className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
                 />
 
-                <label className="text-xs text-neutral-600 text-neutral-400">Próximo pago (USD) — cuánto se cobra en esa fecha</label>
+                <label className="text-xs text-neutral-600">Próximo pago (USD) — cuánto se cobra en esa fecha</label>
                 <input
                   type="number"
                   value={proximoPago}
@@ -409,14 +409,14 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
                   min="0"
                   step="0.01"
                   placeholder={saldoDespues > 0 ? String(saldoDespues) : ""}
-                  className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3 font-mono"
+                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3 font-mono"
                 />
 
-                <label className="text-xs text-neutral-600 text-neutral-400">Método de pago</label>
+                <label className="text-xs text-neutral-600">Método de pago</label>
                 <select
                   value={metodoPago}
                   onChange={(e) => setMetodoPago(e.target.value)}
-                  className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
                 >
                   <option value="">Selecciona...</option>
                   <option value="Tarjeta">Tarjeta</option>
@@ -431,13 +431,13 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
             {errorPago && <p className="text-xs text-danger-600 mb-3">{errorPago}</p>}
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setPagoModal(null)} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-300">
+              <button onClick={() => setPagoModal(null)} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600">
                 Cancelar
               </button>
               <button
                 onClick={confirmarPago}
                 disabled={guardandoPago}
-                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:opacity-50"
+                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:bg-primary-100 disabled:text-primary-800"
               >
                 {guardandoPago ? "Guardando..." : "Confirmar pago"}
               </button>
@@ -447,28 +447,28 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
       )}
 
       {cerrarModal && (
-        <div className="fixed inset-0 bg-neutral-900/40 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-neutral-50 rounded-xl p-5 w-full max-w-sm border border-neutral-200">
             <p className="text-sm font-medium mb-1 text-neutral-800">Cerrar venta — {cerrarModal.personaNombre}</p>
-            <p className="text-xs text-neutral-500 text-neutral-400 mb-3">
+            <p className="text-xs text-neutral-500 mb-3">
               Fija el total, registra lo cobrado hoy y mueve la tarjeta a la etapa ganada en un solo paso.
             </p>
 
-            <label className="text-xs text-neutral-600 text-neutral-400">Monto total de la venta (USD)</label>
+            <label className="text-xs text-neutral-600">Monto total de la venta (USD)</label>
             <input
               type="number"
               value={cvMontoTotal}
               onChange={(e) => cambiarCvTotal(e.target.value)}
-              className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
               placeholder="0"
             />
 
-            <label className="text-xs text-neutral-600 text-neutral-400">Cobrado hoy (USD)</label>
+            <label className="text-xs text-neutral-600">Cobrado hoy (USD)</label>
             <input
               type="number"
               value={cvMontoCobrado}
               onChange={(e) => setCvMontoCobrado(e.target.value)}
-              className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-1"
+              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-1"
               placeholder="0"
             />
 
@@ -480,19 +480,19 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
 
             {cvRequiereFecha && (
               <>
-                <label className="text-xs text-neutral-600 text-neutral-400">Próxima fecha de cobro *</label>
+                <label className="text-xs text-neutral-600">Próxima fecha de cobro *</label>
                 <input
                   type="date"
                   value={cvFechaProximoCobro}
                   onChange={(e) => setCvFechaProximoCobro(e.target.value)}
-                  className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
                 />
 
-                <label className="text-xs text-neutral-600 text-neutral-400">Método de pago</label>
+                <label className="text-xs text-neutral-600">Método de pago</label>
                 <select
                   value={cvMetodoPago}
                   onChange={(e) => setCvMetodoPago(e.target.value)}
-                  className="w-full border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-1.5 text-sm mb-3"
+                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
                 >
                   <option value="">Selecciona...</option>
                   <option value="Tarjeta">Tarjeta</option>
@@ -507,13 +507,13 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
             {cvError && <p className="text-xs text-danger-600 mb-3">{cvError}</p>}
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setCerrarModal(null)} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-300">
+              <button onClick={() => setCerrarModal(null)} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600">
                 Cancelar
               </button>
               <button
                 onClick={confirmarCerrarVenta}
                 disabled={cvGuardando}
-                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:opacity-50"
+                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:bg-primary-100 disabled:text-primary-800"
               >
                 {cvGuardando ? "Cerrando..." : "Cerrar venta"}
               </button>

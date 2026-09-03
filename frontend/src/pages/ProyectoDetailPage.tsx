@@ -40,13 +40,13 @@ export function ProyectoDetailPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800">{proyecto.nombre}</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">{proyecto.nombre}</h1>
         <button onClick={() => setMostrarTareaForm(true)} className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600">
           + Nueva tarea
         </button>
       </div>
-      {proyecto.objetivo && <p className="text-sm text-neutral-500 text-neutral-400 mb-2">{proyecto.objetivo}</p>}
-      <div className="flex flex-wrap gap-3 text-xs text-neutral-500 text-neutral-400 mb-6">
+      {proyecto.objetivo && <p className="text-sm text-neutral-500 mb-2">{proyecto.objetivo}</p>}
+      <div className="flex flex-wrap gap-3 text-xs text-neutral-500 mb-6">
         <span>👤 {proyecto.responsableNombre}</span>
         <span>📁 {proyecto.departamentoNombre}</span>
         {proyecto.cliente && <span>🏢 {proyecto.cliente}</span>}
@@ -65,9 +65,9 @@ export function ProyectoDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Tareas */}
         <div className="lg:col-span-2">
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Tareas del proyecto</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Tareas del proyecto</h3>
           {tareas.length === 0 ? (
-            <p className="text-sm text-neutral-400 text-neutral-500">Sin tareas. Agrega la primera.</p>
+            <p className="text-sm text-neutral-500">Sin tareas. Agrega la primera.</p>
           ) : (
             <div className="flex flex-col gap-3">
               {tareas.map((t) => <TareaCard key={t.id} tarea={t} onUpdate={cargar} usuarios={usuarios} />)}
@@ -77,19 +77,19 @@ export function ProyectoDetailPage() {
 
         {/* Comentarios */}
         <div>
-          <h3 className="text-sm font-medium text-neutral-700 text-neutral-300 mb-3">Comentarios</h3>
+          <h3 className="text-sm font-medium text-neutral-700 mb-3">Comentarios</h3>
           <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-            {(proyecto.comentarios ?? []).length === 0 && <p className="text-xs text-neutral-400 text-neutral-500 mb-3">Sin comentarios.</p>}
+            {(proyecto.comentarios ?? []).length === 0 && <p className="text-xs text-neutral-500 mb-3">Sin comentarios.</p>}
             {(proyecto.comentarios ?? []).map((c) => (
-              <div key={c.id} className="bg-neutral-50 bg-neutral-100 rounded-lg p-2 text-xs mb-2">
-                <p className="text-neutral-700 text-neutral-300">{c.texto}</p>
-                <p className="text-neutral-400 text-neutral-500 mt-1">{c.autorNombre} · {new Date(c.fecha).toLocaleString("es-ES")}</p>
+              <div key={c.id} className="bg-neutral-100 rounded-lg p-2 text-xs mb-2">
+                <p className="text-neutral-700">{c.texto}</p>
+                <p className="text-neutral-500 mt-1">{c.autorNombre} · {new Date(c.fecha).toLocaleString("es-ES")}</p>
               </div>
             ))}
             <div className="flex gap-2">
               <input value={nuevoComentario} onChange={(e) => setNuevoComentario(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && agregarComentario()}
-                placeholder="Comentario..." className="flex-1 text-xs border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-2 py-1.5" />
+                placeholder="Comentario..." className="flex-1 text-xs border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-2 py-1.5" />
               <button onClick={agregarComentario} className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg">Enviar</button>
             </div>
           </div>

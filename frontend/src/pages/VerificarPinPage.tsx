@@ -108,16 +108,16 @@ export function VerificarPinPage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 bg-neutral-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
       <div className="bg-neutral-50 rounded-2xl shadow-xl border border-neutral-200 p-8 w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="w-12 h-12 rounded-xl bg-primary-100 text-primary-600 flex items-center justify-center mx-auto mb-3 text-xl">
             🔐
           </div>
-          <h1 className="text-lg font-semibold text-neutral-900 text-neutral-800 mb-1">
+          <h1 className="text-lg font-semibold text-neutral-900 mb-1">
             Verificación de identidad
           </h1>
-          <p className="text-xs text-neutral-500 text-neutral-400 leading-relaxed">
+          <p className="text-xs text-neutral-500 leading-relaxed">
             Por seguridad, introduce tu PIN personal para confirmar que realmente eres tú quien está accediendo a BOS.
           </p>
         </div>
@@ -148,13 +148,13 @@ export function VerificarPinPage() {
                 <button
                   onClick={usarCodigoRecuperacion}
                   disabled={verificando}
-                  className="w-full text-sm bg-primary-600 text-white py-2 rounded-lg font-medium disabled:opacity-50"
+                  className="w-full text-sm bg-primary-600 text-white py-2 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800"
                 >
                   {verificando ? "Verificando..." : "Usar código"}
                 </button>
               </div>
             )}
-            <button onClick={cerrarSesion} className="block mx-auto mt-4 text-xs text-neutral-400 hover:underline">
+            <button onClick={cerrarSesion} className="block mx-auto mt-4 text-xs text-neutral-500 hover:underline">
               Volver al inicio de sesión
             </button>
           </div>
@@ -173,11 +173,11 @@ export function VerificarPinPage() {
             <button
               onClick={usarCodigoRecuperacion}
               disabled={verificando || !codigoRecuperacion.trim()}
-              className="w-full text-sm bg-primary-600 text-white py-2 rounded-lg font-medium disabled:opacity-50"
+              className="w-full text-sm bg-primary-600 text-white py-2 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800"
             >
               {verificando ? "Verificando..." : "Verificar código"}
             </button>
-            <button onClick={() => { setModoRecuperacion(false); setError(null); }} className="block mx-auto text-xs text-neutral-400 hover:underline">
+            <button onClick={() => { setModoRecuperacion(false); setError(null); }} className="block mx-auto text-xs text-neutral-500 hover:underline">
               Volver al PIN
             </button>
           </div>
@@ -231,7 +231,7 @@ export function VerificarPinPage() {
 
             <button
               onClick={cerrarSesion}
-              className="w-full text-xs text-neutral-400 hover:text-neutral-600 hover:underline text-center"
+              className="w-full text-xs text-neutral-500 hover:text-neutral-600 hover:underline text-center"
             >
               Cerrar sesión
             </button>

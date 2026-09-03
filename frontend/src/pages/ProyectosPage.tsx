@@ -140,21 +140,21 @@ export function ProyectosPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800">Proyectos</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Proyectos</h1>
         <button onClick={() => setMostrarForm(true)} className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600">
           + Nuevo proyecto
         </button>
       </div>
-      <p className="text-sm text-neutral-500 text-neutral-400 mb-6">Gestión de proyectos por departamento</p>
+      <p className="text-sm text-neutral-500 mb-6">Gestión de proyectos por departamento</p>
 
       {/* Filtro */}
-      <select value={filtroDepto} onChange={(e) => setFiltroDepto(e.target.value)} className="text-xs border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 mb-4">
+      <select value={filtroDepto} onChange={(e) => setFiltroDepto(e.target.value)} className="text-xs border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 mb-4">
         <option value="">Todos los departamentos</option>
         {deptos.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
       </select>
 
       {proyectos.length === 0 ? (
-        <p className="text-sm text-neutral-400 text-neutral-500 text-center py-8">No hay proyectos. Crea el primero.</p>
+        <p className="text-sm text-neutral-500 text-center py-8">No hay proyectos. Crea el primero.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {proyectos.map((p) => (
@@ -168,7 +168,7 @@ export function ProyectosPage() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-sm text-neutral-900 text-neutral-800">{p.nombre}</h3>
+                <h3 className="font-medium text-sm text-neutral-900">{p.nombre}</h3>
                 <div className="flex items-center gap-2">
                   <PrioridadBadge p={p.prioridad} />
                   <button
@@ -190,15 +190,15 @@ export function ProyectosPage() {
                   </button>
                 </div>
               </div>
-              {p.objetivo && <p className="text-xs text-neutral-500 text-neutral-400 mb-2 line-clamp-2">{p.objetivo}</p>}
-              <div className="text-xs text-neutral-500 text-neutral-400 space-y-0.5">
+              {p.objetivo && <p className="text-xs text-neutral-500 mb-2 line-clamp-2">{p.objetivo}</p>}
+              <div className="text-xs text-neutral-500 space-y-0.5">
                 <p>👤 {p.responsableNombre} · 📁 {p.departamentoNombre}</p>
                 {p.cliente && <p>🏢 {p.cliente}</p>}
                 {p.fechaEntrega && <p>📅 Entrega: {new Date(p.fechaEntrega).toLocaleDateString("es-ES")}</p>}
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <FaseBadge estado={p.estado} />
-                {!p.activo && <span className="text-[10px] text-neutral-400">· inactivo</span>}
+                {!p.activo && <span className="text-[10px] text-neutral-500">· inactivo</span>}
               </div>
             </Link>
           ))}
@@ -209,30 +209,30 @@ export function ProyectosPage() {
       {mostrarForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setMostrarForm(false)}>
           <form onSubmit={crearProyecto} className="bg-neutral-50 rounded-xl p-6 w-full max-w-lg shadow-xl border border-neutral-200" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-neutral-900 text-neutral-800 mb-4">Nuevo proyecto</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Nuevo proyecto</h3>
             <div className="flex flex-col gap-3">
-              <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre del proyecto *" className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" required />
-              <input value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder="Objetivo" className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" />
-              <input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Cliente (opcional)" className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" />
+              <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre del proyecto *" className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" required />
+              <input value={objetivo} onChange={(e) => setObjetivo(e.target.value)} placeholder="Objetivo" className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" />
+              <input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Cliente (opcional)" className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" />
               <div className="grid grid-cols-2 gap-3">
-                <select value={responsableId} onChange={(e) => setResponsableId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" required>
+                <select value={responsableId} onChange={(e) => setResponsableId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" required>
                   <option value="">Responsable *</option>
                   {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
                 </select>
-                <select value={departamentoId} onChange={(e) => setDepartamentoId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" required>
+                <select value={departamentoId} onChange={(e) => setDepartamentoId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" required>
                   <option value="">Departamento *</option>
                   {deptos.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" />
-                <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm">
+                <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" />
+                <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm">
                   <option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="urgente">Urgente</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-2 justify-end mt-5">
-              <button type="button" onClick={() => setMostrarForm(false)} className="px-4 py-2 text-sm text-neutral-600 text-neutral-400 hover:bg-neutral-100 hover:bg-neutral-100 rounded-lg">Cancelar</button>
+              <button type="button" onClick={() => setMostrarForm(false)} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">Cancelar</button>
               <button type="submit" className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600">Crear proyecto</button>
             </div>
           </form>
@@ -243,38 +243,38 @@ export function ProyectosPage() {
       {editando && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setEditando(null)}>
           <form onSubmit={guardarEdicion} className="bg-neutral-50 rounded-xl p-6 w-full max-w-lg shadow-xl border border-neutral-200" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-neutral-900 text-neutral-800 mb-4">Editar proyecto</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Editar proyecto</h3>
             <div className="flex flex-col gap-3">
-              <input value={eNombre} onChange={(e) => setENombre(e.target.value)} placeholder="Nombre del proyecto *" className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" required />
-              <input value={eObjetivo} onChange={(e) => setEObjetivo(e.target.value)} placeholder="Objetivo" className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" />
-              <input value={eCliente} onChange={(e) => setECliente(e.target.value)} placeholder="Cliente (opcional)" className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" />
+              <input value={eNombre} onChange={(e) => setENombre(e.target.value)} placeholder="Nombre del proyecto *" className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" required />
+              <input value={eObjetivo} onChange={(e) => setEObjetivo(e.target.value)} placeholder="Objetivo" className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" />
+              <input value={eCliente} onChange={(e) => setECliente(e.target.value)} placeholder="Cliente (opcional)" className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" />
               <div className="grid grid-cols-2 gap-3">
-                <select value={eResponsableId} onChange={(e) => setEResponsableId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" required>
+                <select value={eResponsableId} onChange={(e) => setEResponsableId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" required>
                   <option value="">Responsable *</option>
                   {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
                 </select>
-                <select value={eDepartamentoId} onChange={(e) => setEDepartamentoId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm" required>
+                <select value={eDepartamentoId} onChange={(e) => setEDepartamentoId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" required>
                   <option value="">Departamento *</option>
                   {deptos.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={eFechaEntrega} onChange={(e) => setEFechaEntrega(e.target.value)} className="border border-neutral-200 bg-transparent text-neutral-200 rounded-lg px-3 py-2 text-sm" />
-                <select value={ePrioridad} onChange={(e) => setEPrioridad(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm">
+                <input type="date" value={eFechaEntrega} onChange={(e) => setEFechaEntrega(e.target.value)} className="border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-2 text-sm" />
+                <select value={ePrioridad} onChange={(e) => setEPrioridad(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm">
                   <option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="urgente">Urgente</option>
                 </select>
               </div>
               <div>
                 <span className="text-xs text-neutral-500 block mb-1">Estado</span>
-                <select value={eEstado} onChange={(e) => setEEstado(e.target.value as Proyecto["estado"])} className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-2 text-sm w-full">
+                <select value={eEstado} onChange={(e) => setEEstado(e.target.value as Proyecto["estado"])} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm w-full">
                   {ESTADOS.map((s) => <option key={s.valor} value={s.valor}>{s.label}</option>)}
                 </select>
               </div>
-              {error && <p className="text-sm text-danger-600 text-danger-600">{error}</p>}
+              {error && <p className="text-sm text-danger-600">{error}</p>}
             </div>
             <div className="flex gap-2 justify-end mt-5">
-              <button type="button" onClick={() => setEditando(null)} className="px-4 py-2 text-sm text-neutral-600 text-neutral-400 hover:bg-neutral-100 hover:bg-neutral-100 rounded-lg">Cancelar</button>
-              <button type="submit" disabled={guardando} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50">
+              <button type="button" onClick={() => setEditando(null)} className="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg">Cancelar</button>
+              <button type="submit" disabled={guardando} className="px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800">
                 {guardando ? "Guardando…" : "Guardar cambios"}
               </button>
             </div>

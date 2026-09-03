@@ -165,7 +165,7 @@ export function ClientMap({ onStateClick, selectedState }: { onStateClick?: (abb
             <div className="absolute z-20 bg-neutral-900 border border-neutral-200 rounded-lg px-3 py-2 shadow-xl pointer-events-none"
               style={{ left: `${tooltipPos.x}px`, top: `${tooltipPos.y}px`, transform: "translate(-50%, -100%)" }}>
               <p className="text-xs font-semibold text-neutral-200 whitespace-nowrap">{hoveredInfo.name}</p>
-              <p className="text-[11px] text-primary-600">{hoveredInfo.count} cliente{hoveredInfo.count !== 1 ? "s" : ""}</p>
+              <p className="text-[11px] text-primary-400">{hoveredInfo.count} cliente{hoveredInfo.count !== 1 ? "s" : ""}</p>
             </div>
           )}
         </div>

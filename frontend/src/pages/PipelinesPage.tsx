@@ -17,11 +17,11 @@ export function PipelinesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold text-neutral-900 text-neutral-800">Pipelines</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Pipelines</h1>
         <select
           value={seleccionado ?? ""}
           onChange={(e) => setSeleccionado(e.target.value)}
-          className="border border-neutral-200 bg-neutral-50 text-neutral-200 rounded-lg px-3 py-1.5 text-sm"
+          className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm"
         >
           {pipelines.map((p) => (
             <option key={p.id} value={p.id}>{p.nombre}</option>

@@ -16,7 +16,7 @@ function Campo({ etiqueta, valor }: { etiqueta: string; valor?: string | number 
   const texto = valor === undefined || valor === null || valor === "" ? "—" : String(valor);
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-neutral-400">{etiqueta}</dt>
+      <dt className="text-xs uppercase tracking-wide text-neutral-500">{etiqueta}</dt>
       <dd className="mt-0.5 text-sm text-neutral-800">{texto}</dd>
     </div>
   );
@@ -97,7 +97,7 @@ export function BmfSolicitudDetailPage() {
             <Campo etiqueta="Nombre" valor={nombreDueño} />
             <Campo etiqueta="% propiedad" valor={s.porcentajePropiedad} />
             <div>
-              <dt className="text-xs uppercase tracking-wide text-neutral-400">Email</dt>
+              <dt className="text-xs uppercase tracking-wide text-neutral-500">Email</dt>
               <dd className="mt-0.5 text-sm text-neutral-800">
                 {s.propietarioEmail ? <a href={`mailto:${s.propietarioEmail}`} className="text-primary-600 hover:underline">{s.propietarioEmail}</a> : "—"}
               </dd>
@@ -109,7 +109,7 @@ export function BmfSolicitudDetailPage() {
         <Seccion titulo="Financiamiento solicitado">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
             <div>
-              <dt className="text-xs uppercase tracking-wide text-neutral-400">Monto solicitado</dt>
+              <dt className="text-xs uppercase tracking-wide text-neutral-500">Monto solicitado</dt>
               <dd className="mt-0.5 text-lg font-bold text-neutral-900">{fmtMonto(s.montoSolicitado)}</dd>
             </div>
             <Campo etiqueta="Propósito" valor={s.propositoFondos} />
@@ -134,7 +134,7 @@ export function BmfSolicitudDetailPage() {
       <div className="mt-5">
         <Seccion titulo={`Documentos (${s.documentos.length})`}>
           {s.documentos.length === 0 ? (
-            <p className="text-sm text-neutral-400">Sin documentos todavía.</p>
+            <p className="text-sm text-neutral-600">Sin documentos todavía.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -168,7 +168,7 @@ export function BmfSolicitudDetailPage() {
       <div className="mt-5">
         <Seccion titulo={`Ofertas (${s.ofertas.length})`}>
           {s.ofertas.length === 0 ? (
-            <p className="text-sm text-neutral-400">Sin ofertas todavía.</p>
+            <p className="text-sm text-neutral-600">Sin ofertas todavía.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -204,7 +204,7 @@ export function BmfSolicitudDetailPage() {
       <div className="mt-5 mb-8">
         <Seccion titulo={`Mensajes (${s.mensajes.length})`}>
           {s.mensajes.length === 0 ? (
-            <p className="text-sm text-neutral-400">Sin mensajes todavía.</p>
+            <p className="text-sm text-neutral-600">Sin mensajes todavía.</p>
           ) : (
             <ul className="space-y-3">
               {s.mensajes.map((m) => (
