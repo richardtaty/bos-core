@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, DragEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, DragEvent } from "react";
 import { api, ApiError } from "../api/client";
 import type { TableroPipeline, Registro } from "../types";
 
@@ -20,6 +20,11 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
   const [editandoValor, setEditandoValor] = useState(false);
   const [nuevoValor, setNuevoValor] = useState("");
   const [guardandoValor, setGuardandoValor] = useState(false);
+
+  // Referencia al contenedor de columnas y altura visible disponible:
+  // permite que cada columna tenga su propio scroll vertical sin agrandar la página.
+  const tableroRef = useRef<HTMLDivElement>(null);
+  const [altoColumna, setAltoColumna] = useState(560);
 
   const [cerrarModal, setCerrarModal] = useState<Registro | null>(null);
   const [cvMontoTotal, setCvMontoTotal] = useState("");
@@ -43,6 +48,31 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  // Mide la altura real que queda visible bajo el tablero (encabezados de la página,
+  // métricas, etc.) para acotar la altura de cada columna. Así el tablero aprovecha
+  // la pantalla pero no crece más allá de ella: cada columna desplaza sus propias
+  // tarjetas por dentro. Se re-mide al redimensionar o hacer scroll de la página.
+  useLayoutEffect(() => {
+    const contenedor = tableroRef.current;
+    if (!contenedor) return;
+
+    const medir = () => {
+      const tope = contenedor.getBoundingClientRect().top;
+      setAltoColumna(Math.max(180, Math.floor(window.innerHeight - Math.max(0, tope) - 24)));
+    };
+
+    medir();
+    window.addEventListener("resize", medir);
+    window.addEventListener("scroll", medir, true);
+    const ro = new ResizeObserver(medir);
+    ro.observe(contenedor);
+    return () => {
+      window.removeEventListener("resize", medir);
+      window.removeEventListener("scroll", medir, true);
+      ro.disconnect();
+    };
+  }, [tablero]);
 
   const mover = async (registroId: string, etapaId: string, motivoPerdida?: string) => {
     try {
@@ -194,19 +224,20 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
         </div>
       )}
 
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      <div ref={tableroRef} className="flex gap-3 overflow-x-auto pb-4">
         {tablero.etapas.map((etapa) => (
           <div
             key={etapa.id}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => onDrop(e, etapa.id, etapa.esPerdida)}
-            className="bg-neutral-100 bg-neutral-100 rounded-xl p-2.5 w-64 shrink-0"
+            className="bg-neutral-100 bg-neutral-100 rounded-xl p-2.5 w-64 shrink-0 flex flex-col"
+            style={{ maxHeight: altoColumna }}
           >
-            <div className="flex items-center justify-between px-1 mb-2">
+            <div className="flex items-center justify-between px-1 mb-2 shrink-0">
               <p className="text-xs font-semibold text-neutral-600 text-neutral-400">{etapa.nombre}</p>
               <span className="text-[11px] bg-neutral-100 rounded-full px-1.5 py-0.5 text-neutral-500 text-neutral-400">{etapa.registros.length}</span>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 overflow-y-auto min-h-0 pipeline-cards-scroll">
               {etapa.registros.map((r) => (
                 <div
                   key={r.id}

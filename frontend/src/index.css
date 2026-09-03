@@ -201,6 +201,27 @@
   .stagger > *:nth-child(7) { animation-delay: 360ms; }
   .stagger > *:nth-child(8) { animation-delay: 420ms; }
 
+  /* ── Scroll vertical discreto del área de tarjetas del Kanban ──
+     Solo se muestra si la columna tiene más tarjetas de las que caben.
+     La barra es fina y usa los tonos neutros existentes de la paleta. */
+  .pipeline-cards-scroll {
+    scrollbar-width: thin;                              /* Firefox */
+    scrollbar-color: rgb(var(--color-neutral-300)) transparent;
+  }
+  .pipeline-cards-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .pipeline-cards-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .pipeline-cards-scroll::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-neutral-300));
+    border-radius: 9999px;
+  }
+  .pipeline-cards-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-neutral-400));
+  }
+
   /* ── Revenue Ticker marquee ── */
   @keyframes marquee {
     0% { transform: translateX(0); }
