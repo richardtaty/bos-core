@@ -75,3 +75,6 @@ ejecutarMigracion("0016_podcast_citas", sqlPodcastCitas);
 
 const sqlBmfDigital = readFileSync(join(__dirname, "migrations", "0017_bmf_digital.sql"), "utf-8");
 ejecutarMigracion("0017_bmf_digital", sqlBmfDigital);
+
+const sqlActivosDigitales = readFileSync(join(__dirname, "migrations", "0018_activos_digitales.sql"), "utf-8");
+ejecutarMigracion("0018_activos_digitales", sqlActivosDigitales);

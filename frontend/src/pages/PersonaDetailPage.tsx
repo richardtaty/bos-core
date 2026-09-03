@@ -4,9 +4,10 @@ import { api, ApiError } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import type { FichaPersona, Pipeline } from "../types";
 import { RegistrarInteraccionForm } from "../components/RegistrarInteraccionForm";
+import { ActivosDigitalesTab } from "../components/ActivosDigitalesTab";
 import { ESTADOS_USA, CIUDADES_SUGERIDAS } from "../lib/estados-usa";
 
-const TABS = ["Timeline", "Comercial", "Comentarios", "Historial", "Tareas"] as const;
+const TABS = ["Timeline", "Comercial", "Comentarios", "Historial", "Tareas", "Activos digitales"] as const;
 type Tab = (typeof TABS)[number];
 
 const NEGOCIOS_DISPONIBLES = [
@@ -446,6 +447,10 @@ export function PersonaDetailPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {tab === "Activos digitales" && (
+        <ActivosDigitalesTab personaId={ficha.id} puedeEditar={puedeEditar} />
       )}
     </div>
   );

@@ -841,6 +841,25 @@ export const api = {
 
   eliminarMetaAds: (id: string) =>
     request<{ ok: boolean }>(`/meta-ads/${id}`, { method: "DELETE" }),
+
+  // ─── Activos digitales de un cliente (pestaña en la ficha de persona) ─────
+  listarActivosDigitales: (personaId: string) =>
+    request<import("../types").ActivoDigital[]>(`/personas/${personaId}/activos-digitales`),
+
+  crearActivoDigital: (personaId: string, data: Record<string, unknown>) =>
+    request<import("../types").ActivoDigital>(`/personas/${personaId}/activos-digitales`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  actualizarActivoDigital: (personaId: string, activoId: string, data: Record<string, unknown>) =>
+    request<import("../types").ActivoDigital>(`/personas/${personaId}/activos-digitales/${activoId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  eliminarActivoDigital: (personaId: string, activoId: string) =>
+    request<{ ok: boolean }>(`/personas/${personaId}/activos-digitales/${activoId}`, { method: "DELETE" }),
 };
 
 export { getToken };

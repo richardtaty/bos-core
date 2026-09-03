@@ -115,6 +115,32 @@ export const tareasSeguimiento = sqliteTable(
   (t) => ({ personaEstadoIdx: index("tareas_persona_estado_idx").on(t.personaId, t.completado, t.fecha) })
 );
 
+// ---------- Activos digitales de un cliente (persona) ----------
+// Uno-a-muchos: cada cliente puede tener N landings/funnels/formularios/dominios/etc.
+// Nunca campos rígidos tipo landing_url — ver migración 0018. La columna `tipo` repite
+// el enum de la migración a propósito para mantener el tipado de Drizzle en sync.
+
+export const activosDigitales = sqliteTable(
+  "activos_digitales",
+  {
+    id: cuid(),
+    personaId: text("persona_id").notNull().references(() => personas.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    url: text("url"),
+    tipo: text("tipo", { enum: ["Landing", "Funnel", "Thank You Page", "Formulario", "Dominio", "Automatización", "Otro"] })
+      .notNull()
+      .default("Landing"),
+    plataforma: text("plataforma"),
+    objetivo: text("objetivo"),
+    activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+    notas: text("notas"),
+    autorId: text("autor_id").notNull().references(() => usuarios.id),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+    updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({ personaIdx: index("activos_digitales_persona_idx").on(t.personaId, t.activo, t.createdAt) })
+);
+
 // ---------- Motor genérico de pipelines ----------
 
 export const pipelines = sqliteTable("pipelines", {

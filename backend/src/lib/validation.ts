@@ -213,3 +213,51 @@ export type CrearInteraccionInput = z.infer<typeof crearInteraccionSchema>;
 export type CrearUsuarioInput = z.infer<typeof crearUsuarioSchema>;
 export type CambiarPasswordInput = z.infer<typeof cambiarPasswordSchema>;
 export type RegistrarPagoInput = z.infer<typeof registrarPagoSchema>;
+
+// ─── Activos digitales de un cliente ─────────────────────
+// Un cliente puede tener N activos (landings, funnels, etc.). El frontend manda el objeto
+// completo tanto al crear como al editar (el modal siempre tiene todos los campos cargados),
+// así que hay un solo esquema. Los textos opcionales vacíos se convierten en undefined para
+// guardar NULL en la base en vez de cadenas de espacio.
+
+// "URL válida": admite con o sin protocolo (se normaliza al abrirla en el frontend), pero
+// exige un dominio razonable. Rechaza espacios y cadenas sueltas.
+function esUrlValida(url: string): boolean {
+  const candidata = url.includes("://") ? url : `https://${url}`;
+  try {
+    const parsed = new URL(candidata);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    return parsed.hostname.includes(".");
+  } catch {
+    return false;
+  }
+}
+
+const textoTamVacio = (max: number, mensaje: string) =>
+  z.preprocess(
+    (v) => (typeof v === "string" && !v.trim() ? undefined : v),
+    z.string().trim().max(max, mensaje).optional()
+  );
+
+export const activoDigitalSchema = z
+  .object({
+    nombre: z.string().trim().min(1, "El nombre es obligatorio").max(150, "El nombre no puede superar 150 caracteres"),
+    url: textoTamVacio(500, "La URL no puede superar 500 caracteres"),
+    tipo: z.enum(["Landing", "Funnel", "Thank You Page", "Formulario", "Dominio", "Automatización", "Otro"]),
+    // Texto libre (máx 60): si el usuario eligió "Otro" en el dropdown guarda lo que escribió.
+    plataforma: textoTamVacio(60, "La plataforma no puede superar 60 caracteres"),
+    objetivo: textoTamVacio(300, "El objetivo no puede superar 300 caracteres"),
+    activo: z.boolean().optional(),
+    notas: textoTamVacio(2000, "Las notas no pueden superar 2000 caracteres"),
+  })
+  .superRefine((data, ctx) => {
+    const url = data.url?.trim() ?? "";
+    // La URL es obligatoria para los tipos que SON una página/dominio; "Otro" admite no tenerla.
+    if (data.tipo !== "Otro" && !url) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Agrega la URL del activo (ej. https://cliente.com/pagina)", path: ["url"] });
+    } else if (url && !esUrlValida(url)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "URL no válida. Escribe algo como https://cliente.com/pagina", path: ["url"] });
+    }
+  });
+
+export type ActivoDigitalInput = z.infer<typeof activoDigitalSchema>;

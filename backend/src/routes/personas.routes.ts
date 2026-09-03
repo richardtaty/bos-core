@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { crearPersonaSchema, crearInteraccionSchema, actualizarComentariosSchema, actualizarNegociosSchema, actualizarPersonaSchema } from "../lib/validation";
+import { crearPersonaSchema, crearInteraccionSchema, actualizarComentariosSchema, actualizarNegociosSchema, actualizarPersonaSchema, activoDigitalSchema } from "../lib/validation";
+import {
+  listarActivosDigitales,
+  crearActivoDigital,
+  actualizarActivoDigital,
+  eliminarActivoDigital,
+  SinPermisoActivoError,
+} from "../services/activos-digitales.service";
 import {
   listarPersonas,
   obtenerFichaPersona,
@@ -85,6 +92,67 @@ personasRouter.post("/:id/interacciones", async (req, res) => {
   }
   const resultado = await registrarInteraccion(req.params.id, parsed.data, req.user!.id);
   res.status(201).json(resultado);
+});
+
+// ── Activos digitales de la ficha (uno-a-muchos) ──────────────
+// Viven bajo "/:id/activos-digitales": cada activo pertenece únicamente a esa persona.
+// Quien crea/edita/elimina lo decide el servicio (responsable o admin), igual que los datos
+// de contacto. Tanto la URL "/:id" como estas rutas usan la persona como prefijo, pero no
+// chocan entre sí porque difieren en el número de segmentos.
+personasRouter.get("/:id/activos-digitales", async (req, res) => {
+  try {
+    res.json(await listarActivosDigitales(req.params.id));
+  } catch (err) {
+    res.status(404).json({ error: (err as Error).message });
+  }
+});
+
+personasRouter.post("/:id/activos-digitales", async (req, res) => {
+  const parsed = activoDigitalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const activo = await crearActivoDigital(req.params.id, parsed.data, req.user!.id, req.user!.rol);
+    res.status(201).json(activo);
+  } catch (err) {
+    if (err instanceof SinPermisoActivoError) {
+      res.status(403).json({ error: err.message });
+      return;
+    }
+    res.status(404).json({ error: (err as Error).message });
+  }
+});
+
+personasRouter.patch("/:id/activos-digitales/:activoId", async (req, res) => {
+  const parsed = activoDigitalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const activo = await actualizarActivoDigital(req.params.id, req.params.activoId, parsed.data, req.user!.id, req.user!.rol);
+    res.json(activo);
+  } catch (err) {
+    if (err instanceof SinPermisoActivoError) {
+      res.status(403).json({ error: err.message });
+      return;
+    }
+    res.status(404).json({ error: (err as Error).message });
+  }
+});
+
+personasRouter.delete("/:id/activos-digitales/:activoId", async (req, res) => {
+  try {
+    res.json(await eliminarActivoDigital(req.params.id, req.params.activoId, req.user!.id, req.user!.rol));
+  } catch (err) {
+    if (err instanceof SinPermisoActivoError) {
+      res.status(403).json({ error: err.message });
+      return;
+    }
+    res.status(404).json({ error: (err as Error).message });
+  }
 });
 
 personasRouter.patch("/:id/comentarios", requireRole("SUPER_ADMIN"), async (req, res) => {

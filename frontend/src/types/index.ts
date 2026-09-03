@@ -924,3 +924,31 @@ export interface MetaAdsReporteInput {
   presupuestoTotalActual?: number | null;
   grupos: MetaAdsGrupoInput[];
 }
+
+// ─── Activos digitales de un cliente (pestaña de la ficha) ──────────
+// Cada cliente puede tener N activos (landings, funnels, formularios, dominios, etc.).
+// Relación uno-a-muchos con la persona — nunca campos rígidos tipo landing_url.
+
+export type TipoActivoDigital =
+  | "Landing"
+  | "Funnel"
+  | "Thank You Page"
+  | "Formulario"
+  | "Dominio"
+  | "Automatización"
+  | "Otro";
+
+export interface ActivoDigital {
+  id: string;
+  personaId: string;
+  nombre: string;
+  url: string | null;
+  tipo: TipoActivoDigital;
+  plataforma: string | null;
+  objetivo: string | null;
+  activo: boolean;
+  notas: string | null;
+  autorId: string;
+  createdAt: string;
+  updatedAt: string;
+}
