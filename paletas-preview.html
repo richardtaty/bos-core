@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOS-Core — Paletas Futuristas · Preview</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0a0a0f;
+    color: #e4e4e7;
+    line-height: 1.5;
+  }
+
+  /* ── Layout ── */
+  .palette-section {
+    padding: 60px 40px;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .palette-section h2 {
+    font-size: 2rem; font-weight: 700; letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .palette-section .subtitle {
+    font-size: .95rem; opacity: .6; margin-bottom: 48px;
+  }
+  .demo-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 24px; width: 100%; max-width: 1200px;
+  }
+
+  /* ── Cards ── */
+  .demo-card {
+    border-radius: 16px; padding: 28px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    transition: transform .2s, box-shadow .2s;
+  }
+  .demo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+  .demo-card h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); }
+
+  /* ── Swatches ── */
+  .swatches { display: flex; gap: 4px; margin-bottom: 24px; }
+  .swatch { flex: 1; height: 36px; border-radius: 6px; position: relative; }
+  .swatch:first-child { border-radius: 8px 6px 6px 8px; }
+  .swatch:last-child { border-radius: 6px 8px 8px 6px; }
+
+  /* ── Elements ── */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .btn {
+    padding: 9px 20px; border-radius: 10px; font-size: .88rem; font-weight: 600;
+    border: none; cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .btn-primary { background: var(--p500); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.12); }
+  .btn-secondary { background: var(--s100); color: var(--s700); }
+  .btn-secondary:hover { background: var(--s200); }
+  .btn-ghost { background: transparent; color: var(--text-main); border: 1px solid var(--card-border); }
+  .btn-ghost:hover { background: var(--n100); }
+
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .badge {
+    padding: 4px 12px; border-radius: 999px; font-size: .78rem; font-weight: 600;
+  }
+
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat {
+    border-radius: 12px; padding: 16px; border: 1px solid var(--card-border);
+    background: var(--n50);
+  }
+  .stat .value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .label { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
+
+  .progress-bar {
+    height: 8px; border-radius: 99px; background: var(--n200); margin-top: 16px;
+    overflow: hidden;
+  }
+  .progress-fill { height: 100%; border-radius: 99px; width: 65%; transition: width .4s; }
+
+  /* ── Mini Kanban (solo primera paleta como preview) ── */
+  .kanban-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 16px; }
+  .kanban-col { border-radius: 10px; padding: 12px; border: 1px solid var(--card-border); background: var(--n50); }
+  .kanban-col h4 { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .kanban-item { border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; font-size: .82rem; border: 1px solid var(--card-border); background: var(--card-bg); }
+  .kanban-item .tag { font-size: .68rem; padding: 1px 8px; border-radius: 99px; font-weight: 600; display: inline-block; }
+
+  /* ── Palette-specific variables ── */
+  .palette-section { --card-bg: var(--n0); }
+
+  /* ── Section header ── */
+  .intro {
+    text-align: center; padding: 80px 40px 40px;
+    background: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%);
+  }
+  .intro h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 8px; }
+  .intro p { font-size: 1.1rem; opacity: .5; max-width: 600px; margin: 0 auto; }
+  .nav-palettes {
+    display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap;
+  }
+  .nav-palettes a {
+    padding: 10px 22px; border-radius: 99px; text-decoration: none; font-weight: 600;
+    font-size: .88rem; transition: all .15s;
+  }
+
+  /* ── Footer note ── */
+  .note {
+    text-align: center; padding: 60px 40px; opacity: .35; font-size: .85rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- INTRO -->
+<!-- ════════════════════════════════════════════ -->
+<div class="intro">
+  <h1>🎨 BOS-Core · Paletas Futuristas</h1>
+  <p>4 opciones de paleta para transformar el frontend. Cada una incluye todos los tokens semánticos que el proyecto ya usa: primary, secondary, neutral, success, warning, danger, info. Abajo ves cada paleta aplicada a los mismos componentes.</p>
+  <div class="nav-palettes">
+    <a href="#neo-tokyo" style="background:#7c3aed;color:#fff">⚡ Neo Tokyo</a>
+    <a href="#solar-flare" style="background:#f97316;color:#fff">☀️ Solar Flare</a>
+    <a href="#quantum-mint" style="background:#0d9488;color:#fff">🌿 Quantum Mint</a>
+    <a href="#cosmic-dawn" style="background:#6366f1;color:#fff">🌌 Cosmic Dawn</a>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- 1. NEO TOKYO -->
+<!-- ════════════════════════════════════════════ -->
+<div class="palette-section" id="neo-tokyo" style="
+  --p50: 245 243 255; --p100: 237 233 254; --p200: 221 214 254; --p300: 196 181 253; --p400: 167 139 250; --p500: 139 92 246; --p600: 124 58 237; --p700: 109 40 217; --p800: 91 33 182; --p900: 76 29 149; --p950: 46 16 101;
+  --s50: 236 254 255; --s100: 207 250 254; --s200: 165 243 252; --s300: 103 232 249; --s400: 34 211 238; --s500: 6 182 212; --s600: 8 145 178; --s700: 14 116 144; --s800: 21 94 117; --s900: 22 78 99; --s950: 8 51 68;
+  --n50: 250 250 252; --n100: 240 240 246; --n200: 226 226 236; --n300: 196 196 210; --n400: 148 148 166; --n500: 106 106 126; --n600: 78 78 98; --n700: 52 52 72; --n800: 28 28 44; --n900: 18 18 30; --n950: 8 8 16;
+  --sc50: 236 253 243; --sc100: 220 252 231; --sc200: 187 247 208; --sc300: 134 239 172; --sc400: 74 222 128; --sc500: 34 197 94; --sc600: 22 163 74; --sc700: 21 128 61; --sc800: 22 101 52; --sc900: 20 83 45; --sc950: 5 46 22;
+  --w50: 255 247 237; --w100: 255 237 213; --w200: 254 215 170; --w300: 253 186 116; --w400: 251 146 60; --w500: 249 115 22; --w600: 234 88 12; --w700: 194 65 12; --w800: 154 52 18; --w900: 124 45 18; --w950: 67 20 7;
+  --d50: 255 241 246; --d100: 255 228 237; --d200: 254 194 215; --d300: 253 139 183; --d400: 251 72 143; --d500: 244 19 126; --d600: 219 13 116; --d700: 190 18 104; --d800: 157 23 91; --d900: 131 24 77; --d950: 73 6 49;
+  --i50: 239 246 255; --i100: 219 234 254; --i200: 191 219 254; --i300: 147 197 253; --i400: 96 165 250; --i500: 59 130 246; --i600: 37 99 235; --i700: 29 78 216; --i800: 30 64 175; --i900: 30 58 138; --i950: 23 37 84;
+  --n0: #fff;
+  --card-bg: #fff; --card-border: rgb(var(--n200));
+  --text-main: rgb(var(--n900)); --text-muted: rgb(var(--n500));
+  background: linear-gradient(170deg, #f8f7ff 0%, #f0f0fa 40%, #e8f4f8 100%);
+  color: rgb(18,18,30);
+">
+
+  <h2 style="color:rgb(109,40,217)">⚡ Neo Tokyo</h2>
+  <p class="subtitle">Violeta eléctrico + Cyan neón. Energético, creativo, moderno.</p>
+
+  <div class="demo-grid">
+    <!-- Swatches -->
+    <div class="demo-card">
+      <h3>🎯 Paleta Principal</h3>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Primary — Violeta eléctrico</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--p50))" title="50"></div>
+          <div class="swatch" style="background:rgb(var(--p100))" title="100"></div>
+          <div class="swatch" style="background:rgb(var(--p200))" title="200"></div>
+          <div class="swatch" style="background:rgb(var(--p300))" title="300"></div>
+          <div class="swatch" style="background:rgb(var(--p400))" title="400"></div>
+          <div class="swatch" style="background:rgb(var(--p500))" title="500"></div>
+          <div class="swatch" style="background:rgb(var(--p600))" title="600"></div>
+          <div class="swatch" style="background:rgb(var(--p700))" title="700"></div>
+          <div class="swatch" style="background:rgb(var(--p800))" title="800"></div>
+          <div class="swatch" style="background:rgb(var(--p900))" title="900"></div>
+          <div class="swatch" style="background:rgb(var(--p950))" title="950"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Secondary — Cyan</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--s50))"></div>
+          <div class="swatch" style="background:rgb(var(--s100))"></div>
+          <div class="swatch" style="background:rgb(var(--s200))"></div>
+          <div class="swatch" style="background:rgb(var(--s300))"></div>
+          <div class="swatch" style="background:rgb(var(--s400))"></div>
+          <div class="swatch" style="background:rgb(var(--s500))"></div>
+          <div class="swatch" style="background:rgb(var(--s600))"></div>
+          <div class="swatch" style="background:rgb(var(--s700))"></div>
+          <div class="swatch" style="background:rgb(var(--s800))"></div>
+          <div class="swatch" style="background:rgb(var(--s900))"></div>
+          <div class="swatch" style="background:rgb(var(--s950))"></div>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Neutral</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--n50))"></div>
+          <div class="swatch" style="background:rgb(var(--n100))"></div>
+          <div class="swatch" style="background:rgb(var(--n200))"></div>
+          <div class="swatch" style="background:rgb(var(--n300))"></div>
+          <div class="swatch" style="background:rgb(var(--n400))"></div>
+          <div class="swatch" style="background:rgb(var(--n500))"></div>
+          <div class="swatch" style="background:rgb(var(--n600))"></div>
+          <div class="swatch" style="background:rgb(var(--n700))"></div>
+          <div class="swatch" style="background:rgb(var(--n800))"></div>
+          <div class="swatch" style="background:rgb(var(--n900))"></div>
+          <div class="swatch" style="background:rgb(var(--n950))"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Semantic -->
+    <div class="demo-card">
+      <h3>🏷️ Colores Semánticos</h3>
+      <div style="margin-bottom:16px">
+        <p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--sc600))">Success — Verde neón</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--sc50))"></div><div class="swatch" style="background:rgb(var(--sc100))"></div>
+          <div class="swatch" style="background:rgb(var(--sc200))"></div><div class="swatch" style="background:rgb(var(--sc300))"></div>
+          <div class="swatch" style="background:rgb(var(--sc400))"></div><div class="swatch" style="background:rgb(var(--sc500))"></div>
+          <div class="swatch" style="background:rgb(var(--sc600))"></div><div class="swatch" style="background:rgb(var(--sc700))"></div>
+          <div class="swatch" style="background:rgb(var(--sc800))"></div><div class="swatch" style="background:rgb(var(--sc900))"></div>
+          <div class="swatch" style="background:rgb(var(--sc950))"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--w600))">Warning — Naranja ámbar</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--w50))"></div><div class="swatch" style="background:rgb(var(--w100))"></div>
+          <div class="swatch" style="background:rgb(var(--w200))"></div><div class="swatch" style="background:rgb(var(--w300))"></div>
+          <div class="swatch" style="background:rgb(var(--w400))"></div><div class="swatch" style="background:rgb(var(--w500))"></div>
+          <div class="swatch" style="background:rgb(var(--w600))"></div><div class="swatch" style="background:rgb(var(--w700))"></div>
+          <div class="swatch" style="background:rgb(var(--w800))"></div><div class="swatch" style="background:rgb(var(--w900))"></div>
+          <div class="swatch" style="background:rgb(var(--w950))"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:16px">
+        <p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--d500))">Danger — Rosa fuerte</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--d50))"></div><div class="swatch" style="background:rgb(var(--d100))"></div>
+          <div class="swatch" style="background:rgb(var(--d200))"></div><div class="swatch" style="background:rgb(var(--d300))"></div>
+          <div class="swatch" style="background:rgb(var(--d400))"></div><div class="swatch" style="background:rgb(var(--d500))"></div>
+          <div class="swatch" style="background:rgb(var(--d600))"></div><div class="swatch" style="background:rgb(var(--d700))"></div>
+          <div class="swatch" style="background:rgb(var(--d800))"></div><div class="swatch" style="background:rgb(var(--d900))"></div>
+          <div class="swatch" style="background:rgb(var(--d950))"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons & Badges -->
+    <div class="demo-card">
+      <h3>🔘 Botones & Badges</h3>
+      <div class="btn-row">
+        <button class="btn btn-primary">Guardar</button>
+        <button class="btn btn-secondary">Cancelar</button>
+        <button class="btn btn-ghost">Volver</button>
+      </div>
+      <div class="badge-row">
+        <span class="badge" style="background:rgb(var(--sc50));color:rgb(var(--sc700))">✅ Completado</span>
+        <span class="badge" style="background:rgb(var(--w50));color:rgb(var(--w700))">⏳ Pendiente</span>
+        <span class="badge" style="background:rgb(var(--d50));color:rgb(var(--d700))">🚨 Urgente</span>
+        <span class="badge" style="background:rgb(var(--p50));color:rgb(var(--p700))">Nuevo</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="demo-card">
+      <h3>📊 Mini Dashboard</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="value" style="color:rgb(var(--p600))">$45.2K</div><div class="label">Ingresos este mes</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--sc600))">128</div><div class="label">Negocios activos</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--w600))">12</div><div class="label">Tareas hoy</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--d500))">3</div><div class="label">Atrasadas</div></div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="background:rgb(var(--p500))"></div></div>
+      <p style="font-size:.75rem;color:var(--text-muted);margin-top:8px">Progreso del pipeline · 65%</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- 2. SOLAR FLARE -->
+<!-- ════════════════════════════════════════════ -->
+<div class="palette-section" id="solar-flare" style="
+  --p50: 255 247 237; --p100: 255 237 213; --p200: 254 215 170; --p300: 253 186 116; --p400: 251 146 60; --p500: 249 115 22; --p600: 234 88 12; --p700: 194 65 12; --p800: 154 52 18; --p900: 124 45 18; --p950: 67 20 7;
+  --s50: 254 252 232; --s100: 254 249 195; --s200: 254 240 138; --s300: 253 224 71; --s400: 250 204 21; --s500: 234 179 8; --s600: 202 138 4; --s700: 161 98 7; --s800: 133 77 14; --s900: 113 63 18; --s950: 66 32 6;
+  --n50: 252 252 251; --n100: 246 245 243; --n200: 234 232 228; --n300: 210 207 200; --n400: 166 162 152; --n500: 124 120 112; --n600: 94 90 82; --n700: 68 65 58; --n800: 44 42 37; --n900: 28 27 24; --n950: 14 13 12;
+  --sc50: 240 253 244; --sc100: 220 252 231; --sc200: 187 247 208; --sc300: 134 239 172; --sc400: 74 222 128; --sc500: 34 197 94; --sc600: 22 163 74; --sc700: 21 128 61; --sc800: 22 101 52; --sc900: 20 83 45; --sc950: 5 46 22;
+  --w50: 255 248 235; --w100: 254 240 199; --w200: 253 224 138; --w300: 252 201 77; --w400: 251 170 36; --w500: 245 140 11; --w600: 217 106 6; --w700: 180 72 9; --w800: 146 54 14; --w900: 120 45 15; --w950: 69 20 3;
+  --d50: 254 242 242; --d100: 254 226 226; --d200: 254 202 202; --d300: 252 165 165; --d400: 248 113 113; --d500: 239 68 68; --d600: 220 38 38; --d700: 185 28 28; --d800: 153 27 27; --d900: 127 29 29; --d950: 69 10 10;
+  --i50: 239 246 255; --i100: 219 234 254; --i200: 191 219 254; --i300: 147 197 253; --i400: 96 165 250; --i500: 59 130 246; --i600: 37 99 235; --i700: 29 78 216; --i800: 30 64 175; --i900: 30 58 138; --i950: 23 37 84;
+  --n0: #fff;
+  --card-bg: #fff; --card-border: rgb(var(--n200));
+  --text-main: rgb(var(--n900)); --text-muted: rgb(var(--n500));
+  background: linear-gradient(170deg, #fffaf5 0%, #fff5eb 40%, #fef3c7 100%);
+  color: rgb(28,27,24);
+">
+
+  <h2 style="color:rgb(234,88,12)">☀️ Solar Flare</h2>
+  <p class="subtitle">Naranja cálido + Dorado. Optimista, acogedor, lleno de energía positiva.</p>
+
+  <div class="demo-grid">
+    <div class="demo-card">
+      <h3>🎯 Paleta Principal</h3>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Primary — Naranja cálido</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--p50))"></div><div class="swatch" style="background:rgb(var(--p100))"></div>
+          <div class="swatch" style="background:rgb(var(--p200))"></div><div class="swatch" style="background:rgb(var(--p300))"></div>
+          <div class="swatch" style="background:rgb(var(--p400))"></div><div class="swatch" style="background:rgb(var(--p500))"></div>
+          <div class="swatch" style="background:rgb(var(--p600))"></div><div class="swatch" style="background:rgb(var(--p700))"></div>
+          <div class="swatch" style="background:rgb(var(--p800))"></div><div class="swatch" style="background:rgb(var(--p900))"></div>
+          <div class="swatch" style="background:rgb(var(--p950))"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Secondary — Dorado</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--s50))"></div><div class="swatch" style="background:rgb(var(--s100))"></div>
+          <div class="swatch" style="background:rgb(var(--s200))"></div><div class="swatch" style="background:rgb(var(--s300))"></div>
+          <div class="swatch" style="background:rgb(var(--s400))"></div><div class="swatch" style="background:rgb(var(--s500))"></div>
+          <div class="swatch" style="background:rgb(var(--s600))"></div><div class="swatch" style="background:rgb(var(--s700))"></div>
+          <div class="swatch" style="background:rgb(var(--s800))"></div><div class="swatch" style="background:rgb(var(--s900))"></div>
+          <div class="swatch" style="background:rgb(var(--s950))"></div>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Neutral — Cálido</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--n50))"></div><div class="swatch" style="background:rgb(var(--n100))"></div>
+          <div class="swatch" style="background:rgb(var(--n200))"></div><div class="swatch" style="background:rgb(var(--n300))"></div>
+          <div class="swatch" style="background:rgb(var(--n400))"></div><div class="swatch" style="background:rgb(var(--n500))"></div>
+          <div class="swatch" style="background:rgb(var(--n600))"></div><div class="swatch" style="background:rgb(var(--n700))"></div>
+          <div class="swatch" style="background:rgb(var(--n800))"></div><div class="swatch" style="background:rgb(var(--n900))"></div>
+          <div class="swatch" style="background:rgb(var(--n950))"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <h3>🏷️ Colores Semánticos</h3>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--sc600))">Success</p><div class="swatches"><div class="swatch" style="background:rgb(var(--sc50))"></div><div class="swatch" style="background:rgb(var(--sc100))"></div><div class="swatch" style="background:rgb(var(--sc200))"></div><div class="swatch" style="background:rgb(var(--sc300))"></div><div class="swatch" style="background:rgb(var(--sc400))"></div><div class="swatch" style="background:rgb(var(--sc500))"></div><div class="swatch" style="background:rgb(var(--sc600))"></div><div class="swatch" style="background:rgb(var(--sc700))"></div></div></div>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--w600))">Warning</p><div class="swatches"><div class="swatch" style="background:rgb(var(--w50))"></div><div class="swatch" style="background:rgb(var(--w100))"></div><div class="swatch" style="background:rgb(var(--w200))"></div><div class="swatch" style="background:rgb(var(--w300))"></div><div class="swatch" style="background:rgb(var(--w400))"></div><div class="swatch" style="background:rgb(var(--w500))"></div><div class="swatch" style="background:rgb(var(--w600))"></div><div class="swatch" style="background:rgb(var(--w700))"></div></div></div>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--d500))">Danger</p><div class="swatches"><div class="swatch" style="background:rgb(var(--d50))"></div><div class="swatch" style="background:rgb(var(--d100))"></div><div class="swatch" style="background:rgb(var(--d200))"></div><div class="swatch" style="background:rgb(var(--d300))"></div><div class="swatch" style="background:rgb(var(--d400))"></div><div class="swatch" style="background:rgb(var(--d500))"></div><div class="swatch" style="background:rgb(var(--d600))"></div><div class="swatch" style="background:rgb(var(--d700))"></div></div></div>
+    </div>
+
+    <div class="demo-card">
+      <h3>🔘 Botones & Badges</h3>
+      <div class="btn-row">
+        <button class="btn btn-primary">Guardar</button>
+        <button class="btn btn-secondary">Cancelar</button>
+        <button class="btn btn-ghost">Volver</button>
+      </div>
+      <div class="badge-row">
+        <span class="badge" style="background:rgb(var(--sc50));color:rgb(var(--sc700))">✅ Completado</span>
+        <span class="badge" style="background:rgb(var(--w50));color:rgb(var(--w700))">⏳ Pendiente</span>
+        <span class="badge" style="background:rgb(var(--d50));color:rgb(var(--d700))">🚨 Urgente</span>
+        <span class="badge" style="background:rgb(var(--p50));color:rgb(var(--p700))">Nuevo</span>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <h3>📊 Mini Dashboard</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="value" style="color:rgb(var(--p600))">$45.2K</div><div class="label">Ingresos este mes</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--sc600))">128</div><div class="label">Negocios activos</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--w600))">12</div><div class="label">Tareas hoy</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--d500))">3</div><div class="label">Atrasadas</div></div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="background:linear-gradient(90deg,rgb(var(--p500)),rgb(var(--s500)))"></div></div>
+      <p style="font-size:.75rem;color:var(--text-muted);margin-top:8px">Progreso del pipeline · 65%</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- 3. QUANTUM MINT -->
+<!-- ════════════════════════════════════════════ -->
+<div class="palette-section" id="quantum-mint" style="
+  --p50: 240 253 250; --p100: 204 251 241; --p200: 153 246 228; --p300: 94 234 212; --p400: 45 212 191; --p500: 20 184 166; --p600: 13 148 136; --p700: 15 118 110; --p800: 17 94 89; --p900: 19 78 74; --p950: 4 47 46;
+  --s50: 245 243 255; --s100: 237 233 254; --s200: 221 214 254; --s300: 196 181 253; --s400: 167 139 250; --s500: 139 92 246; --s600: 124 58 237; --s700: 109 40 217; --s800: 91 33 182; --s900: 76 29 149; --s950: 46 16 101;
+  --n50: 248 250 250; --n100: 240 244 243; --n200: 226 232 230; --n300: 198 207 204; --n400: 150 162 158; --n500: 108 122 117; --n600: 80 94 89; --n700: 56 70 66; --n800: 34 46 43; --n900: 20 30 28; --n950: 8 16 14;
+  --sc50: 236 253 243; --sc100: 220 252 231; --sc200: 187 247 208; --sc300: 134 239 172; --sc400: 74 222 128; --sc500: 34 197 94; --sc600: 22 163 74; --sc700: 21 128 61; --sc800: 22 101 52; --sc900: 20 83 45; --sc950: 5 46 22;
+  --w50: 255 247 237; --w100: 255 237 213; --w200: 254 215 170; --w300: 253 186 116; --w400: 251 146 60; --w500: 249 115 22; --w600: 234 88 12; --w700: 194 65 12; --w800: 154 52 18; --w900: 124 45 18; --w950: 67 20 7;
+  --d50: 255 241 242; --d100: 255 228 230; --d200: 254 205 211; --d300: 253 164 175; --d400: 251 113 133; --d500: 244 63 94; --d600: 225 29 72; --d700: 190 18 60; --d800: 159 18 57; --d900: 136 19 55; --d950: 76 5 25;
+  --i50: 240 249 255; --i100: 224 242 254; --i200: 186 230 253; --i300: 125 211 252; --i400: 56 189 248; --i500: 14 165 233; --i600: 2 132 199; --i700: 3 105 161; --i800: 7 89 133; --i900: 12 74 110; --i950: 8 47 73;
+  --n0: #fff;
+  --card-bg: #fff; --card-border: rgb(var(--n200));
+  --text-main: rgb(var(--n900)); --text-muted: rgb(var(--n500));
+  background: linear-gradient(170deg, #f5fdfb 0%, #eef9f6 40%, #f3f0ff 100%);
+  color: rgb(20,30,28);
+">
+
+  <h2 style="color:rgb(13,148,136)">🌿 Quantum Mint</h2>
+  <p class="subtitle">Verde menta + Lavanda. Tranquilo, fresco, enfoque zen.</p>
+
+  <div class="demo-grid">
+    <div class="demo-card">
+      <h3>🎯 Paleta Principal</h3>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Primary — Verde menta</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--p50))"></div><div class="swatch" style="background:rgb(var(--p100))"></div>
+          <div class="swatch" style="background:rgb(var(--p200))"></div><div class="swatch" style="background:rgb(var(--p300))"></div>
+          <div class="swatch" style="background:rgb(var(--p400))"></div><div class="swatch" style="background:rgb(var(--p500))"></div>
+          <div class="swatch" style="background:rgb(var(--p600))"></div><div class="swatch" style="background:rgb(var(--p700))"></div>
+          <div class="swatch" style="background:rgb(var(--p800))"></div><div class="swatch" style="background:rgb(var(--p900))"></div>
+          <div class="swatch" style="background:rgb(var(--p950))"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Secondary — Lavanda</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--s50))"></div><div class="swatch" style="background:rgb(var(--s100))"></div>
+          <div class="swatch" style="background:rgb(var(--s200))"></div><div class="swatch" style="background:rgb(var(--s300))"></div>
+          <div class="swatch" style="background:rgb(var(--s400))"></div><div class="swatch" style="background:rgb(var(--s500))"></div>
+          <div class="swatch" style="background:rgb(var(--s600))"></div><div class="swatch" style="background:rgb(var(--s700))"></div>
+          <div class="swatch" style="background:rgb(var(--s800))"></div><div class="swatch" style="background:rgb(var(--s900))"></div>
+          <div class="swatch" style="background:rgb(var(--s950))"></div>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Neutral — Verde grisáceo</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--n50))"></div><div class="swatch" style="background:rgb(var(--n100))"></div>
+          <div class="swatch" style="background:rgb(var(--n200))"></div><div class="swatch" style="background:rgb(var(--n300))"></div>
+          <div class="swatch" style="background:rgb(var(--n400))"></div><div class="swatch" style="background:rgb(var(--n500))"></div>
+          <div class="swatch" style="background:rgb(var(--n600))"></div><div class="swatch" style="background:rgb(var(--n700))"></div>
+          <div class="swatch" style="background:rgb(var(--n800))"></div><div class="swatch" style="background:rgb(var(--n900))"></div>
+          <div class="swatch" style="background:rgb(var(--n950))"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <h3>🏷️ Colores Semánticos</h3>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--sc600))">Success</p><div class="swatches"><div class="swatch" style="background:rgb(var(--sc50))"></div><div class="swatch" style="background:rgb(var(--sc100))"></div><div class="swatch" style="background:rgb(var(--sc200))"></div><div class="swatch" style="background:rgb(var(--sc300))"></div><div class="swatch" style="background:rgb(var(--sc400))"></div><div class="swatch" style="background:rgb(var(--sc500))"></div><div class="swatch" style="background:rgb(var(--sc600))"></div><div class="swatch" style="background:rgb(var(--sc700))"></div></div></div>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--w600))">Warning</p><div class="swatches"><div class="swatch" style="background:rgb(var(--w50))"></div><div class="swatch" style="background:rgb(var(--w100))"></div><div class="swatch" style="background:rgb(var(--w200))"></div><div class="swatch" style="background:rgb(var(--w300))"></div><div class="swatch" style="background:rgb(var(--w400))"></div><div class="swatch" style="background:rgb(var(--w500))"></div><div class="swatch" style="background:rgb(var(--w600))"></div><div class="swatch" style="background:rgb(var(--w700))"></div></div></div>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--d500))">Danger</p><div class="swatches"><div class="swatch" style="background:rgb(var(--d50))"></div><div class="swatch" style="background:rgb(var(--d100))"></div><div class="swatch" style="background:rgb(var(--d200))"></div><div class="swatch" style="background:rgb(var(--d300))"></div><div class="swatch" style="background:rgb(var(--d400))"></div><div class="swatch" style="background:rgb(var(--d500))"></div><div class="swatch" style="background:rgb(var(--d600))"></div><div class="swatch" style="background:rgb(var(--d700))"></div></div></div>
+    </div>
+
+    <div class="demo-card">
+      <h3>🔘 Botones & Badges</h3>
+      <div class="btn-row">
+        <button class="btn btn-primary">Guardar</button>
+        <button class="btn btn-secondary">Cancelar</button>
+        <button class="btn btn-ghost">Volver</button>
+      </div>
+      <div class="badge-row">
+        <span class="badge" style="background:rgb(var(--sc50));color:rgb(var(--sc700))">✅ Completado</span>
+        <span class="badge" style="background:rgb(var(--w50));color:rgb(var(--w700))">⏳ Pendiente</span>
+        <span class="badge" style="background:rgb(var(--d50));color:rgb(var(--d700))">🚨 Urgente</span>
+        <span class="badge" style="background:rgb(var(--p50));color:rgb(var(--p700))">Nuevo</span>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <h3>📊 Mini Dashboard</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="value" style="color:rgb(var(--p600))">$45.2K</div><div class="label">Ingresos este mes</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--sc600))">128</div><div class="label">Negocios activos</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--w600))">12</div><div class="label">Tareas hoy</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--d500))">3</div><div class="label">Atrasadas</div></div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="background:linear-gradient(90deg,rgb(var(--p500)),rgb(var(--s500)))"></div></div>
+      <p style="font-size:.75rem;color:var(--text-muted);margin-top:8px">Progreso del pipeline · 65%</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<!-- 4. COSMIC DAWN -->
+<!-- ════════════════════════════════════════════ -->
+<div class="palette-section" id="cosmic-dawn" style="
+  --p50: 238 242 255; --p100: 224 231 255; --p200: 199 210 254; --p300: 165 180 252; --p400: 129 140 248; --p500: 99 102 241; --p600: 79 70 229; --p700: 67 56 202; --p800: 55 48 163; --p900: 49 46 129; --p950: 30 27 75;
+  --s50: 255 247 245; --s100: 255 235 230; --s200: 254 210 198; --s300: 253 173 151; --s400: 251 128 101; --s500: 248 87 58; --s600: 232 59 33; --s700: 193 44 24; --s800: 158 37 22; --s900: 131 34 22; --s950: 72 13 8;
+  --n50: 244 245 250; --n100: 234 235 244; --n200: 218 220 234; --n300: 188 191 210; --n400: 142 146 170; --n500: 102 106 130; --n600: 76 80 102; --n700: 52 56 76; --n800: 30 34 52; --n900: 16 18 32; --n950: 6 8 18;
+  --sc50: 236 253 243; --sc100: 220 252 231; --sc200: 187 247 208; --sc300: 134 239 172; --sc400: 74 222 128; --sc500: 34 197 94; --sc600: 22 163 74; --sc700: 21 128 61; --sc800: 22 101 52; --sc900: 20 83 45; --sc950: 5 46 22;
+  --w50: 255 247 237; --w100: 255 237 213; --w200: 254 215 170; --w300: 253 186 116; --w400: 251 146 60; --w500: 249 115 22; --w600: 234 88 12; --w700: 194 65 12; --w800: 154 52 18; --w900: 124 45 18; --w950: 67 20 7;
+  --d50: 255 241 242; --d100: 255 228 230; --d200: 254 205 211; --d300: 253 164 175; --d400: 251 113 133; --d500: 244 63 94; --d600: 225 29 72; --d700: 190 18 60; --d800: 159 18 57; --d900: 136 19 55; --d950: 76 5 25;
+  --i50: 240 249 255; --i100: 224 242 254; --i200: 186 230 253; --i300: 125 211 252; --i400: 56 189 248; --i500: 14 165 233; --i600: 2 132 199; --i700: 3 105 161; --i800: 7 89 133; --i900: 12 74 110; --i950: 8 47 73;
+  --n0: #fff;
+  --card-bg: #fff; --card-border: rgb(var(--n200));
+  --text-main: rgb(var(--n900)); --text-muted: rgb(var(--n500));
+  background: linear-gradient(170deg, #f4f5ff 0%, #edeff9 40%, #fff5f3 100%);
+  color: rgb(16,18,32);
+">
+
+  <h2 style="color:rgb(79,70,229)">🌌 Cosmic Dawn</h2>
+  <p class="subtitle">Índigo profundo + Coral neón. Premium, futurista, con calidez.</p>
+
+  <div class="demo-grid">
+    <div class="demo-card">
+      <h3>🎯 Paleta Principal</h3>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Primary — Índigo cósmico</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--p50))"></div><div class="swatch" style="background:rgb(var(--p100))"></div>
+          <div class="swatch" style="background:rgb(var(--p200))"></div><div class="swatch" style="background:rgb(var(--p300))"></div>
+          <div class="swatch" style="background:rgb(var(--p400))"></div><div class="swatch" style="background:rgb(var(--p500))"></div>
+          <div class="swatch" style="background:rgb(var(--p600))"></div><div class="swatch" style="background:rgb(var(--p700))"></div>
+          <div class="swatch" style="background:rgb(var(--p800))"></div><div class="swatch" style="background:rgb(var(--p900))"></div>
+          <div class="swatch" style="background:rgb(var(--p950))"></div>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Secondary — Coral cálido</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--s50))"></div><div class="swatch" style="background:rgb(var(--s100))"></div>
+          <div class="swatch" style="background:rgb(var(--s200))"></div><div class="swatch" style="background:rgb(var(--s300))"></div>
+          <div class="swatch" style="background:rgb(var(--s400))"></div><div class="swatch" style="background:rgb(var(--s500))"></div>
+          <div class="swatch" style="background:rgb(var(--s600))"></div><div class="swatch" style="background:rgb(var(--s700))"></div>
+          <div class="swatch" style="background:rgb(var(--s800))"></div><div class="swatch" style="background:rgb(var(--s900))"></div>
+          <div class="swatch" style="background:rgb(var(--s950))"></div>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px">Neutral — Azul grisáceo</p>
+        <div class="swatches">
+          <div class="swatch" style="background:rgb(var(--n50))"></div><div class="swatch" style="background:rgb(var(--n100))"></div>
+          <div class="swatch" style="background:rgb(var(--n200))"></div><div class="swatch" style="background:rgb(var(--n300))"></div>
+          <div class="swatch" style="background:rgb(var(--n400))"></div><div class="swatch" style="background:rgb(var(--n500))"></div>
+          <div class="swatch" style="background:rgb(var(--n600))"></div><div class="swatch" style="background:rgb(var(--n700))"></div>
+          <div class="swatch" style="background:rgb(var(--n800))"></div><div class="swatch" style="background:rgb(var(--n900))"></div>
+          <div class="swatch" style="background:rgb(var(--n950))"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <h3>🏷️ Colores Semánticos</h3>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--sc600))">Success</p><div class="swatches"><div class="swatch" style="background:rgb(var(--sc50))"></div><div class="swatch" style="background:rgb(var(--sc100))"></div><div class="swatch" style="background:rgb(var(--sc200))"></div><div class="swatch" style="background:rgb(var(--sc300))"></div><div class="swatch" style="background:rgb(var(--sc400))"></div><div class="swatch" style="background:rgb(var(--sc500))"></div><div class="swatch" style="background:rgb(var(--sc600))"></div><div class="swatch" style="background:rgb(var(--sc700))"></div></div></div>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--w600))">Warning</p><div class="swatches"><div class="swatch" style="background:rgb(var(--w50))"></div><div class="swatch" style="background:rgb(var(--w100))"></div><div class="swatch" style="background:rgb(var(--w200))"></div><div class="swatch" style="background:rgb(var(--w300))"></div><div class="swatch" style="background:rgb(var(--w400))"></div><div class="swatch" style="background:rgb(var(--w500))"></div><div class="swatch" style="background:rgb(var(--w600))"></div><div class="swatch" style="background:rgb(var(--w700))"></div></div></div>
+      <div style="margin-bottom:16px"><p style="font-size:.75rem;font-weight:600;margin-bottom:4px;color:rgb(var(--d500))">Danger</p><div class="swatches"><div class="swatch" style="background:rgb(var(--d50))"></div><div class="swatch" style="background:rgb(var(--d100))"></div><div class="swatch" style="background:rgb(var(--d200))"></div><div class="swatch" style="background:rgb(var(--d300))"></div><div class="swatch" style="background:rgb(var(--d400))"></div><div class="swatch" style="background:rgb(var(--d500))"></div><div class="swatch" style="background:rgb(var(--d600))"></div><div class="swatch" style="background:rgb(var(--d700))"></div></div></div>
+    </div>
+
+    <div class="demo-card">
+      <h3>🔘 Botones & Badges</h3>
+      <div class="btn-row">
+        <button class="btn btn-primary">Guardar</button>
+        <button class="btn btn-secondary">Cancelar</button>
+        <button class="btn btn-ghost">Volver</button>
+      </div>
+      <div class="badge-row">
+        <span class="badge" style="background:rgb(var(--sc50));color:rgb(var(--sc700))">✅ Completado</span>
+        <span class="badge" style="background:rgb(var(--w50));color:rgb(var(--w700))">⏳ Pendiente</span>
+        <span class="badge" style="background:rgb(var(--d50));color:rgb(var(--d700))">🚨 Urgente</span>
+        <span class="badge" style="background:rgb(var(--p50));color:rgb(var(--p700))">Nuevo</span>
+      </div>
+    </div>
+
+    <div class="demo-card">
+      <h3>📊 Mini Dashboard</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="value" style="color:rgb(var(--p600))">$45.2K</div><div class="label">Ingresos este mes</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--sc600))">128</div><div class="label">Negocios activos</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--w600))">12</div><div class="label">Tareas hoy</div></div>
+        <div class="stat"><div class="value" style="color:rgb(var(--d500))">3</div><div class="label">Atrasadas</div></div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="background:linear-gradient(90deg,rgb(var(--p500)),rgb(var(--s500)))"></div></div>
+      <p style="font-size:.75rem;color:var(--text-muted);margin-top:8px">Progreso del pipeline · 65%</p>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  Abre este archivo en tu navegador · Cada paleta usa exactamente la misma estructura de variables CSS que BOS-Core ya tiene.<br>
+  Elegir una es solo copiar los valores RGB al <code>:root</code> de <code>frontend/src/index.css</code>.
+</div>
+
+</body>
+</html>

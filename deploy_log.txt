@@ -1,0 +1,188 @@
+==> Verifying app config
+Validating /Users/richardtaty/Projects/BOS-Core/fly.toml
+[32m✓[0m Configuration is valid
+--> Verified app config
+[33mWARN[0m DATABASE_URL may be a potentially sensitive environment variable. Consider setting it as a secret, and removing it from the [env] section: https://fly.io/docs/apps/secrets/
+
+==> Building image
+Waiting for depot builder...
+
+==> Building image with Depot
+--> build:  (​)
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 30B 0.1s
+#1 transferring dockerfile: 895B 0.2s done
+#1 DONE 0.2s
+
+#2 [internal] load metadata for docker.io/library/node:22-alpine
+#2 DONE 0.2s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B 0.2s done
+#3 DONE 0.2s
+
+#4 [frontend-build 1/6] FROM docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#4 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 3.38kB 0.2s done
+#5 DONE 0.2s
+
+#6 [backend-build 3/6] COPY backend/package*.json ./
+#6 CACHED
+
+#7 [backend-build 4/6] RUN npm install
+#7 CACHED
+
+#8 [backend-build 2/6] WORKDIR /app/backend
+#8 CACHED
+
+#9 [backend-build 5/6] COPY backend/ ./
+#9 CACHED
+
+#10 [frontend-build 4/6] RUN npm install
+#10 CACHED
+
+#11 [frontend-build 2/6] WORKDIR /app/frontend
+#11 CACHED
+
+#12 [frontend-build 3/6] COPY frontend/package*.json ./
+#12 CACHED
+
+#13 [frontend-build 5/6] COPY frontend/ ./
+#13 CACHED
+
+#14 [backend-build 6/6] RUN npm run build
+#14 0.293 
+#14 0.293 > bos-core-backend@0.1.0 build
+#14 0.293 > tsc -p tsconfig.json && mkdir -p dist/db/migrations && cp src/db/migrations/*.sql dist/db/migrations/
+#14 0.293 
+#14 CANCELED
+
+#15 [frontend-build 6/6] RUN npm run build
+#15 0.291 
+#15 0.291 > bos-core-frontend@0.1.0 build
+#15 0.291 > tsc -b && vite build
+#15 0.291 
+#15 3.873 src/api/client.ts(137,13): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.874 src/api/client.ts(138,16): error TS2693: 'number' only refers to a type, but is being used as a value here.
+#15 3.874 src/api/client.ts(139,15): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.874 src/api/client.ts(139,24): error TS18050: The value 'null' cannot be used here.
+#15 3.874 src/api/client.ts(140,16): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.875 src/api/client.ts(141,18): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.875 src/api/client.ts(142,22): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.875 src/api/client.ts(143,24): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.875 src/api/client.ts(143,33): error TS18050: The value 'null' cannot be used here.
+#15 3.875 src/api/client.ts(144,25): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.875 src/api/client.ts(145,8): error TS2365: Operator '>' cannot be applied to types 'never[]' and 'string'.
+#15 3.875 src/pages/ReporteVentasPage.tsx(56,15): error TS2345: Argument of type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to parameter of type 'SetStateAction<Abono[]>'.
+#15 3.875   Type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to type '(prevState: Abono[]) => Abono[]'.
+#15 3.875     Types of parameters 'path' and 'prevState' are incompatible.
+#15 3.875       Type 'Abono[]' is not assignable to type 'string'.
+#15 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [frontend-build 6/6] RUN npm run build:
+3.875 src/api/client.ts(141,18): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.875 src/api/client.ts(142,22): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.875 src/api/client.ts(143,24): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.875 src/api/client.ts(143,33): error TS18050: The value 'null' cannot be used here.
+3.875 src/api/client.ts(144,25): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.875 src/api/client.ts(145,8): error TS2365: Operator '>' cannot be applied to types 'never[]' and 'string'.
+3.875 src/pages/ReporteVentasPage.tsx(56,15): error TS2345: Argument of type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to parameter of type 'SetStateAction<Abono[]>'.
+3.875   Type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to type '(prevState: Abono[]) => Abono[]'.
+3.875     Types of parameters 'path' and 'prevState' are incompatible.
+3.875       Type 'Abono[]' is not assignable to type 'string'.
+------
+==> Building image
+Waiting for depot builder...
+
+==> Building image with Depot
+--> build:  (​)
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 30B 0.1s
+#1 transferring dockerfile: 895B 0.3s done
+#1 DONE 0.3s
+
+#2 [internal] load metadata for docker.io/library/node:22-alpine
+#2 DONE 0.2s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 0.1s
+#3 transferring context: 2B 0.3s done
+#3 DONE 0.3s
+
+#4 [frontend-build 1/6] FROM docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#4 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 3.38kB 0.3s done
+#5 DONE 0.3s
+
+#6 [frontend-build 2/6] WORKDIR /app/frontend
+#6 CACHED
+
+#7 [frontend-build 3/6] COPY frontend/package*.json ./
+#7 CACHED
+
+#8 [frontend-build 4/6] RUN npm install
+#8 CACHED
+
+#9 [frontend-build 5/6] COPY frontend/ ./
+#9 CACHED
+
+#10 [backend-build 2/6] WORKDIR /app/backend
+#10 CACHED
+
+#11 [backend-build 3/6] COPY backend/package*.json ./
+#11 CACHED
+
+#12 [backend-build 4/6] RUN npm install
+#12 CACHED
+
+#13 [backend-build 5/6] COPY backend/ ./
+#13 CACHED
+
+#14 [backend-build 6/6] RUN npm run build
+#14 0.259 
+#14 0.259 > bos-core-backend@0.1.0 build
+#14 0.259 > tsc -p tsconfig.json && mkdir -p dist/db/migrations && cp src/db/migrations/*.sql dist/db/migrations/
+#14 0.259 
+#14 CANCELED
+
+#15 [frontend-build 6/6] RUN npm run build
+#15 0.258 
+#15 0.258 > bos-core-frontend@0.1.0 build
+#15 0.258 > tsc -b && vite build
+#15 0.258 
+#15 3.929 src/api/client.ts(137,13): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(138,16): error TS2693: 'number' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(139,15): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(139,24): error TS18050: The value 'null' cannot be used here.
+#15 3.930 src/api/client.ts(140,16): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(141,18): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(142,22): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(143,24): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(143,33): error TS18050: The value 'null' cannot be used here.
+#15 3.930 src/api/client.ts(144,25): error TS2693: 'string' only refers to a type, but is being used as a value here.
+#15 3.930 src/api/client.ts(145,8): error TS2365: Operator '>' cannot be applied to types 'never[]' and 'string'.
+#15 3.930 src/pages/ReporteVentasPage.tsx(56,15): error TS2345: Argument of type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to parameter of type 'SetStateAction<Abono[]>'.
+#15 3.930   Type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to type '(prevState: Abono[]) => Abono[]'.
+#15 3.930     Types of parameters 'path' and 'prevState' are incompatible.
+#15 3.930       Type 'Abono[]' is not assignable to type 'string'.
+#15 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [frontend-build 6/6] RUN npm run build:
+3.930 src/api/client.ts(141,18): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.930 src/api/client.ts(142,22): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.930 src/api/client.ts(143,24): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.930 src/api/client.ts(143,33): error TS18050: The value 'null' cannot be used here.
+3.930 src/api/client.ts(144,25): error TS2693: 'string' only refers to a type, but is being used as a value here.
+3.930 src/api/client.ts(145,8): error TS2365: Operator '>' cannot be applied to types 'never[]' and 'string'.
+3.930 src/pages/ReporteVentasPage.tsx(56,15): error TS2345: Argument of type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to parameter of type 'SetStateAction<Abono[]>'.
+3.930   Type '<T>(path: string, options?: RequestInit) => Promise<T>' is not assignable to type '(prevState: Abono[]) => Abono[]'.
+3.930     Types of parameters 'path' and 'prevState' are incompatible.
+3.930       Type 'Abono[]' is not assignable to type 'string'.
+------
+Error: failed to fetch an image or build from source: error building: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1

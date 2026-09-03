@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * ── BOS · Tema Claro ──
+   * Blanco, azul y gris. Azul (#3B82F6) como acento primario,
+   * neutros grises con sesgo azulado, fondos blancos y gris muy claro.
+   * Tipografías: Space Grotesk (headings), Inter (body/UI), JetBrains Mono (números).
+   */
+
+  :root {
+    /* ── Surface tokens ── */
+    --surface-base: 246 248 251;       /* fondo de página #F6F8FB */
+    --surface-elevated: 255 255 255;   /* tarjetas #FFFFFF */
+    --surface-overlay: 15 23 42;       /* texto sobre overlays */
+
+    /* ── Glass tokens ── */
+    --glass-bg: 255 255 255;
+    --glass-border: 15 23 42;
+    --glass-blur: 24px;
+
+    /* ── Primary · Accent Azul #3B82F6 ── */
+    --color-primary-50: 239 246 255;
+    --color-primary-100: 219 234 254;
+    --color-primary-200: 191 219 254;
+    --color-primary-300: 147 197 253;
+    --color-primary-400: 96 165 250;
+    --color-primary-500: 59 130 246;
+    --color-primary-600: 37 99 235;
+    --color-primary-700: 29 78 216;
+    --color-primary-800: 30 64 175;
+    --color-primary-900: 30 58 138;
+    --color-primary-950: 23 37 84;
+
+    /* ── Secondary · Azul-gris ── */
+    --color-secondary-50: 240 245 250;
+    --color-secondary-100: 224 233 242;
+    --color-secondary-200: 197 212 228;
+    --color-secondary-300: 163 186 210;
+    --color-secondary-400: 118 148 178;
+    --color-secondary-500: 90 118 148;
+    --color-secondary-600: 66 92 120;
+    --color-secondary-700: 51 73 96;
+    --color-secondary-800: 40 57 76;
+    --color-secondary-900: 30 43 58;
+    --color-secondary-950: 18 26 36;
+
+    /* ── Neutral · Blanco y grises ── */
+    --color-neutral-50: 255 255 255;   /* tarjetas #FFFFFF */
+    --color-neutral-100: 241 245 249;  /* hover / rellenos #F1F5F9 */
+    --color-neutral-200: 226 232 240;  /* bordes #E2E8F0 */
+    --color-neutral-300: 203 213 225;
+    --color-neutral-400: 148 163 184;  /* texto atenuado */
+    --color-neutral-500: 100 116 139;  /* texto tenue */
+    --color-neutral-600: 71 85 105;
+    --color-neutral-700: 51 65 85;
+    --color-neutral-800: 30 41 59;     /* texto secundario */
+    --color-neutral-900: 15 23 42;     /* texto principal */
+    --color-neutral-950: 2 6 23;
+
+    /* ── Success · Verde #16A34A ── */
+    --color-success-50: 240 253 244;
+    --color-success-100: 220 252 231;
+    --color-success-200: 187 247 208;
+    --color-success-300: 134 239 172;
+    --color-success-400: 74 222 128;
+    --color-success-500: 34 197 94;
+    --color-success-600: 22 163 74;
+    --color-success-700: 21 128 61;
+    --color-success-800: 22 101 52;
+    --color-success-900: 20 83 45;
+    --color-success-950: 5 46 22;
+
+    /* ── Warning · Ámbar #D97706 ── */
+    --color-warning-50: 255 251 235;
+    --color-warning-100: 254 243 199;
+    --color-warning-200: 253 230 138;
+    --color-warning-300: 252 211 77;
+    --color-warning-400: 251 191 36;
+    --color-warning-500: 245 158 11;
+    --color-warning-600: 217 119 6;
+    --color-warning-700: 180 83 9;
+    --color-warning-800: 146 64 14;
+    --color-warning-900: 120 53 15;
+    --color-warning-950: 69 26 3;
+
+    /* ── Danger · Rojo #DC2626 ── */
+    --color-danger-50: 254 242 242;
+    --color-danger-100: 254 226 226;
+    --color-danger-200: 254 202 202;
+    --color-danger-300: 252 165 165;
+    --color-danger-400: 248 113 113;
+    --color-danger-500: 239 68 68;
+    --color-danger-600: 220 38 38;
+    --color-danger-700: 185 28 28;
+    --color-danger-800: 153 27 27;
+    --color-danger-900: 127 29 29;
+    --color-danger-950: 69 10 10;
+
+    /* ── Info · Azul ── */
+    --color-info-50: 239 246 255;
+    --color-info-100: 219 234 254;
+    --color-info-200: 191 219 254;
+    --color-info-300: 147 197 253;
+    --color-info-400: 96 165 250;
+    --color-info-500: 59 130 246;
+    --color-info-600: 37 99 235;
+    --color-info-700: 29 78 216;
+    --color-info-800: 30 64 175;
+    --color-info-900: 30 58 138;
+    --color-info-950: 23 37 84;
+  }
+}
+
+/* ═══════════════════════════════════════════
+ * Glassmorphism utilities
+ * ═══════════════════════════════════════════ */
+@layer utilities {
+  .glass {
+    background: rgb(var(--glass-bg) / 0.72);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+  }
+  .glass-strong {
+    background: rgb(var(--glass-bg) / 0.88);
+    backdrop-filter: blur(calc(var(--glass-blur) * 1.5));
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.5));
+  }
+  .glass-border {
+    border-color: rgb(var(--glass-border) / 0.08);
+  }
+  .glass-border-strong {
+    border-color: rgb(var(--glass-border) / 0.14);
+  }
+}
+
+/* ═══════════════════════════════════════════
+ * Base styles
+ * ═══════════════════════════════════════════ */
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background-color: rgb(var(--surface-base));
+    color: rgb(var(--color-neutral-900));
+  }
+}
+
+/* ═══════════════════════════════════════════
+ * Micro-animations
+ * ═══════════════════════════════════════════ */
+@layer utilities {
+  /* Fade + slide up on enter */
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .animate-enter {
+    animation: enter 0.3s ease-out;
+  }
+
+  /* Subtle pulse for KPIs */
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  /* Slide in from right */
+  @keyframes slide-in-right {
+    from { transform: translateX(16px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .animate-slide-in {
+    animation: slide-in-right 0.25s ease-out;
+  }
+
+  /* Stagger children */
+  .stagger > * {
+    animation: enter 0.35s ease-out both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 60ms; }
+  .stagger > *:nth-child(3) { animation-delay: 120ms; }
+  .stagger > *:nth-child(4) { animation-delay: 180ms; }
+  .stagger > *:nth-child(5) { animation-delay: 240ms; }
+  .stagger > *:nth-child(6) { animation-delay: 300ms; }
+  .stagger > *:nth-child(7) { animation-delay: 360ms; }
+  .stagger > *:nth-child(8) { animation-delay: 420ms; }
+
+  /* ── Revenue Ticker marquee ── */
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .animate-marquee {
+    animation: marquee 40s linear infinite;
+  }
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
+}

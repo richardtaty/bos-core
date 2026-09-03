@@ -1,0 +1,37 @@
+# Qué NO se sube a Fly en cada despliegue.
+# Sin este archivo se enviaban 282 MB y 17.494 archivos cada vez, casi todo inútil:
+# el Dockerfile ya corre `npm install` dentro de la imagen, así que las dependencias
+# locales no hacen falta.
+
+# Dependencias: se instalan dentro de la imagen
+node_modules/
+**/node_modules/
+
+# Compilados: se generan dentro de la imagen
+backend/dist/
+frontend/dist/
+
+# El conector de Hermes corre en la computadora de Richard, no en el servidor
+mcp-server/
+
+# Bases de datos locales de prueba — producción usa /data/prod.db en el volumen de Fly.
+# Van con **/ porque Docker compara desde la raíz: `*.db` solo no atraparía backend/dev.db.
+**/*.db
+**/*.db-journal
+**/*.db-wal
+
+# Secretos: en Fly van como secrets, nunca dentro de la imagen
+.env
+.env.*
+
+# Ruido
+.git/
+.DS_Store
+*.zip
+*.log
+deploy_log.txt
+.claude/
+docs/
+README.md
+CLAUDE.md
+paletas-preview.html
