@@ -8,8 +8,9 @@ function PrioridadBadge({ p }: { p: string }) {
   return <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${c[p] ?? c.media}`}>{p}</span>;
 }
 
-// Estados del ciclo de vida del proyecto. Se muestran como badge de color en la tarjeta
-// y como selector dentro del modal de edición.
+// Etapa del ciclo de vida del proyecto (activo/en_proceso/completado/...). Se elige
+// dentro del modal de edición; en la tarjeta NO se pinta — ahí el estado visible es
+// el interruptor Activo/Inactivo (campo `activo`), uno solo a la vez.
 const ESTADOS: { valor: Proyecto["estado"]; label: string; clase: string }[] = [
   { valor: "activo", label: "Activo", clase: "bg-success-100 text-success-700" },
   { valor: "en_proceso", label: "En proceso", clase: "bg-primary-100 text-primary-700" },
@@ -19,13 +20,18 @@ const ESTADOS: { valor: Proyecto["estado"]; label: string; clase: string }[] = [
   { valor: "cancelado", label: "Cancelado", clase: "bg-danger-100 text-danger-700" },
 ];
 
-function FaseBadge({ estado }: { estado: Proyecto["estado"] }) {
-  const est = ESTADOS.find((s) => s.valor === estado);
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${est?.clase ?? "bg-neutral-100 text-neutral-600"}`}>{est?.label ?? estado}</span>;
-}
-
 function soloFecha(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
+}
+
+// Orden estable de la lista: los proyectos activos van primero y los inactivos al
+// final. Dentro de cada grupo se conserva el orden que ya trae el listado (el
+// backend lo entrega por más reciente primero), así el filtro por departamento
+// mantiene esta misma regla.
+function ordenarActivosPrimero(lista: Proyecto[]): Proyecto[] {
+  const activos = lista.filter((p) => p.activo);
+  const inactivos = lista.filter((p) => !p.activo);
+  return [...activos, ...inactivos];
 }
 
 export function ProyectosPage() {
@@ -64,7 +70,9 @@ export function ProyectosPage() {
       api.listarDepartamentos(),
       api.listarUsuarios(),
     ]);
-    setProyectos(p);
+    // Activos primero, inactivos al final (el filtro por departamento ya viene
+    // aplicado por el backend en `p`; este orden se conserva en cada carga).
+    setProyectos(ordenarActivosPrimero(p));
     setDeptos(d);
     setUsuarios(u);
     setCargando(false);
@@ -74,12 +82,28 @@ export function ProyectosPage() {
 
   async function toggleActivo(p: Proyecto) {
     const nuevo = !p.activo;
-    // Optimista: refleja el cambio al instante y revierte si falla el backend.
-    setProyectos((prev) => prev.map((x) => (x.id === p.id ? { ...x, activo: nuevo } : x)));
+    const antes = proyectos; // para revertir si el backend falla
+
+    // Reordena en el momento, sin recargar: al desactivar el proyecto baja al
+    // final del listado; al reactivar vuelve justo antes de los inactivos.
+    const reordenar = (lista: Proyecto[]): Proyecto[] => {
+      const resto = lista.filter((x) => x.id !== p.id);
+      const item: Proyecto = { ...p, activo: nuevo };
+      if (!nuevo) return [...resto, item];
+      const primerInactivo = resto.findIndex((x) => !x.activo);
+      if (primerInactivo === -1) return [...resto, item];
+      const conPosicion = [...resto];
+      conPosicion.splice(primerInactivo, 0, item);
+      return conPosicion;
+    };
+
+    setProyectos(reordenar);
     try {
+      // Persiste de verdad en la base de datos.
       await api.cambiarActivoProyecto(p.id, nuevo);
     } catch {
-      setProyectos((prev) => prev.map((x) => (x.id === p.id ? { ...x, activo: p.activo } : x)));
+      // Si falla el guardado, se restaura el estado y la posición anteriores.
+      setProyectos(antes);
     }
   }
 
@@ -197,8 +221,11 @@ export function ProyectosPage() {
                 {p.fechaEntrega && <p>📅 Entrega: {new Date(p.fechaEntrega).toLocaleDateString("es-ES")}</p>}
               </div>
               <div className="flex items-center gap-2 mt-2">
-                <FaseBadge estado={p.estado} />
-                {!p.activo && <span className="text-[10px] text-neutral-500">· inactivo</span>}
+                {p.activo ? (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-success-100 text-success-700">Activo</span>
+                ) : (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-danger-100 text-danger-700">Inactivo</span>
+                )}
               </div>
             </Link>
           ))}
