@@ -250,6 +250,17 @@ export interface CitaPodcastDTO {
   updatedAt: string;
 }
 
+export interface InvitadoMatchDTO {
+  id: string;
+  nombre: string;
+}
+
+export interface BusquedaInvitadosDTO {
+  coincidencias: InvitadoMatchDTO[];
+  parecidos: InvitadoMatchDTO[];
+  hayExacto: boolean;
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<{
@@ -485,6 +496,19 @@ export const api = {
 
   eliminarPodcastCita: (id: string) =>
     request<{ ok: boolean }>(`/podcast/citas/${id}`, { method: "DELETE" }),
+
+  // Búsqueda de invitados (autocomplete) y alta de invitado nuevo. Con q vacío
+  // el backend no devuelve lista: solo se sugieren coincidencias al escribir.
+  podcastBuscarInvitados: (q: string) => {
+    const s = new URLSearchParams({ q }).toString();
+    return request<BusquedaInvitadosDTO>(`/podcast/invitados?${s}`);
+  },
+
+  podcastCrearInvitado: (data: { nombre: string }) =>
+    request<{ persona: { id: string; nombre: string }; creado: boolean }>("/podcast/invitados", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // ─── Tareas operativas ───────────────────────────────────
 

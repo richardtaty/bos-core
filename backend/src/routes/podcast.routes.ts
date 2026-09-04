@@ -17,6 +17,7 @@ import {
   actualizarCita,
   eliminarCita,
 } from "../services/podcast-citas.service";
+import { buscarInvitados, obtenerOCrearInvitado } from "../services/podcast-invitados.service";
 
 export const podcastRouter = Router();
 podcastRouter.use(requireAuth);
@@ -137,4 +138,32 @@ podcastRouter.patch("/citas/:id", requireDepartamento("Podcast"), async (req, re
 podcastRouter.delete("/citas/:id", requireDepartamento("Podcast"), async (req, res) => {
   await eliminarCita(req.params.id);
   res.json({ ok: true });
+});
+
+// ─── Invitados del calendario (autocomplete) ─────────────────────
+// Búsqueda para el campo "Invitado": con q vacío NO devuelve lista (el
+// combobox solo sugiere mientras se escribe). La normalización de acentos,
+// mayúsculas y espacios vive en el servicio.
+podcastRouter.get("/invitados", requireDepartamento("Podcast"), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    res.json(await buscarInvitados(q));
+  } catch (e) {
+    res.status(500).json({ error: (e as Error).message });
+  }
+});
+
+// Crea la ficha mínima de un invitado que no existe (o reutiliza la existente
+// con el mismo nombre). Se llama cuando el usuario elige "+ Agregar «nombre»".
+podcastRouter.post("/invitados", requireDepartamento("Podcast"), async (req, res) => {
+  const nombre = typeof req.body?.nombre === "string" ? req.body.nombre.trim() : "";
+  if (nombre.length < 2) {
+    res.status(400).json({ error: "Escribe el nombre del invitado" });
+    return;
+  }
+  try {
+    res.status(201).json(await obtenerOCrearInvitado(nombre, req.user!.id));
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
 });

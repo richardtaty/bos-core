@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type CitaPodcastDTO } from "../api/client";
-import type { Persona } from "../types";
+import { InvitadoCombobox, type ValorInvitado } from "../components/InvitadoCombobox";
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = [
@@ -29,7 +29,6 @@ export function PodcastCalendarioPage() {
   const [mes, setMes] = useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1));
   const [diaSel, setDiaSel] = useState(ymd(hoy));
   const [citas, setCitas] = useState<CitaPodcastDTO[]>([]);
-  const [personas, setPersonas] = useState<Persona[]>([]);
   const [cargando, setCargando] = useState(true);
 
   // Modal (crear / editar)
@@ -37,7 +36,8 @@ export function PodcastCalendarioPage() {
   const [editando, setEditando] = useState<CitaPodcastDTO | null>(null);
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
-  const [personaId, setPersonaId] = useState("");
+  // Invitado resuelto del combobox: contacto existente o nombre nuevo por agregar.
+  const [invitado, setInvitado] = useState<ValorInvitado | null>(null);
   const [estado, setEstado] = useState<CitaPodcastDTO["estado"]>("agendado");
   const [nota, setNota] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -54,10 +54,6 @@ export function PodcastCalendarioPage() {
       setCargando(false);
     });
   }, [rangoMes]);
-
-  useEffect(() => {
-    void api.listarPersonas({ limite: 500 }).then((res) => setPersonas(res.items));
-  }, []);
 
   const celdas = useMemo(() => {
     const first = new Date(mes.getFullYear(), mes.getMonth(), 1);
@@ -80,8 +76,6 @@ export function PodcastCalendarioPage() {
     return map;
   }, [citas]);
 
-  const personasOrdenadas = useMemo(() => [...personas].sort((a, b) => a.nombre.localeCompare(b.nombre)), [personas]);
-
   const citasDia = citasPorDia.get(diaSel) ?? [];
 
   function cambiarMes(delta: number) {
@@ -97,7 +91,7 @@ export function PodcastCalendarioPage() {
     setEditando(null);
     setFecha(diaSel);
     setHora("");
-    setPersonaId("");
+    setInvitado(null);
     setEstado("agendado");
     setNota("");
     setError("");
@@ -108,7 +102,7 @@ export function PodcastCalendarioPage() {
     setEditando(c);
     setFecha(c.fecha);
     setHora(c.hora);
-    setPersonaId(c.personaId);
+    setInvitado({ tipo: "existente", id: c.personaId, nombre: c.invitado });
     setEstado(c.estado);
     setNota(c.nota ?? "");
     setError("");
@@ -119,6 +113,29 @@ export function PodcastCalendarioPage() {
     e.preventDefault();
     setGuardando(true);
     setError("");
+
+    // Resolver el invitado: si el usuario eligió "+ Agregar" un nombre que no
+    // existe, primero se crea su ficha mínima (o se reutiliza una existente
+    // con el mismo nombre) y la cita apunta a esa persona — igual que siempre.
+    let personaId: string | null =
+      invitado?.tipo === "existente" ? invitado.id : null;
+    if (invitado?.tipo === "nuevo") {
+      try {
+        const creado = await api.podcastCrearInvitado({ nombre: invitado.nombre });
+        personaId = creado.persona.id;
+      } catch (err: any) {
+        setError(err?.message ?? "No se pudo crear el invitado");
+        setGuardando(false);
+        return;
+      }
+    }
+
+    if (!personaId) {
+      setError("Elige un contacto existente o agrega el nombre del invitado nuevo");
+      setGuardando(false);
+      return;
+    }
+
     try {
       if (editando) {
         await api.actualizarPodcastCita(editando.id, { personaId, fecha, hora, estado, nota });
@@ -239,10 +256,7 @@ export function PodcastCalendarioPage() {
               </div>
               <div>
                 <span className="text-xs text-neutral-500 block mb-1">Invitado</span>
-                <select value={personaId} onChange={(e) => setPersonaId(e.target.value)} className="border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm w-full" required>
-                  <option value="">Seleccionar contacto…</option>
-                  {personasOrdenadas.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
+                <InvitadoCombobox valor={invitado} onChange={setInvitado} disabled={guardando} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
