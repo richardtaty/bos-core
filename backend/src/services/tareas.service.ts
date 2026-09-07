@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, or, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, lte, ne, or, inArray } from "drizzle-orm";
 import { db } from "../db/client";
 import { tareasOperativas, tareaChecklist, tareaComentarios, solicitudesExtension, usuarios } from "../db/schema";
 import { registrarAuditoria } from "./auditoria.service";
@@ -116,6 +116,12 @@ export const TAREA_COLUMNS = {
  *  responder 403 en vez del 400 genérico. Mismo patrón que SinPermisoError en personas. */
 export class SinPermisoTareaError extends Error {}
 
+/** Área/módulo DEV (tareas de desarrollo). Solo el Super Admin la ve y la gestiona. */
+export const AREA_DEV = "DEV";
+/** Los únicos estados permitidos para una tarea DEV. Mapean a estados reales ya
+ *  existentes del sistema: PENDIENTE→pendiente, EN PROCESO→en_proceso, FINALIZADA→completada. */
+export const ESTADOS_DEV = ["pendiente", "en_proceso", "completada"] as const;
+
 /** Roles con mando sobre el trabajo de otros. Son los que pueden delegar y aprobar. */
 export function esRolDeMando(rol: Rol): boolean {
   return rol === "SUPER_ADMIN" || rol === "ADMIN" || rol === "SUPERVISOR";
@@ -164,6 +170,10 @@ type TareaParaPermiso = {
  * en otra área.
  */
 export async function puedeGestionarTarea(user: AuthUser, tarea: TareaParaPermiso): Promise<boolean> {
+  // DEV es un módulo aislado (solo el Super Admin lo gestiona). Se corta antes que
+  // cualquier otra regla, aunque el usuario sea responsable/creador de la tarea DEV.
+  if (tarea.departamento === AREA_DEV && user.rol !== "SUPER_ADMIN") return false;
+
   // 1. El dueño del sistema pasa siempre.
   if (user.rol === "SUPER_ADMIN") return true;
 
@@ -210,6 +220,9 @@ export async function listarTareas(params: {
   canal?: string;
 }) {
   const condiciones = [
+    // Las tareas DEV viven solo en su módulo: nunca aparecen en los listados generales
+    // (Tareas, Scrum Boards, calendario editorial, ficha de persona, dashboards).
+    ne(tareasOperativas.departamento, AREA_DEV),
     params.responsableId ? eq(tareasOperativas.responsableId, params.responsableId) : undefined,
     params.departamento ? eq(tareasOperativas.departamento, params.departamento) : undefined,
     params.estado ? eq(tareasOperativas.estado, params.estado) : undefined,
@@ -223,6 +236,23 @@ export async function listarTareas(params: {
     .from(tareasOperativas)
     .innerJoin(usuarios, eq(tareasOperativas.responsableId, usuarios.id))
     .where(condiciones.length ? and(...condiciones) : undefined)
+    .orderBy(desc(tareasOperativas.updatedAt));
+}
+
+/**
+ * Listado de las tareas del módulo DEV. Es la consulta propia del apartado DEV (ruta
+ * `/api/dev`, restringida a SUPER_ADMIN). Filtra por el área DEV y, opcionalmente, por
+ * uno de sus tres estados (pendiente / en_proceso / completada).
+ */
+export async function listarTareasDev(estado?: EstadoTarea) {
+  const condiciones = [eq(tareasOperativas.departamento, AREA_DEV)];
+  if (estado) condiciones.push(eq(tareasOperativas.estado, estado));
+
+  return db
+    .select(TAREA_COLUMNS)
+    .from(tareasOperativas)
+    .innerJoin(usuarios, eq(tareasOperativas.responsableId, usuarios.id))
+    .where(and(...condiciones))
     .orderBy(desc(tareasOperativas.updatedAt));
 }
 
@@ -296,6 +326,9 @@ export async function listarTareasVisibles(
 
   const condiciones = [
     condicionAlcance,
+    // Las tareas DEV no forman parte del alcance de ningún rol en el módulo general:
+    // viven solo en su apartado (ruta /api/dev, restringida a SUPER_ADMIN).
+    ne(tareasOperativas.departamento, AREA_DEV),
     params.responsableId ? eq(tareasOperativas.responsableId, params.responsableId) : undefined,
     params.departamento ? eq(tareasOperativas.departamento, params.departamento) : undefined,
     params.estado ? eq(tareasOperativas.estado, params.estado) : undefined,
@@ -352,6 +385,12 @@ export async function obtenerTarea(id: string) {
 }
 
 export async function crearTarea(input: CrearTareaInput, autor: AuthUser) {
+  // Nadie puede colar una tarea DEV por un endpoint general enviando `departamento: "DEV"`:
+  // ese área se crea únicamente desde el módulo DEV (superficie restringida a SUPER_ADMIN).
+  if (input.departamento === AREA_DEV && autor.rol !== "SUPER_ADMIN") {
+    throw new SinPermisoTareaError("Solo el Super Admin puede crear tareas DEV.");
+  }
+
   const id = crypto.randomUUID();
   const ahora = new Date();
   const autorId = autor.id;
@@ -401,6 +440,24 @@ export async function actualizarTarea(id: string, input: ActualizarTareaInput, a
 
   const autorId = autor.id;
   await asegurarPuedeGestionar(autor, tarea);
+
+  // ─── Reglas propias de las tareas DEV ─────────────────────────
+  // El acceso ya lo corta puedeGestionarTarea (solo SUPER_ADMIN). Aquí se garantiza la
+  // integridad de la clasificación aunque quien edite sea el propio Super Admin: una tarea
+  // DEV no sale de DEV ni usa estados ajenos a sus tres estados.
+  const esTareaDev = tarea.departamento === AREA_DEV;
+  if (esTareaDev) {
+    if (input.estado !== undefined && !(ESTADOS_DEV as readonly string[]).includes(input.estado)) {
+      throw new Error("Las tareas DEV solo admiten los estados PENDIENTE, EN PROCESO o FINALIZADA.");
+    }
+    if (input.departamento !== undefined && input.departamento !== AREA_DEV) {
+      input.departamento = AREA_DEV; // nunca sale del módulo DEV
+    }
+  } else if (input.departamento === AREA_DEV) {
+    // Una tarea DEV nace únicamente desde el módulo DEV (POST /api/dev/tareas): no se
+    // "convierte" una tarea de otra área por edición, para no crear áreas inconsistentes.
+    throw new Error("Las tareas DEV solo se crean desde el módulo DEV.");
+  }
 
   // Cambiar el responsable por esta vía es delegar igual que usar /reasignar, así que
   // pide el mismo permiso. Si no se cerrara aquí, el gate de /reasignar sería decorativo.
@@ -494,6 +551,8 @@ export async function calendarioEditorial(params: {
   responsableId?: string;
 }) {
   const conds = [
+    // Las tareas DEV no entran al calendario editorial (pertenecen a su propio módulo).
+    ne(tareasOperativas.departamento, AREA_DEV),
     params.canal ? eq(tareasOperativas.canal, params.canal) : undefined,
     params.responsableId ? eq(tareasOperativas.responsableId, params.responsableId) : undefined,
     params.desde ? gte(tareasOperativas.fechaPublicacion, new Date(params.desde)) : undefined,

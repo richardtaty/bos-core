@@ -3,12 +3,12 @@
 // los parámetros que mande el navegador) y la validación del responsable. Los
 // generadores de archivo (PDF/Excel/Word) reciben un modelo agrupado ya filtrado.
 
-import { and, eq, gte, inArray, lte, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, ne, type SQL } from "drizzle-orm";
 import { db } from "../db/client";
 import { tareasOperativas, usuarios, usuarioDepartamentos } from "../db/schema";
 import { nombreDepartamentoDe, type AuthUser } from "../middleware/auth";
 import { registrarAuditoria } from "./auditoria.service";
-import { TAREA_COLUMNS } from "./tareas.service";
+import { AREA_DEV, TAREA_COLUMNS } from "./tareas.service";
 import {
   diaEncabezado,
   esYmd,
@@ -364,6 +364,8 @@ export async function generarReporteTareas(usuario: AuthUser, filtros: FiltrosRe
   const GRUPOS_VALIDOS: GrupoEstado[] = ["pendiente", "en_revision", "en_proceso", "realizado", "cancelado"];
   const grupoElegido = GRUPOS_VALIDOS.find((g) => g === filtros.grupo);
   const condiciones: SQL<unknown>[] = [];
+  // Las tareas DEV son del módulo DEV (solo SUPER ADMIN) y no entran al reporte general.
+  condiciones.push(ne(tareasOperativas.departamento, AREA_DEV));
   if (permitidos) condiciones.push(inArray(tareasOperativas.departamento, permitidos));
   if (filtros.responsableId) condiciones.push(eq(tareasOperativas.responsableId, filtros.responsableId));
   if (grupoElegido) {

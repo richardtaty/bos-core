@@ -92,6 +92,11 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
     );
   }
 
+  // ── DEV: tareas de desarrollo (módulo independiente, solo Super Admin) ──
+  if (p.esSuperAdmin) {
+    items.push({ to: "/dev", label: "💻 DEV", seccion: "dev" });
+  }
+
   // ── Compartidos (todos los usuarios) ─────────────────
   items.push(
     { to: "/mi-dia", label: "📍 Mi día", badge: "propias" },
@@ -189,7 +194,7 @@ export function AppLayout() {
   }, [actualizarConteos]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <aside className="w-56 shrink-0 bg-neutral-50 border-r border-neutral-200 p-4 flex flex-col">
         <div className="flex items-center gap-2 mb-6 px-1">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-secondary-700 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-primary-500/20">
@@ -201,7 +206,7 @@ export function AppLayout() {
           </div>
         </div>
 
-        <nav className="flex flex-col gap-1 overflow-y-auto">
+        <nav className="flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto">
           {(() => {
             const items = buildNav(permisos, usuario?.rol);
             return items.map((item, i) => {
@@ -214,6 +219,7 @@ export function AppLayout() {
                 bmf: "Business Market Finders",
                 podcast: "Podcast",
                 ceo: "CEO",
+                dev: "DEV",
               };
               const badgeCount = item.badge === "propias" ? conteoPropias : item.badge === "equipo" ? conteoEquipo : 0;
               return (

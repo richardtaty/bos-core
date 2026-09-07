@@ -650,6 +650,24 @@ export const api = {
   actualizarTarea: (id: string, data: Record<string, unknown>) =>
     request<import("../types").TareaOperativa>(`/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
+  // ─── DEV: tareas de desarrollo (solo SUPER_ADMIN; el backend responde 403 a otros roles) ───
+
+  listarTareasDev: (estado?: string) => {
+    const s = estado ? `?estado=${encodeURIComponent(estado)}` : "";
+    return request<import("../types").TareaOperativa[]>(`/dev/tareas${s}`);
+  },
+
+  crearTareaDev: (data: {
+    titulo: string;
+    descripcion?: string;
+    responsableId: string;
+    prioridad?: string;
+    fechaLimite?: string;
+  }) => request<import("../types").TareaOperativa>("/dev/tareas", { method: "POST", body: JSON.stringify(data) }),
+
+  actualizarTareaDev: (id: string, data: Record<string, unknown>) =>
+    request<import("../types").TareaOperativa>(`/dev/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
   agregarChecklistItem: (tareaId: string, texto: string) =>
     request<import("../types").ChecklistItem>(`/tareas/${tareaId}/checklist`, {
       method: "POST",

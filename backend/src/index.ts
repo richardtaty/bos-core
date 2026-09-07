@@ -9,6 +9,7 @@ import { usuariosRouter } from "./routes/usuarios.routes";
 import { reportesRouter } from "./routes/reportes.routes";
 import { podcastRouter } from "./routes/podcast.routes";
 import { tareasRouter } from "./routes/tareas.routes";
+import { devRouter } from "./routes/dev.routes";
 import { archivosRouter } from "./routes/archivos.routes";
 import { actividadRouter } from "./routes/actividad.routes";
 import { orgRouter } from "./routes/org.routes";
@@ -51,6 +52,8 @@ app.use("/api/usuarios", usuariosRouter);
 app.use("/api/reportes", reportesRouter);
 app.use("/api/podcast", podcastRouter);
 app.use("/api/tareas", tareasRouter);
+// Módulo DEV (tareas de desarrollo) — restringido a SUPER_ADMIN dentro del router.
+app.use("/api/dev", devRouter);
 app.use("/api/archivos", archivosRouter);
 app.use("/api/actividad", actividadRouter);
 app.use("/api/org", orgRouter);

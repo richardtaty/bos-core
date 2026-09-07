@@ -19,6 +19,7 @@ import { ReporteVentasPage } from "../pages/ReporteVentasPage";
 import { MarketingDashboardPage } from "../pages/MarketingDashboardPage";
 import { CentroActividadPage } from "../pages/CentroActividadPage";
 import { TareasPage } from "../pages/TareasPage";
+import { DevPage } from "../pages/DevPage";
 import { CumpleanosPage } from "../pages/CumpleanosPage";
 import { CalendarioEditorialPage } from "../pages/CalendarioEditorialPage";
 import { CentroControlPage } from "../pages/CentroControlPage";
@@ -146,6 +147,9 @@ export function AppRoutes() {
 
         {/* Motor de Ingresos (solo SUPER_ADMIN) */}
         <Route path="/ingresos" element={<RutaPorDepartamento secciones={["ceo"]}><IngresosPage /></RutaPorDepartamento>} />
+
+        {/* DEV — tareas de desarrollo (solo SUPER_ADMIN: menú, ruta y backend) */}
+        <Route path="/dev" element={<RutaPorRol rol="SUPER_ADMIN"><DevPage /></RutaPorRol>} />
 
         {/* General — compartido entre todos los departamentos */}
         <Route path="/mi-dia" element={<MiDiaPage />} />
