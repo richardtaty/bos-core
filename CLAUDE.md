@@ -28,8 +28,9 @@ cd frontend && npm install && npm run dev
 cd backend && npx tsc --noEmit
 cd frontend && npx tsc -b && npm run build
 
-# Deploy (desde la raíz del proyecto, NUNCA desde backend/ o frontend/)
-fly deploy -a tatys-bos-core
+# Deploy PROTEGIDO (desde la raíz del proyecto, NUNCA desde backend/ o frontend/)
+# usa ./deploy.sh, NO `fly deploy` a mano.
+./deploy.sh
 ```
 
 ## Reglas de negocio que NO se deben romper
@@ -71,6 +72,14 @@ fly deploy -a tatys-bos-core
    registros usándolas.
 5. **`fly deploy` debe correrse desde la raíz del proyecto** (donde está el
    `Dockerfile`), nunca desde `backend/` ni `frontend/`.
+6. **Nunca correr `fly deploy` a mano** — usar `./deploy.sh` (misma raíz). El
+   guard existe porque en 2026-09-06 una computadora con código viejo/sin subir
+   sobrescribió producción y "desaparecieron" los features de la semana (los
+   datos NUNCA se perdieron; era código viejo desplegado encima de la BD nueva).
+   `deploy.sh` se niega si: no estás en `main`, el árbol tiene cambios sin
+   commitear, o tu `main` local no coincide con `origin/main`. Además sella la
+   imagen con el commit. Para ver qué corre en producción:
+   `curl https://tatys-bos-core.fly.dev/version`.
 
 ## Estructura
 ## Pipelines configurados (motor genérico, 13 verticales)
