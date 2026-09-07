@@ -48,6 +48,8 @@ export function DevPage() {
   const [error, setError] = useState<string | null>(null);
   const [mostrarNueva, setMostrarNueva] = useState(false);
   const [tareaActiva, setTareaActiva] = useState<TareaOperativa | null>(null);
+  // Tarea cuyo cambio de estado se está enviando (bloquea el doble envío).
+  const [cambiandoId, setCambiandoId] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     if (!esSuperAdmin) return;
@@ -79,6 +81,26 @@ export function DevPage() {
   }, [cargar]);
 
   const tareasPorEstado = (estado: string) => tareas.filter((t) => t.estado === estado);
+
+  /**
+   * Avanza el estado de una tarea DEV directamente desde la tarjeta (sin abrir el
+   * detalle). Actualiza el mismo registro en el backend y recarga el tablero para
+   * que la tarjeta se mueva de columna y los contadores se recalculen.
+   */
+  const avanzarDesdeTarjeta = async (tarea: TareaOperativa, siguiente: string) => {
+    if (cambiandoId) return; // evita enviar dos cambios a la vez
+    setCambiandoId(tarea.id);
+    setError(null);
+    try {
+      await api.actualizarTareaDev(tarea.id, { estado: siguiente });
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cambiar el estado.");
+      window.setTimeout(() => setError(null), 4000);
+    } finally {
+      setCambiandoId(null);
+    }
+  };
 
   return (
     <div>
@@ -119,22 +141,44 @@ export function DevPage() {
                   {lista.length === 0 ? (
                     <p className="text-xs text-neutral-400 text-center py-6">Sin tareas</p>
                   ) : (
-                    lista.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => setTareaActiva(t)}
-                        className="text-left bg-white border border-neutral-200 rounded-lg p-2.5 shadow-sm cursor-pointer hover:border-primary-300 hover:shadow"
-                      >
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORIDAD_DOT[t.prioridad] ?? "bg-neutral-300"}`} title={t.prioridad} />
-                          <p className="text-xs font-medium text-neutral-900 truncate">{t.titulo}</p>
+                    lista.map((t) => {
+                      const avance = ACCION_AVANCE(t.estado);
+                      const ocupada = cambiandoId === t.id;
+                      return (
+                        <div key={t.id} className="bg-white border border-neutral-200 rounded-lg shadow-sm hover:border-primary-300 hover:shadow">
+                          {/* Zona de información: clic abre el detalle (como siempre) */}
+                          <button
+                            type="button"
+                            onClick={() => setTareaActiva(t)}
+                            className="w-full text-left p-2.5 cursor-pointer"
+                            title="Abrir detalle"
+                          >
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORIDAD_DOT[t.prioridad] ?? "bg-neutral-300"}`} title={t.prioridad} />
+                              <p className="text-xs font-medium text-neutral-900 truncate">{t.titulo}</p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-neutral-500">
+                              {t.fechaLimite && <span>📅 {new Date(t.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
+                              <span>👤 {t.responsableNombre}</span>
+                            </div>
+                          </button>
+                          {/* Acción rápida: avanza al siguiente estado sin abrir el detalle.
+                              La tarea FINALIZADA no tiene acción de avance. */}
+                          {avance && (
+                            <button
+                              type="button"
+                              disabled={cambiandoId !== null}
+                              onClick={() => { void avanzarDesdeTarjeta(t, avance.estado); }}
+                              className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-b-lg border-t border-neutral-100 transition-colors ${
+                                ocupada ? "text-neutral-400 cursor-wait" : avance.clases
+                              }`}
+                            >
+                              {ocupada ? "Guardando..." : avance.etiqueta}
+                            </button>
+                          )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-neutral-500">
-                          {t.fechaLimite && <span>📅 {new Date(t.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
-                          <span>👤 {t.responsableNombre}</span>
-                        </div>
-                      </button>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -489,6 +533,22 @@ function ESTADO_COLOR(estado: string): string {
     case "en_proceso": return "bg-primary-100 text-primary-700";
     case "completada": return "bg-success-200 text-success-800";
     default: return "bg-neutral-100 text-neutral-700";
+  }
+}
+
+/**
+ * Acción de avance que muestra cada tarjeta DEV según su estado actual.
+ * El flujo es siempre PENDIENTE → EN PROCESO → FINALIZADA; una tarea ya
+ * FINALIZADA no ofrece acción de avance (devuelve null).
+ */
+function ACCION_AVANCE(estado: string): { estado: string; etiqueta: string; clases: string } | null {
+  switch (estado) {
+    case "pendiente":
+      return { estado: "en_proceso", etiqueta: "→ En proceso", clases: "text-primary-600 hover:bg-primary-50" };
+    case "en_proceso":
+      return { estado: "completada", etiqueta: "✓ Finalizar", clases: "text-success-700 hover:bg-success-50" };
+    default:
+      return null; // FINALIZADA (y cualquier estado inesperado): sin botón de avance
   }
 }
 
