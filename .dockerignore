@@ -19,6 +19,7 @@ mcp-server/
 **/*.db
 **/*.db-journal
 **/*.db-wal
+**/*.db-shm
 
 # Secretos: en Fly van como secrets, nunca dentro de la imagen
 .env
