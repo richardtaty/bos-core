@@ -87,3 +87,6 @@ ejecutarMigracion("0020_eliminar_team_leader", sqlEliminarTeamLeader);
 
 const sqlCumpleanos0021 = readFileSync(join(__dirname, "migrations", "0021_cumpleanos.sql"), "utf-8");
 ejecutarMigracion("0021_cumpleanos", sqlCumpleanos0021);
+
+const sqlMarketingCalendario = readFileSync(join(__dirname, "migrations", "0022_marketing_calendario.sql"), "utf-8");
+ejecutarMigracion("0022_marketing_calendario", sqlMarketingCalendario);

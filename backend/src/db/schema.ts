@@ -931,6 +931,26 @@ export const podcastCitas = sqliteTable(
   (t) => ({ fechaIdx: index("podcast_citas_fecha_idx").on(t.fecha) })
 );
 
+// Calendario de Marketing: correo/contenido programado asociado a un PROYECTO real.
+// Una fila = un elemento del día (qué proyecto tiene contenido ese día). Solo guarda la
+// RELACIÓN proyecto_id + fecha; el nombre se lee en vivo desde proyectos (un renombre del
+// proyecto no rompe nada). Fuente SEPARADA de tareas y de cumpleaños — regla 16.
+export const marketingCalendario = sqliteTable(
+  "marketing_calendario",
+  {
+    id: cuid(),
+    proyectoId: text("proyecto_id").notNull().references(() => proyectos.id),
+    fecha: text("fecha").notNull(), // YYYY-MM-DD
+    creadoPor: text("creado_por").notNull().references(() => usuarios.id),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+    updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    fechaIdx: index("marketing_calendario_fecha_idx").on(t.fecha),
+    proyectoIdx: index("marketing_calendario_proyecto_idx").on(t.proyectoId),
+  })
+);
+
 // ---------- 🎂 Módulo "Próximos cumpleaños" ----------
 // Cada cumpleaños es un registro permanente independiente (una fila por persona, sin
 // filas por año). La recurrencia anual se calcula en vuelo desde mes/día/año; cuando el

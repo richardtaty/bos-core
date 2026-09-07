@@ -14,6 +14,7 @@ import {
   crearCumpleano,
   desactivarCumpleano,
   listarCumpleanos,
+  listarCumpleanosDelMes,
   listarRecordatoriosActivos,
   marcarRecordatorioRealizado,
   obtenerCumpleano,
@@ -91,6 +92,21 @@ cumpleanosRouter.post("/", async (req, res) => {
   try {
     const creado = await crearCumpleano(parsed.data, req.user!.id);
     res.status(201).json(creado);
+  } catch (err) {
+    manejarError(res, err);
+  }
+});
+
+// ── Cumpleaños de un mes (cuadrícula del Calendario de Marketing) ──
+// Ruta estática ANTES de "/:id" (regla #2 de errores ya resueltos). Solo lectura.
+cumpleanosRouter.get("/por-mes", async (req, res) => {
+  try {
+    const mes = parseInt(req.query.mes as string, 10);
+    if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+      res.status(400).json({ error: "Indica el mes (1–12) con ?mes=N." });
+      return;
+    }
+    res.json(await listarCumpleanosDelMes(mes));
   } catch (err) {
     manejarError(res, err);
   }

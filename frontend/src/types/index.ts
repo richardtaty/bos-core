@@ -148,6 +148,15 @@ export interface ListaCumpleanos {
   totalActivos: number;
 }
 
+/** Cumpleaños activos de un mes (para la cuadrícula del Calendario de Marketing). */
+export interface CumpleanoDelMes {
+  id: string;
+  nombre: string;
+  personaId: string | null;
+  mes: number;
+  dia: number;
+}
+
 export interface FichaPersona extends Persona {
   comentarios?: string | null;
   interacciones: Interaccion[];
@@ -509,6 +518,20 @@ export interface ComentarioProyecto {
   autorNombre: string;
   texto: string;
   fecha: string;
+}
+
+// ─── 📅 Calendario de Marketing ───────────────────────────
+// Elemento del Calendario de Marketing: un correo/contenido programado asociado a un
+// proyecto EXISTENTE. Guarda la relación por proyectoId; el nombre se lee en vivo.
+export interface PublicacionMarketing {
+  id: string;
+  proyectoId: string;
+  proyectoNombre: string;
+  fecha: string; // YYYY-MM-DD
+  creadoPor: string;
+  creadoPorNombre: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Dashboards ───────────────────────────────────────────

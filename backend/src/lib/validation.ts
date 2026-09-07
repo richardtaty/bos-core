@@ -159,6 +159,15 @@ export const actualizarCitaPodcastSchema = z
     message: "No se envió ningún campo para actualizar",
   });
 
+// ─── 📅 Calendario de Marketing ───────────────────────────
+// Un elemento del calendario es una RELACIÓN a un proyecto existente + su fecha.
+// El proyecto no se crea aquí (eso vive en Marketing → Proyectos); solo se valida que el
+// ID venga y que la fecha tenga formato YYYY-MM-DD.
+export const crearPublicacionMarketingSchema = z.object({
+  proyectoId: z.string().min(1, "El proyecto es obligatorio"),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD)"),
+});
+
 // ─── BMF Digital Funding — aplicación pública (inglés) ───────
 export const crearSolicitudFundingSchema = z.object({
   // Paso 1 — Negocio

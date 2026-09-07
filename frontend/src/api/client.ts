@@ -358,6 +358,9 @@ export const api = {
       { method: "POST" },
     ),
 
+  // Cumpleaños activos de UN mes (1..12) para la cuadrícula del Calendario de Marketing.
+  cumpleanosPorMes: (mes: number) => request<import("../types").CumpleanoDelMes[]>(`/cumpleanos/por-mes?mes=${mes}`),
+
   listarPersonas: (params: { search?: string; estado?: string; pagina?: number; limite?: number } = {}) => {
     const qs = new URLSearchParams(params as Record<string, string>).toString();
     return request<{ items: import("../types").Persona[]; total: number; pagina: number; limite: number; totalPaginas: number }>(`/personas${qs ? `?${qs}` : ""}`);
@@ -820,6 +823,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ texto }),
     }),
+
+  // ─── 📅 Calendario de Marketing (correos/contenido por proyecto) ───
+  // Lista por rango de fechas. El backend filtra por departamento (igual que Proyectos).
+  marketingCalendario: (desde?: string, hasta?: string) => {
+    const qs = new URLSearchParams();
+    if (desde) qs.set("desde", desde);
+    if (hasta) qs.set("hasta", hasta);
+    const s = qs.toString();
+    return request<import("../types").PublicacionMarketing[]>(`/marketing/calendario${s ? `?${s}` : ""}`);
+  },
+
+  crearMarketingCalendario: (data: { proyectoId: string; fecha: string }) =>
+    request<import("../types").PublicacionMarketing>("/marketing/calendario", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  eliminarMarketingCalendario: (id: string) =>
+    request<{ ok: boolean }>(`/marketing/calendario/${id}`, { method: "DELETE" }),
 
   // ─── Tareas extendidas ───────────────────────────────────
 

@@ -22,6 +22,7 @@ import { metaAdsRouter } from "./routes/metaAds.routes";
 import { agenteRouter } from "./routes/agente.routes";
 import { publicBmfRouter } from "./routes/public-bmf.routes";
 import { cumpleanosRouter } from "./routes/cumpleanos.routes";
+import { marketingRouter } from "./routes/marketing.routes";
 import { iniciarFundingWorker } from "./services/funding-worker.service";
 import { iniciarCumpleanosWorker } from "./services/cumpleanos-worker.service";
 import { emailActivo, iaActiva, documentosActivos } from "./lib/funding-env";
@@ -69,6 +70,8 @@ app.use("/api/agente", agenteRouter);
 app.use("/api/public", publicBmfRouter);
 // Módulo 🎂 Próximos cumpleaños — ver routes/cumpleanos.routes.ts (requiere acceso).
 app.use("/api/cumpleanos", cumpleanosRouter);
+// 📅 Calendario de Marketing (correos/contenido por proyecto) — rutas/marketing.routes.ts.
+app.use("/api/marketing", marketingRouter);
 
 // Sirve el frontend ya compilado (dist) desde el mismo servicio — un solo deploy en Fly.io,
 // sin necesidad de CORS entre dos dominios ni de correr dos apps separadas.

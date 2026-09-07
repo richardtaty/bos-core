@@ -195,6 +195,27 @@ export async function listarCumpleanos(params: { meses?: number; q?: string }) {
   };
 }
 
+/**
+ * Cumpleaños ACTIVOS de un mes concreto (1..12), para pintar la cuadrícula mensual del
+ * Calendario de Marketing. Solo lectura: reutiliza la misma consulta de la lista (filas
+ * con el nombre del contacto en vivo) y filtra por `mes`. Los registros desactivados no
+ * se muestran; cada fila conserva su `personaId` por si la UI quiere enlazar a la ficha.
+ */
+export async function listarCumpleanosDelMes(mes: number) {
+  if (mes < 1 || mes > 12) return [];
+  const filas = await filasActivas();
+  return filas
+    .filter((f) => f.mes === mes)
+    .map((f) => ({
+      id: f.id,
+      nombre: f.personaId && f.pNombre ? f.pNombre : f.nombre,
+      personaId: f.personaId,
+      mes: f.mes,
+      dia: f.dia,
+    }))
+    .sort((a, b) => a.dia - b.dia || a.nombre.localeCompare(b.nombre, "es"));
+}
+
 /** Detalle de un cumpleaños + historial de recordatorios por año. Null si no existe. */
 export async function obtenerCumpleano(id: string) {
   const [fila] = await db
