@@ -17,6 +17,13 @@ interface NavItem {
 function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
   const items: NavItem[] = [];
 
+  // ── DEV: tareas de desarrollo. Sección propia e independiente, solo Super Admin. ──
+  // Va PRIMERO y contiene únicamente su acceso a tareas; la sección que le sigue
+  // abre con su propio encabezado, así ningún otro módulo queda agrupado bajo DEV.
+  if (p.esSuperAdmin) {
+    items.push({ to: "/dev", label: "Tareas", seccion: "dev" });
+  }
+
   // ── Marketing Operations Center ──────────────────────
   if (p.menuSecciones.includes("moc")) {
     items.push(
@@ -90,11 +97,6 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
       { to: "/ingresos", label: "💵 Motor de Ingresos", seccion: "ceo" },
       { to: "/seguridad", label: "🔐 Seguridad", seccion: "ceo" },
     );
-  }
-
-  // ── DEV: tareas de desarrollo (módulo independiente, solo Super Admin) ──
-  if (p.esSuperAdmin) {
-    items.push({ to: "/dev", label: "💻 DEV", seccion: "dev" });
   }
 
   // ── Compartidos (todos los usuarios) ─────────────────
