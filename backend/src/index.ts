@@ -29,6 +29,19 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
+// Versión del código en ejecución — el SHA y el build vienen sellados en la imagen
+// por deploy.sh (Dockerfile ARG GIT_SHA/BUILD_TIME). Sirve para verificar que
+// producción corre el commit esperado y detectar deploys desde copias viejas.
+app.get("/version", (_req, res) =>
+  res.json({
+    app: "tatys-bos-core",
+    commit: process.env.GIT_SHA ?? "sin-sello",
+    buildTime: process.env.BUILD_TIME ?? "sin-sello",
+    release: process.env.FLY_APP_VERSION ?? null,
+    node: process.version,
+  }),
+);
+
 app.use("/api/auth", authRouter);
 app.use("/api/personas", personasRouter);
 app.use("/api/pipelines", pipelinesRouter);

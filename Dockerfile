@@ -18,6 +18,13 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 
+# Sello de versión inyectado por deploy.sh (deploy_protegido). No rompe el build
+# si alguien hace `fly deploy` a mano: quedan los valores por defecto.
+ARG GIT_SHA=sin-sello
+ARG BUILD_TIME=sin-sello
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_TIME=$BUILD_TIME
+
 # Solo dependencias de producción del backend
 COPY backend/package*.json ./backend/
 RUN cd backend && npm install --omit=dev

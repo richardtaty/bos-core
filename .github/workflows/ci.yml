@@ -1,0 +1,41 @@
+name: CI — compilar y verificar
+
+# Verifica en cada push y pull request a `main` que el código realmente compila,
+# igual que pide CLAUDE.md antes de entregar un cambio. Así un `main` roto nunca
+# llega a manos de quien vaya a desplegar (y deploy.sh lo rechazaría igualmente).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  compilar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Instalar backend
+        working-directory: backend
+        run: npm ci
+
+      - name: Instalar frontend
+        working-directory: frontend
+        run: npm ci
+
+      - name: Compilar backend (tsc)
+        working-directory: backend
+        run: npx tsc --noEmit
+
+      - name: Compilar frontend (tsc + build)
+        working-directory: frontend
+        run: npm run build
