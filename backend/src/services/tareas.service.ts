@@ -132,6 +132,21 @@ export async function departamentosDe(user: AuthUser): Promise<string[]> {
   return nombres;
 }
 
+/**
+ * Integrantes que reportan directamente a un supervisor (`usuarios.supervisor_id`).
+ * Es la relación real de equipo del CRM: se mantiene al crear/reasignar integrantes y
+ * es dinámica — si alguien deja de pertenecer al equipo, desaparece sin tocar código.
+ * (Los `equipos`/`equipo_miembros` existen pero están incompletos en los datos; la
+ * jerarquía operativa viva es `supervisor_id`.)
+ */
+export async function idsIntegrantesDe(supervisorId: string): Promise<string[]> {
+  const filas = await db
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(eq(usuarios.supervisorId, supervisorId));
+  return filas.map((f) => f.id);
+}
+
 type TareaParaPermiso = {
   departamento: string;
   responsableId: string;
@@ -217,9 +232,12 @@ export async function listarTareas(params: {
  * Regla de visibilidad (una sola fuente de verdad, sin duplicar tareas):
  *  - SUPER_ADMIN → todo el sistema (sin restricción).
  *  - USUARIO     → únicamente las tareas donde es responsable.
- *  - Roles de mando (ADMIN/SUPERVISOR) → las de su departamento/área
- *    (la tarea guarda el nombre del departamento) más aquellas donde participa
- *    (responsable, quien la asignó, quien la pidió o quien la aprueba).
+ *  - ADMIN       → las de su departamento/área (la tarea guarda el nombre del
+ *    departamento) más aquellas donde participa (responsable, quien la asignó,
+ *    quien la pidió o quien la aprueba).
+ *  - SUPERVISOR  → lo mismo que ADMIN (su departamento + participación) y ADEMÁS las
+ *    tareas asignadas a los integrantes de su equipo (quienes reportan a él por
+ *    `supervisor_id`), aunque la tarea esté etiquetada con otro departamento.
  *
  * Los filtros que lleguen (responsableId, departamento, estado…) SIEMPRE se
  * ANDean sobre el alcance: un usuario no puede ampliarlo pidiendo un responsable
@@ -246,18 +264,34 @@ export async function listarTareasVisibles(
     condicionAlcance = eq(tareasOperativas.responsableId, usuario.id);
   } else {
     // Roles de mando: participación directa (conserva "quien delega no pierde la
-    // tarea" aunque cambie de área) + su departamento/área por nombre.
-    const participa = or(
+    // tarea" aunque cambie de área) + su departamento/área por nombre. La condición
+    // crece con `or()` anidados (igual que hacía la versión previa con participa).
+    let alcanceMando: ReturnType<typeof or> | ReturnType<typeof inArray> | undefined = or(
       eq(tareasOperativas.responsableId, usuario.id),
       eq(tareasOperativas.asignadoPorId, usuario.id),
       eq(tareasOperativas.solicitanteId, usuario.id),
       eq(tareasOperativas.aprobadorId, usuario.id),
     );
+
     const deptos = await departamentosDe(usuario);
-    condicionAlcance =
-      deptos.length > 0
-        ? or(participa!, inArray(tareasOperativas.departamento, deptos))
-        : participa;
+    if (deptos.length > 0) {
+      alcanceMando = or(alcanceMando!, inArray(tareasOperativas.departamento, deptos));
+    }
+
+    // SUPERVISOR: además ve las tareas asignadas a los integrantes de su equipo
+    // (quienes reportan a él por `supervisor_id`). La visibilidad se basa en A QUIÉN
+    // está asignada la tarea y en que esa persona pertenezca a su equipo — no en la
+    // etiqueta de departamento de la tarea, que puede no coincidir con el suyo.
+    // Es una suma, no un reemplazo (conserva su departamento), y es dinámica: si un
+    // integrante deja de reportarle, sus tareas dejan de aparecer sin tocar código.
+    if (usuario.rol === "SUPERVISOR") {
+      const integrantes = await idsIntegrantesDe(usuario.id);
+      if (integrantes.length > 0) {
+        alcanceMando = or(alcanceMando!, inArray(tareasOperativas.responsableId, integrantes));
+      }
+    }
+
+    condicionAlcance = alcanceMando;
   }
 
   const condiciones = [
