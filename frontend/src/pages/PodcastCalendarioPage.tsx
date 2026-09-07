@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type CitaPodcastDTO } from "../api/client";
 import { InvitadoCombobox, type ValorInvitado } from "../components/InvitadoCombobox";
+import { NuevaPersonaModal } from "../components/NuevaPersonaModal";
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = [
@@ -42,6 +43,9 @@ export function PodcastCalendarioPage() {
   const [nota, setNota] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  // Cuándo el usuario elige «+ Agregar» un invitado que no existe: guarda el
+  // nombre escrito para abrir encima el formulario completo de "Nuevo contacto".
+  const [contactoNuevo, setContactoNuevo] = useState<string | null>(null);
 
   const rangoMes = useMemo(() => {
     const ultimo = new Date(mes.getFullYear(), mes.getMonth() + 1, 0);
@@ -102,45 +106,38 @@ export function PodcastCalendarioPage() {
     setEditando(c);
     setFecha(c.fecha);
     setHora(c.hora);
-    setInvitado({ tipo: "existente", id: c.personaId, nombre: c.invitado });
+    setInvitado({ id: c.personaId, nombre: c.invitado });
     setEstado(c.estado);
     setNota(c.nota ?? "");
     setError("");
     setMostrarModal(true);
   }
 
+  function abrirAltaContacto(nombre: string) {
+    // «+ Agregar»: se abre el formulario completo de "Nuevo contacto" con el
+    // nombre ya escrito. No se crea nada aquí; el alta ocurre en ese formulario
+    // y la cita sigue abierta debajo con sus datos intactos.
+    setContactoNuevo(nombre);
+  }
+
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
+
+    // El invitado debe ser un contacto REAL: elegido del buscador, o creado con
+    // el formulario de "Nuevo contacto" (que devuelve su ID). Un nombre suelto
+    // que no se eligió no se convierte en contacto al guardar.
+    if (!invitado) {
+      setError("Elige un contacto existente o pulsa + Agregar para crear el invitado");
+      return;
+    }
     setGuardando(true);
     setError("");
 
-    // Resolver el invitado: si el usuario eligió "+ Agregar" un nombre que no
-    // existe, primero se crea su ficha mínima (o se reutiliza una existente
-    // con el mismo nombre) y la cita apunta a esa persona — igual que siempre.
-    let personaId: string | null =
-      invitado?.tipo === "existente" ? invitado.id : null;
-    if (invitado?.tipo === "nuevo") {
-      try {
-        const creado = await api.podcastCrearInvitado({ nombre: invitado.nombre });
-        personaId = creado.persona.id;
-      } catch (err: any) {
-        setError(err?.message ?? "No se pudo crear el invitado");
-        setGuardando(false);
-        return;
-      }
-    }
-
-    if (!personaId) {
-      setError("Elige un contacto existente o agrega el nombre del invitado nuevo");
-      setGuardando(false);
-      return;
-    }
-
     try {
       if (editando) {
-        await api.actualizarPodcastCita(editando.id, { personaId, fecha, hora, estado, nota });
+        await api.actualizarPodcastCita(editando.id, { personaId: invitado.id, fecha, hora, estado, nota });
       } else {
-        await api.crearPodcastCita({ personaId, fecha, hora, estado, nota });
+        await api.crearPodcastCita({ personaId: invitado.id, fecha, hora, estado, nota });
       }
       setMostrarModal(false);
       setCitas(await api.podcastCitas(rangoMes.desde, rangoMes.hasta));
@@ -256,7 +253,7 @@ export function PodcastCalendarioPage() {
               </div>
               <div>
                 <span className="text-xs text-neutral-500 block mb-1">Invitado</span>
-                <InvitadoCombobox valor={invitado} onChange={setInvitado} disabled={guardando} />
+                <InvitadoCombobox valor={invitado} onChange={setInvitado} onAgregarNuevo={abrirAltaContacto} disabled={guardando} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -282,6 +279,25 @@ export function PodcastCalendarioPage() {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Alta completa de un invitado nuevo: el formulario OFICIAL de "Nuevo
+          contacto", abierto encima del modal de la cita. Nombre/Fuente/etiqueta
+          precargados desde el contexto Podcast; Ciudad/Estado en blanco como en
+          Clientes. La cita de abajo conserva sus datos mientras tanto. */}
+      {mostrarModal && contactoNuevo !== null && (
+        <NuevaPersonaModal
+          key={contactoNuevo}
+          inicialNombre={contactoNuevo}
+          inicialFuente="Podcast"
+          inicialTags={["Podcast"]}
+          guardarContacto={api.podcastCrearInvitadoCompleto}
+          onClose={() => setContactoNuevo(null)}
+          onCreated={(persona) => {
+            setInvitado({ id: persona.id, nombre: persona.nombre });
+            setContactoNuevo(null);
+          }}
+        />
       )}
     </div>
   );

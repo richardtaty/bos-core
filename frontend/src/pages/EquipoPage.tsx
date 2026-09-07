@@ -4,19 +4,49 @@ import { api, ApiError } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import type { Usuario, Rol, Departamento } from "../types";
 
-const ROLES: Rol[] = ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "TEAM_LEADER", "USUARIO"];
+const ROLES: Rol[] = ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "USUARIO"];
+
+// Roles que puede asignar cada actor — espejo del backend (middleware/auth.ts). Un actor
+// nunca asigna ni conserva un rol igual o superior al suyo: ADMIN no crea/asciende a ADMIN
+// ni a SUPER_ADMIN; SUPERVISOR mueve solo a USUARIO.
+function rolesAsignables(actor: Rol): Rol[] {
+  switch (actor) {
+    case "SUPER_ADMIN": return ROLES;
+    case "ADMIN": return ["SUPERVISOR", "USUARIO"];
+    case "SUPERVISOR": return ["USUARIO"];
+    default: return [];
+  }
+}
+
+// ¿Puede `actor` administrar la cuenta (rol/estado/contraseña) de `objetivo`? Misma regla
+// del backend: un rol jamás administra a un rol superior.
+function puedeGestionarCuenta(actor: Rol | undefined, objetivo: Rol): boolean {
+  if (!actor) return false;
+  if (actor === "SUPER_ADMIN") return true;
+  if (actor === "ADMIN") return objetivo !== "SUPER_ADMIN";
+  if (actor === "SUPERVISOR") return objetivo === "USUARIO";
+  return false;
+}
+
+// Opciones del selector de rol de una tarjeta: los roles que el actor puede asignar más el
+// rol actual del miembro (para poder conservarlo aunque esté fuera del set asignable, p.ej.
+// un Admin viendo la tarjeta de otro Admin).
+function opcionesDeRol(actor: Rol | undefined, objetivo: Rol): Rol[] {
+  if (!actor) return [];
+  const asignables = rolesAsignables(actor);
+  return asignables.includes(objetivo) ? asignables : [objetivo, ...asignables];
+}
 
 const ROL_COLOR: Record<string, string> = {
   SUPER_ADMIN: "bg-purple-100 text-purple-700 border-purple-200",
   ADMIN: "bg-blue-100 text-blue-700 border-blue-200",
   SUPERVISOR: "bg-teal-100 text-teal-700 border-teal-200",
-  TEAM_LEADER: "bg-cyan-100 text-cyan-700 border-cyan-200",
   USUARIO: "bg-neutral-100 text-neutral-600 border-neutral-200",
 };
 
 // Estos roles mandan sobre las tareas de un departamento, así que sin departamento
 // no tendrían sobre qué mandar. El backend concede el permiso por departamento.
-const ROLES_QUE_EXIGEN_DEPARTAMENTO: Rol[] = ["ADMIN", "SUPERVISOR", "TEAM_LEADER"];
+const ROLES_QUE_EXIGEN_DEPARTAMENTO: Rol[] = ["ADMIN", "SUPERVISOR"];
 
 const exigeDepartamento = (rol: Rol) => ROLES_QUE_EXIGEN_DEPARTAMENTO.includes(rol);
 
@@ -29,9 +59,12 @@ const DEPTO_COLOR: Record<string, string> = {
 
 export function EquipoPage() {
   const { usuario } = useAuth();
-  const esSuperAdmin = usuario?.rol === "SUPER_ADMIN";
-  const esAdmin = usuario?.rol === "ADMIN" || esSuperAdmin;
-  const puedeCrear = esAdmin;
+  const miRol = usuario?.rol;
+  const esSuperAdmin = miRol === "SUPER_ADMIN";
+  const esAdmin = miRol === "ADMIN";
+  const esGlobal = esSuperAdmin || esAdmin; // SUPER_ADMIN y ADMIN ven y gestionan a toda la empresa
+  const esGestorEquipo = miRol === "SUPERVISOR"; // manda solo en su unidad
+  const puedeCrear = esGlobal || esGestorEquipo; // USUARIO no agrega miembros
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [deptos, setDeptos] = useState<Departamento[]>([]);
   const [nombre, setNombre] = useState("");
@@ -53,11 +86,21 @@ export function EquipoPage() {
   // ── Formulario colapsable ──────────────────────────
   const [formAbierto, setFormAbierto] = useState(false);
 
+  // Departamento del actor: para el supervisor el alta se hace
+  // SIEMPRE dentro de esta unidad y bajo su supervisión; el selector no existe para él.
+  const deptoIdsActor = usuario?.departamentoIds ?? (usuario?.departamentoId ? [usuario.departamentoId] : []);
+  const miDeptoId = deptoIdsActor[0] ?? "";
+  const miDepto = deptos.find((d) => d.id === miDeptoId);
+
+  // Quien no es global ve solo a su departamento ("Mi Equipo"); SUPER_ADMIN y ADMIN ven a toda la empresa.
   const cargar = useCallback(async () => {
-    const [u, d] = await Promise.all([api.listarUsuarios(), api.listarDepartamentos()]);
+    const [u, d] = await Promise.all([
+      api.listarUsuarios(esGlobal ? undefined : { soloMiUnidad: true }),
+      api.listarDepartamentos(),
+    ]);
     setUsuarios(u);
     setDeptos(d);
-  }, []);
+  }, [esGlobal]);
 
   useEffect(() => {
     void cargar();
@@ -66,20 +109,38 @@ export function EquipoPage() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!puedeCrear) return;
 
-    if (exigeDepartamento(rol) && !departamentoId) {
+    if (esGlobal && exigeDepartamento(rol) && !departamentoId) {
       setError(`Debes seleccionar un departamento para el rol ${rol}.`);
       return;
     }
 
     setCreando(true);
     try {
-      await api.crearUsuario({
-        nombre, email, password, rol,
-        departamentoId: departamentoId || undefined,
-        cargo: cargo || undefined,
-        supervisorId: supervisorId || undefined,
-      });
+      if (esGestorEquipo) {
+        if (!miDeptoId) {
+          setError("No tienes un departamento asignado. Solo puedes agregar miembros si lideras un departamento.");
+          setCreando(false);
+          return;
+        }
+        // Anti-escalamiento en el cliente: el líder agrega SIEMPRE a un USUARIO de su propia
+        // unidad y bajo su supervisión. El backend vuelve a forzarlo aunque se manipule el body.
+        await api.crearUsuario({
+          nombre, email, password,
+          rol: "USUARIO",
+          departamentoId: miDeptoId,
+          cargo: cargo || undefined,
+          supervisorId: usuario?.id,
+        });
+      } else {
+        await api.crearUsuario({
+          nombre, email, password, rol,
+          departamentoId: departamentoId || undefined,
+          cargo: cargo || undefined,
+          supervisorId: supervisorId || undefined,
+        });
+      }
       setNombre(""); setEmail(""); setPassword(""); setRol("USUARIO");
       setDepartamentoId(""); setCargo(""); setSupervisorId("");
       setFormAbierto(false);
@@ -123,10 +184,10 @@ export function EquipoPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-neutral-900 mb-1">
-            {esSuperAdmin ? "Equipo" : "Mi Equipo"}
+            {esGlobal ? "Equipo" : "Mi Equipo"}
           </h1>
           <p className="text-sm text-neutral-500">
-            {esSuperAdmin
+            {esGlobal
               ? "Administra los miembros y sus accesos a cada unidad de negocio"
               : "Miembros de tu departamento"}
           </p>
@@ -145,7 +206,7 @@ export function EquipoPage() {
       {formAbierto && puedeCrear && (
         <form onSubmit={onSubmit} className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 mb-6 max-w-2xl shadow-sm">
           <p className="text-sm font-semibold text-neutral-700 mb-4">
-            {esSuperAdmin ? "Nuevo miembro del equipo" : "Agregar a mi equipo"}
+            {esGlobal ? "Nuevo miembro del equipo" : "Agregar a mi equipo"}
           </p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="col-span-2">
@@ -153,11 +214,14 @@ export function EquipoPage() {
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" />
             </div>
 
-            {esSuperAdmin ? (
+            {esGlobal ? (
               <div>
                 <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Rol *</label>
                 <select value={rol} onChange={(e) => setRol(e.target.value as Rol)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm">
-                  {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
+                  {/* SUPER_ADMIN elige entre los 4 roles; ADMIN solo hasta SUPERVISOR (nunca ADMIN/SUPER_ADMIN) */}
+                  {ROLES.filter((r) => rolesAsignables(esSuperAdmin ? "SUPER_ADMIN" : "ADMIN").includes(r)).map((r) => (
+                    <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+                  ))}
                 </select>
               </div>
             ) : (
@@ -182,7 +246,7 @@ export function EquipoPage() {
               <input value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Ej: Editor de Video" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm" />
             </div>
 
-            {esSuperAdmin && (
+            {esGlobal && (
               <div>
                 <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">
                   Departamento {exigeDepartamento(rol) ? "*" : ""}
@@ -203,7 +267,19 @@ export function EquipoPage() {
               </div>
             )}
 
-            {esSuperAdmin && (
+            {esGestorEquipo && (
+              <div className="col-span-2">
+                <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Departamento</label>
+                <input
+                  value={miDepto ? `Este usuario será agregado a ${miDepto.nombre}` : "No tienes un departamento asignado"}
+                  disabled
+                  className="w-full border border-slate-100 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-600"
+                />
+                <p className="text-[11px] text-neutral-400 mt-1">Se crea con rol Usuario y queda bajo tu supervisión.</p>
+              </div>
+            )}
+
+            {esGlobal && (
               <div className="col-span-2">
                 <label className="text-[11px] text-neutral-500 uppercase tracking-wide block mb-1">Supervisor directo</label>
                 <select value={supervisorId} onChange={(e) => setSupervisorId(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
@@ -226,7 +302,7 @@ export function EquipoPage() {
       )}
 
       {/* ── Leyenda de departamentos ────────────────── */}
-      {esSuperAdmin && deptos.length > 0 && (
+      {esGlobal && deptos.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <span className="text-[11px] text-neutral-500 uppercase tracking-wide">Unidades de negocio:</span>
           {deptos.map((d) => (
@@ -242,6 +318,10 @@ export function EquipoPage() {
         {usuarios.map((u) => {
           const deptosUsuario = deptos.filter((d) => (u.departamentoIds ?? []).includes(d.id));
           const deptoIds = u.departamentoIds ?? [];
+          // ¿Este actor puede administrar la cuenta de este miembro? Espejo del backend:
+          // jerarquía de roles y, para líderes de equipo, solo los de su departamento (la
+          // lista ya viene filtrada por unidad para quienes no son globales).
+          const manejable = puedeGestionarCuenta(miRol, u.rol);
 
           return (
             <div
@@ -268,22 +348,16 @@ export function EquipoPage() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {esSuperAdmin ? (
-                    <select
-                      value={u.rol}
-                      onChange={(e) => onCambiarRol(u.id, e.target.value)}
-                      className="text-xs border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-2 py-1 font-medium"
-                    >
-                      {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
-                    </select>
-                  ) : (
-                    <span className={`text-[11px] px-2 py-1 rounded-lg border font-medium ${ROL_COLOR[u.rol] ?? ROL_COLOR.USUARIO}`}>
-                      {u.rol.replace(/_/g, " ")}
-                    </span>
-                  )}
-
-                  {esSuperAdmin && (
+                  {manejable ? (
                     <>
+                      <select
+                        value={u.rol}
+                        onChange={(e) => onCambiarRol(u.id, e.target.value)}
+                        className="text-xs border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-2 py-1 font-medium"
+                      >
+                        {/* Roles asignables + el rol actual del miembro (para poder conservarlo) */}
+                        {opcionesDeRol(miRol, u.rol).map((r) => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
+                      </select>
                       <button onClick={() => abrirReset(u)} className="text-[11px] px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors">
                         🔑 Reset
                       </button>
@@ -298,12 +372,18 @@ export function EquipoPage() {
                         {u.activo ? "Desactivar" : "Activar"}
                       </button>
                     </>
+                  ) : (
+                    <span className={`text-[11px] px-2 py-1 rounded-lg border font-medium ${ROL_COLOR[u.rol] ?? ROL_COLOR.USUARIO}`}>
+                      {u.rol.replace(/_/g, " ")}
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* ── Fila inferior: departamentos ──────── */}
-              {esSuperAdmin && (
+              {/* ── Fila inferior: unidades de negocio ── */}
+              {/* Solo quien gestiona unidades (SUPER_ADMIN/ADMIN) sobre un miembro que puede
+                  administrar edita los chips; el resto ve las unidades en modo lectura. */}
+              {esGlobal && manejable ? (
                 <div className="pt-2 border-t border-neutral-200">
                   <p className="text-[10px] text-neutral-500 uppercase tracking-wide mb-1.5">Unidades de negocio</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -332,10 +412,7 @@ export function EquipoPage() {
                     )}
                   </div>
                 </div>
-              )}
-
-              {/* ── Vista no-admin: solo muestra deptos ── */}
-              {!esSuperAdmin && deptosUsuario.length > 0 && (
+              ) : deptosUsuario.length > 0 ? (
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {deptosUsuario.map((d) => (
                     <span key={d.id} className={`text-[10px] px-2 py-0.5 rounded-full border ${DEPTO_COLOR[d.nombre] ?? "bg-neutral-100 text-neutral-600 border-neutral-200"}`}>
@@ -343,7 +420,7 @@ export function EquipoPage() {
                     </span>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           );
         })}

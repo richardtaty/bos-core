@@ -83,7 +83,7 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
   // igual; este botón solo decide si se muestra el atajo, no si el cambio se permite.
   const esRolDeMando =
     usuario?.rol === "SUPER_ADMIN" || usuario?.rol === "ADMIN" ||
-    usuario?.rol === "SUPERVISOR" || usuario?.rol === "TEAM_LEADER";
+    usuario?.rol === "SUPERVISOR";
   const participaEnLaTarea =
     !!usuario &&
     (tarea.responsableId === usuario.id ||

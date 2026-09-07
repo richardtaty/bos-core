@@ -54,6 +54,7 @@ export interface ActividadDelDiaDTO {
 
 export interface PagoDetalladoDTO {
   id: string;
+  registroId: string;
   monto: number;
   nota: string | null;
   fecha: string;
@@ -362,7 +363,8 @@ export const api = {
       `/pipelines/${pipelineId}/metricas`
     ),
 
-  listarUsuarios: () => request<import("../types").Usuario[]>("/usuarios"),
+  listarUsuarios: (opts?: { soloMiUnidad?: boolean }) =>
+    request<import("../types").Usuario[]>(`/usuarios${opts?.soloMiUnidad ? "?soloMiUnidad=1" : ""}`),
 
   crearUsuario: (data: { nombre: string; email: string; password: string; rol: string; departamentoId?: string; cargo?: string; supervisorId?: string }) =>
     request<import("../types").Usuario>("/usuarios", { method: "POST", body: JSON.stringify(data) }),
@@ -414,10 +416,31 @@ export const api = {
   listarPagos: (registroId: string) =>
     request<import("../types").Pago[]>(`/pipelines/registros/${registroId}/pagos`),
 
-  registrarPago: (registroId: string, data: { monto: number; nota?: string; proximaFechaCobro?: string; proximoPago?: number; metodoPago?: string; fecha?: string }) =>
-    request<{ pagoId: string; totalPagado: number; saldoPendiente: number; tareaCreada: string | null }>(
+  registrarPago: (
+    registroId: string,
+    data: {
+      monto: number;
+      // Solo se envía en el PRIMER pago de un trato sin total: lo fija en registros.valor.
+      montoTotal?: number;
+      nota?: string;
+      proximaFechaCobro?: string;
+      proximoPago?: number;
+      metodoPago?: string;
+      fecha?: string;
+      // Clave única generada al abrir el modal: un doble clic/reintento no crea dos pagos.
+      idempotencyKey?: string;
+    }
+  ) =>
+    request<{ pagoId: string; valor: number | null; totalPagado: number; saldoPendiente: number; tareaCreada: string | null }>(
       `/pipelines/registros/${registroId}/pagos`,
       { method: "POST", body: JSON.stringify(data) }
+    ),
+
+  // Borrar un pago incorrecto/duplicado — el backend solo lo acepta para SUPER ADMIN.
+  eliminarPago: (registroId: string, pagoId: string) =>
+    request<{ valorTotal: number | null; cobrado: number; saldoPendiente: number; proximoPago: number | null; fechaProximoPago: string | null; metodoPago: string | null; montoVencido: number }>(
+      `/pipelines/registros/${registroId}/pagos/${pagoId}`,
+      { method: "DELETE" }
     ),
 
   actualizarPlanPago: (registroId: string, data: { proximoPago?: number | null; fechaProximoPago?: string | null; metodoPago?: string | null }) =>
@@ -430,12 +453,6 @@ export const api = {
     request<{ valor: number; totalPagado: number; saldoPendiente: number }>(
       `/pipelines/registros/${registroId}/valor`,
       { method: "PATCH", body: JSON.stringify({ valor }) }
-    ),
-
-  cerrarVenta: (registroId: string, data: { montoTotal: number; montoCobrado: number; proximaFechaCobro?: string; metodoPago?: string; nota?: string }) =>
-    request<{ valorTotal: number | null; cobrado: number; saldoPendiente: number; proximoPago: number | null; fechaProximoPago: string | null; metodoPago: string | null; montoVencido: number }>(
-      `/pipelines/registros/${registroId}/cerrar-venta`,
-      { method: "POST", body: JSON.stringify(data) }
     ),
 
   actividadDelDia: () => request<ActividadDelDiaDTO>("/reportes/actividad-hoy"),
@@ -510,6 +527,14 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  // Alta COMPLETA de un invitado nuevo (formulario de "Nuevo contacto") desde
+  // el calendario. 409 con `error.claro` si ya existe un contacto duplicado.
+  podcastCrearInvitadoCompleto: (data: unknown) =>
+    request<{ id: string; nombre: string }>("/podcast/invitados/completo", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   // ─── Tareas operativas ───────────────────────────────────
 
   listarTareas: (params: { responsableId?: string; departamento?: string; estado?: string; prioridad?: string } = {}) => {
@@ -518,6 +543,51 @@ export const api = {
   },
 
   misTareas: () => request<import("../types").TareaOperativa[]>("/tareas/mis-tareas"),
+
+  // Tareas dentro del alcance por rol del usuario (módulo Tareas): SUPER_ADMIN
+  // global, roles de mando su departamento/área, USUARIO solo las suyas.
+  listarTareasVisibles: (params: { responsableId?: string; departamento?: string; estado?: string } = {}) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return request<import("../types").TareaOperativa[]>(`/tareas/visibles${qs ? `?${qs}` : ""}`);
+  },
+
+  // Descarga el reporte de tareas (PDF/Excel/Word) generado por el servidor con
+  // alcance por rol. La respuesta es binaria, por eso no usa request<T>. Si el
+  // backend rechaza la petición lanza ApiError (403 = sin permiso para exportar).
+  descargarReporte: async (params: {
+    formato: "pdf" | "excel" | "word";
+    departamento?: string;
+    responsableId?: string;
+    grupo?: string;
+    desde?: string;
+    hasta?: string;
+  }): Promise<boolean> => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([clave, valor]) => {
+      if (valor !== undefined && valor !== "") qs.append(clave, String(valor));
+    });
+    const token = getToken();
+    const res = await fetch(`${BASE_URL}/tareas/reporte${qs.toString() ? `?${qs}` : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: res.statusText }));
+      throw new ApiError(res.status, body.error);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const descarga = document.createElement("a");
+    const disposicion = res.headers.get("Content-Disposition") ?? "";
+    const conArchivo = /filename="?([^"]+)"?/.exec(disposicion);
+    const ext = params.formato === "excel" ? "xlsx" : params.formato === "word" ? "docx" : "pdf";
+    descarga.href = url;
+    descarga.download = conArchivo?.[1] ?? `reporte-tareas.${ext}`;
+    document.body.appendChild(descarga);
+    descarga.click();
+    descarga.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  },
 
   obtenerTarea: (id: string) => request<import("../types").TareaOperativa>(`/tareas/${id}`),
 

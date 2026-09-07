@@ -73,7 +73,7 @@ export const crearUsuarioSchema = z.object({
   nombre: z.string().min(2, "El nombre es obligatorio"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
-  rol: z.enum(["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "TEAM_LEADER", "USUARIO"]),
+  rol: z.enum(["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "USUARIO"]),
   departamentoId: z.string().optional(),
   cargo: z.string().optional(),
   supervisorId: z.string().optional(),
@@ -90,11 +90,17 @@ export const actualizarComentariosSchema = z.object({
 
 export const registrarPagoSchema = z.object({
   monto: z.number().positive("El monto debe ser mayor a cero"),
+  // "Monto total del negocio": solo se envía al registrar el PRIMER pago de un trato que
+  // aún no tiene total definido (registros.valor == null). El backend lo fija una sola vez.
+  montoTotal: z.number().positive("El monto total debe ser mayor a cero").optional(),
   nota: z.string().optional(),
   proximaFechaCobro: z.string().datetime().optional(),
   proximoPago: z.number().positive().optional(),
   metodoPago: z.string().optional(),
   fecha: z.string().datetime().optional(), // para meter ventas atrasadas con su fecha real
+  // Clave de idempotencia generada por el frontend al abrir el modal de pago. Un doble clic
+  // o reintento con la misma clave no crea un segundo pago (índice único en pagos).
+  idempotencyKey: z.string().min(1, "Clave de idempotencia inválida").optional(),
 });
 
 // Actualizar el plan de pagos de un deal (próximo pago / fecha / método) sin registrar un pago.
@@ -102,16 +108,6 @@ export const actualizarPlanPagoSchema = z.object({
   proximoPago: z.number().positive().nullable().optional(),
   fechaProximoPago: z.string().datetime().nullable().optional(),
   metodoPago: z.string().nullable().optional(),
-});
-
-// Cerrar una venta en un solo paso: fija el total acordado, mueve el registro a la etapa
-// ganada y registra el cobro de hoy. Solo exige la fecha del próximo cobro si queda saldo.
-export const cerrarVentaSchema = z.object({
-  montoTotal: z.number().positive("El monto total debe ser mayor a cero"),
-  montoCobrado: z.number().positive("El monto cobrado hoy debe ser mayor a cero"),
-  proximaFechaCobro: z.string().datetime().optional(),
-  metodoPago: z.string().optional(),
-  nota: z.string().optional(),
 });
 
 // ─── Podcast Performance ─────────────────────────────────

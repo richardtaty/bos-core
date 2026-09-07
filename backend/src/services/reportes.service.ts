@@ -169,6 +169,9 @@ export async function listarPagosDetallado(filtro: FiltroPagos) {
   const filas = await db
     .select({
       id: pagos.id,
+      // El id del deal al que pertenece el pago: el SUPER ADMIN lo usa al eliminar un
+      // registro financiero duplicado (DELETE .../registros/:registroId/pagos/:pagoId).
+      registroId: registros.id,
       monto: pagos.monto,
       nota: pagos.nota,
       fecha: pagos.fecha,

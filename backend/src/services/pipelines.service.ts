@@ -180,26 +180,69 @@ export async function metricasPipeline(pipelineId: string) {
   };
 }
 
-// Registrar un pago (abono/cuota) contra un registro. Si después de este pago queda saldo
-// pendiente, exige la fecha del próximo cobro y agenda automáticamente el seguimiento —
-// mismo principio de "nunca queda un pendiente sin fecha" que ya rige el resto del sistema.
-// Ahora también registra el plan de pagos (próximo pago + método) de forma estructurada.
+// Registrar un pago (abono/cuota) contra un registro — la ÚNICA forma de crear dinero hoy.
+// Los pagos son la fuente de verdad financiera: el saldo se calcula como total − SUM(pagos),
+// nunca se guarda, y un cambio de etapa jamás crea un pago.
+//
+// Primer pago de un trato sin total: recibe "montoTotal", que queda fijado en registros.valor
+// (el flujo normal ya no vuelve a pedirlo). Protecciones:
+//  - No se permite sobrepagar (abono > saldo pendiente).
+//  - Clave de idempotencia (idempotencyKey): un doble clic o reintento con la misma clave no
+//    crea un segundo pago — el índice único de pagos lo descarta y se devuelve el ya existente.
 export async function registrarPago(input: {
   registroId: string;
   monto: number;
+  montoTotal?: number;
   nota?: string;
   proximaFechaCobro?: string;
   proximoPago?: number;
   metodoPago?: string;
   fecha?: string;
   autorId: string;
+  idempotencyKey?: string;
 }) {
   const [registro] = await db.select().from(registros).where(eq(registros.id, input.registroId));
   if (!registro) throw new Error("Registro no encontrado");
 
   const totalPagadoActual = await totalPagadoDe(input.registroId);
+
+  // 1) Idempotencia: si esta clave ya generó un pago, devolver ese pago en vez de duplicarlo.
+  if (input.idempotencyKey) {
+    const existentes = await db
+      .select()
+      .from(pagos)
+      .where(and(eq(pagos.idempotencyKey, input.idempotencyKey), eq(pagos.registroId, input.registroId)));
+    if (existentes.length > 0) {
+      const pagado = await totalPagadoDe(input.registroId);
+      const saldo = registro.valor != null ? Math.max(0, registro.valor - pagado) : 0;
+      return { pagoId: existentes[0].id, valor: registro.valor, totalPagado: pagado, saldoPendiente: saldo, tareaCreada: null };
+    }
+  }
+
+  // 2) Total del trato: se fija o corrige SOLO mientras no haya pagos. Con pagos, queda fijo.
+  let totalEfectivo: number;
+  if (registro.valor == null) {
+    if (!input.montoTotal) {
+      throw new Error("Este trato no tiene monto total — indica el monto total del negocio para registrar el primer pago.");
+    }
+    totalEfectivo = input.montoTotal;
+  } else if (totalPagadoActual === 0 && input.montoTotal != null && Math.abs(input.montoTotal - registro.valor) > 0.001) {
+    // Corrección del total antes del primer pago (error de tipeo o renegociación previa al cobro).
+    totalEfectivo = input.montoTotal;
+  } else if (input.montoTotal != null && Math.abs(input.montoTotal - registro.valor) > 0.001) {
+    throw new Error("El monto total ya quedó definido — corregirlo es una acción de SUPER ADMIN.");
+  } else {
+    totalEfectivo = registro.valor;
+  }
+
+  // 3) Guarda de sobrepago: el abono nunca puede superar el saldo pendiente.
+  const saldoActual = Math.max(0, totalEfectivo - totalPagadoActual);
+  if (input.monto > saldoActual + 0.001) {
+    throw new Error(`El abono supera el saldo pendiente de $${saldoActual.toLocaleString()}.`);
+  }
+
   const nuevoTotalPagado = totalPagadoActual + input.monto;
-  const saldoPendiente = registro.valor != null ? Math.max(0, registro.valor - nuevoTotalPagado) : 0;
+  const saldoPendiente = Math.max(0, totalEfectivo - nuevoTotalPagado);
 
   if (saldoPendiente > 0 && !input.proximaFechaCobro) {
     throw new Error("Queda saldo pendiente — debes indicar la fecha del próximo cobro.");
@@ -208,21 +251,42 @@ export async function registrarPago(input: {
   const pagoId = crypto.randomUUID();
   const fechaPago = input.fecha ? new Date(input.fecha) : new Date();
 
-  await db.insert(pagos).values({
-    id: pagoId,
-    registroId: input.registroId,
-    monto: input.monto,
-    nota: input.nota,
-    autorId: input.autorId,
-    fecha: fechaPago,
-  });
+  try {
+    await db.insert(pagos).values({
+      id: pagoId,
+      registroId: input.registroId,
+      monto: input.monto,
+      nota: input.nota,
+      autorId: input.autorId,
+      fecha: fechaPago,
+      idempotencyKey: input.idempotencyKey ?? null,
+    });
+  } catch (err) {
+    // Dos requests simultáneos con la misma clave: el índice único dejó pasar a uno solo.
+    // Devolver el pago que ya quedó registrado en lugar de crear un duplicado.
+    if (input.idempotencyKey && err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
+      const [existente] = await db
+        .select()
+        .from(pagos)
+        .where(and(eq(pagos.idempotencyKey, input.idempotencyKey), eq(pagos.registroId, input.registroId)));
+      if (existente) {
+        const pagado = await totalPagadoDe(input.registroId);
+        const saldo = registro.valor != null ? Math.max(0, registro.valor - pagado) : 0;
+        return { pagoId: existente.id, valor: registro.valor, totalPagado: pagado, saldoPendiente: saldo, tareaCreada: null };
+      }
+    }
+    throw err;
+  }
 
-  // Actualizar el plan de pagos del deal: si queda saldo, guardar próximo pago + método;
-  // si se saldó por completo, limpiar el plan (ya no hay nada que cobrar).
+  // Actualizar el total si hace falta (primera definición o corrección previa a pagos) y el
+  // plan de pagos del deal: si queda saldo, guardar próximo pago + método; si se saldó por
+  // completo, limpiar el plan (ya no hay nada que cobrar).
+  const cambiaValor = registro.valor == null || Math.abs(totalEfectivo - registro.valor) > 0.001;
   const proximoPago = saldoPendiente > 0 ? (input.proximoPago ?? saldoPendiente) : null;
   await db
     .update(registros)
     .set({
+      ...(cambiaValor ? { valor: totalEfectivo } : {}),
       proximoPago,
       fechaProximoPago: saldoPendiente > 0 && input.proximaFechaCobro ? new Date(input.proximaFechaCobro) : null,
       metodoPago: saldoPendiente > 0 ? (input.metodoPago ?? null) : null,
@@ -259,7 +323,7 @@ export async function registrarPago(input: {
     });
   }
 
-  return { pagoId, totalPagado: nuevoTotalPagado, saldoPendiente, tareaCreada };
+  return { pagoId, valor: totalEfectivo, totalPagado: nuevoTotalPagado, saldoPendiente, tareaCreada };
 }
 
 export async function listarPagos(registroId: string) {
@@ -267,13 +331,22 @@ export async function listarPagos(registroId: string) {
   return filas;
 }
 
-// Corregir el precio total acordado de un trato ya creado — necesario porque los precios
-// se negocian y a veces cambian después de creado el registro (renegociación, error de tipeo,
-// descuento acordado después). Nunca toca los pagos ya registrados, solo el total contra el
-// que se calcula el saldo.
-export async function actualizarValorRegistro(registroId: string, nuevoValor: number, autorId: string) {
+// Corregir el monto total acordado de un trato ya creado. Mientras el trato NO tenga pagos,
+// cualquier miembro del equipo puede ajustarlo (error de tipeo o renegociación previa al
+// cobro). Una vez que existe al menos un pago, el total queda fijo en el flujo normal y solo
+// un SUPER ADMIN puede corregirlo — y nunca por debajo de lo ya pagado (evita inventar saldos
+// negativos). Nunca toca los pagos, solo el total contra el que se calcula el saldo.
+export async function actualizarValorRegistro(registroId: string, nuevoValor: number, autorId: string, rol: string) {
   const [registro] = await db.select().from(registros).where(eq(registros.id, registroId));
   if (!registro) throw new Error("Registro no encontrado");
+
+  const totalPagado = await totalPagadoDe(registroId);
+  if (totalPagado > 0 && rol !== "SUPER_ADMIN") {
+    throw new Error("Solo un SUPER ADMIN puede corregir el monto total una vez que hay pagos registrados.");
+  }
+  if (nuevoValor < totalPagado - 0.001) {
+    throw new Error(`El monto total no puede quedar por debajo de lo ya pagado ($${totalPagado.toLocaleString()}).`);
+  }
 
   const valorAnterior = registro.valor;
   await db.update(registros).set({ valor: nuevoValor, updatedAt: new Date() }).where(eq(registros.id, registroId));
@@ -290,60 +363,8 @@ export async function actualizarValorRegistro(registroId: string, nuevoValor: nu
     });
   }
 
-  const totalPagado = await totalPagadoDe(registroId);
   const saldoPendiente = Math.max(0, nuevoValor - totalPagado);
   return { valor: nuevoValor, totalPagado, saldoPendiente };
-}
-
-// Cerrar una venta en un solo paso — la simplificación que pidió Richard para no tener que
-// hacer tres acciones separadas (fijar precio → mover a ganada → registrar pago).
-// Fija el total acordado, mueve el registro a la etapa ganada del pipeline y registra el
-// cobro de hoy. Si queda saldo, exige la fecha del próximo cobro y agenda el seguimiento,
-// igual que registrarPago. La regla de saldo se valida *antes* de tocar nada para no dejar
-// el registro a medias (precio cambiado o etapa movida) si falta la fecha.
-export async function cerrarVenta(input: {
-  registroId: string;
-  montoTotal: number;
-  montoCobrado: number;
-  proximaFechaCobro?: string;
-  metodoPago?: string;
-  nota?: string;
-  autorId: string;
-}) {
-  const [registro] = await db.select().from(registros).where(eq(registros.id, input.registroId));
-  if (!registro) throw new Error("Registro no encontrado");
-
-  const [etapaGanada] = await db
-    .select()
-    .from(etapas)
-    .where(and(eq(etapas.pipelineId, registro.pipelineId), eq(etapas.esGanada, true)));
-  if (!etapaGanada) throw new Error("Este pipeline no tiene una etapa de venta ganada");
-
-  const totalPagadoActual = await totalPagadoDe(input.registroId);
-  const saldo = Math.max(0, input.montoTotal - (totalPagadoActual + input.montoCobrado));
-  if (saldo > 0 && !input.proximaFechaCobro) {
-    throw new Error("Queda saldo pendiente — debes indicar la fecha del próximo cobro.");
-  }
-
-  // 1) Fijar el total acordado de la venta.
-  await actualizarValorRegistro(input.registroId, input.montoTotal, input.autorId);
-
-  // 2) Mover a la etapa ganada (si no está ya).
-  if (registro.etapaId !== etapaGanada.id) {
-    await moverEtapa({ registroId: input.registroId, etapaId: etapaGanada.id, autorId: input.autorId });
-  }
-
-  // 3) Registrar el cobro de hoy.
-  await registrarPago({
-    registroId: input.registroId,
-    monto: input.montoCobrado,
-    nota: input.nota,
-    proximaFechaCobro: input.proximaFechaCobro,
-    metodoPago: input.metodoPago,
-    autorId: input.autorId,
-  });
-
-  return estadoFinanciero(input.registroId);
 }
 
 // Estado financiero completo de un deal: cobrado/saldo/vencido siempre calculados a partir
@@ -368,6 +389,40 @@ export async function estadoFinanciero(registroId: string) {
     metodoPago: registro.metodoPago,
     montoVencido,
   };
+}
+
+// Eliminar UN registro de pago incorrecto o duplicado — ÚNICO uso: el SUPER ADMIN corrigiendo
+// la caja (la ruta ya exige ese rol). Borra solo esa fila de pagos: nunca toca el registro
+// (deal), el cliente ni los demás pagos. El "Pagado"/saldo del pipeline y todos los totales
+// del Reporte de Ventas se recalculan solos porque se derivan de los pagos existentes.
+export async function eliminarPago(pagoId: string, autorId: string, registroId?: string) {
+  const [pago] = await db.select().from(pagos).where(eq(pagos.id, pagoId));
+  if (!pago) throw new Error("Pago no encontrado");
+  if (registroId && pago.registroId !== registroId) {
+    throw new Error("El pago no pertenece a ese registro");
+  }
+
+  const [registro] = await db.select().from(registros).where(eq(registros.id, pago.registroId));
+
+  await db.delete(pagos).where(eq(pagos.id, pagoId));
+
+  if (registro?.personaId) {
+    const montoTexto = `$${pago.monto.toLocaleString()}`;
+    await db.insert(bitacoraAuditoria).values({
+      id: crypto.randomUUID(),
+      entidad: "Pago",
+      entidadId: pago.id,
+      accion: `Registro financiero eliminado por SUPER ADMIN — ${montoTexto}`,
+      autorId,
+      personaId: registro.personaId,
+      detalle: `Pago eliminado: monto ${montoTexto} · fecha ${
+        pago.fecha instanceof Date ? pago.fecha.toISOString() : String(pago.fecha)
+      } · id ${pago.id}`,
+      fecha: new Date(),
+    });
+  }
+
+  return estadoFinanciero(pago.registroId);
 }
 
 // Corregir/setear el plan de pagos (próximo pago, fecha, método) sin registrar un pago —

@@ -3,7 +3,36 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "../db/client";
 import { departamentos, usuarioDepartamentos, usuarios } from "../db/schema";
 import { registrarAuditoria } from "./auditoria.service";
+import type { Rol } from "../middleware/auth";
 import type { CrearUsuarioInput } from "../lib/validation";
+
+/**
+ * Devuelve rol y departamentos de un usuario para validar permisos de gestión.
+ * Los departamentos salen de la M:N (fallback a la columna legacy si está vacía),
+ * igual que en el JWT.
+ */
+export async function obtenerUsuarioParaGestion(id: string): Promise<{
+  id: string;
+  rol: Rol;
+  activo: boolean;
+  departamentoId: string | null;
+  departamentoIds: string[];
+} | null> {
+  const [u] = await db.select().from(usuarios).where(eq(usuarios.id, id));
+  if (!u) return null;
+  const filas = await db
+    .select({ departamentoId: usuarioDepartamentos.departamentoId })
+    .from(usuarioDepartamentos)
+    .where(eq(usuarioDepartamentos.usuarioId, id));
+  const ids = filas.map((f) => f.departamentoId);
+  return {
+    id: u.id,
+    rol: u.rol as Rol,
+    activo: u.activo,
+    departamentoId: u.departamentoId,
+    departamentoIds: ids.length ? ids : u.departamentoId ? [u.departamentoId] : [],
+  };
+}
 
 export async function listarUsuarios(departamentoIds?: string[]) {
   const ids = departamentoIds ?? [];
@@ -103,7 +132,7 @@ export async function cambiarRol(usuarioId: string, nuevoRol: string, autorId: s
       throw new Error("Debe existir al menos un Super Admin. Asigna otro Super Admin antes de cambiar este.");
     }
   }
-  await db.update(usuarios).set({ rol: nuevoRol as "SUPER_ADMIN" | "ADMIN" | "SUPERVISOR" | "TEAM_LEADER" | "USUARIO" }).where(eq(usuarios.id, usuarioId));
+  await db.update(usuarios).set({ rol: nuevoRol as "SUPER_ADMIN" | "ADMIN" | "SUPERVISOR" | "USUARIO" }).where(eq(usuarios.id, usuarioId));
   await registrarAuditoria({
     entidad: "Usuario",
     entidadId: usuarioId,

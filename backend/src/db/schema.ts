@@ -10,7 +10,7 @@ export const usuarios = sqliteTable("usuarios", {
   passwordHash: text("password_hash").notNull(),
   // AGENTE es un rol de máquina (Hermes Agent), no de persona: solo lee, nunca escribe.
   // No está en la jerarquía de permisos ni se puede crear desde la interfaz — ver auth.ts.
-  rol: text("rol", { enum: ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "TEAM_LEADER", "USUARIO", "AGENTE"] }).notNull().default("USUARIO"),
+  rol: text("rol", { enum: ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "USUARIO", "AGENTE"] }).notNull().default("USUARIO"),
   activo: integer("activo", { mode: "boolean" }).notNull().default(true),
   departamentoId: text("departamento_id"),
   cargo: text("cargo"),
@@ -212,6 +212,10 @@ export const pagos = sqliteTable(
     nota: text("nota"),
     autorId: text("autor_id").notNull().references(() => usuarios.id),
     fecha: timestamp("fecha").notNull().$defaultFn(() => new Date()),
+    // Clave de idempotencia: la manda el frontend al abrir el modal de pago y la reusa en
+    // reintentos. El índice único (ver migración 0019) hace que un doble clic o un request
+    // duplicado no cree dos pagos — la segunda inserción se descarta y se devuelve el primero.
+    idempotencyKey: text("idempotency_key"),
   },
   (t) => ({ registroIdx: index("pagos_registro_idx").on(t.registroId) })
 );

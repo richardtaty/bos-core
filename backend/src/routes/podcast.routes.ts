@@ -10,14 +10,14 @@ import {
   desempenoEquipo,
   inteligenciaPodcast,
 } from "../services/podcast-performance.service";
-import { guardarReportePodcastSchema, guardarMetasPodcastSchema, crearCitaPodcastSchema, actualizarCitaPodcastSchema } from "../lib/validation";
+import { guardarReportePodcastSchema, guardarMetasPodcastSchema, crearCitaPodcastSchema, actualizarCitaPodcastSchema, crearPersonaSchema } from "../lib/validation";
 import {
   listarCitas,
   crearCita,
   actualizarCita,
   eliminarCita,
 } from "../services/podcast-citas.service";
-import { buscarInvitados, obtenerOCrearInvitado } from "../services/podcast-invitados.service";
+import { buscarInvitados, obtenerOCrearInvitado, crearInvitadoCompleto } from "../services/podcast-invitados.service";
 
 export const podcastRouter = Router();
 podcastRouter.use(requireAuth);
@@ -163,6 +163,36 @@ podcastRouter.post("/invitados", requireDepartamento("Podcast"), async (req, res
   }
   try {
     res.status(201).json(await obtenerOCrearInvitado(nombre, req.user!.id));
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
+
+// Alta COMPLETA de un invitado nuevo desde el calendario: recibe el formulario
+// oficial de "Nuevo contacto" (mismas reglas de validación que Clientes) y, si
+// ya existe una persona con el mismo correo/teléfono (o el mismo nombre cuando
+// no se aporta nada más), responde 409 con `claro` para que el usuario la use
+// en vez de duplicar. Si no hay duplicado, crea el contacto real del CRM.
+podcastRouter.post("/invitados/completo", requireDepartamento("Podcast"), async (req, res) => {
+  const parsed = crearPersonaSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const resultado = await crearInvitadoCompleto(parsed.data, req.user!.id);
+    if ("duplicado" in resultado) {
+      const d = resultado.duplicado;
+      const motivo = d.por === "email" ? "correo" : d.por === "telefono" ? "teléfono" : "nombre";
+      res.status(409).json({
+        error: {
+          mensaje: `Ya existe un contacto con estos datos (mismo ${motivo}): ${d.nombre}`,
+          claro: d,
+        },
+      });
+      return;
+    }
+    res.status(201).json(resultado.persona);
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
   }

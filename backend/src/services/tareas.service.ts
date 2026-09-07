@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, lte, or, inArray } from "drizzle-orm";
 import { db } from "../db/client";
 import { tareasOperativas, tareaChecklist, tareaComentarios, solicitudesExtension, usuarios } from "../db/schema";
 import { registrarAuditoria } from "./auditoria.service";
@@ -72,7 +72,7 @@ export interface ActualizarTareaInput {
   resultadoFinal?: string | null;
 }
 
-const TAREA_COLUMNS = {
+export const TAREA_COLUMNS = {
   id: tareasOperativas.id,
   titulo: tareasOperativas.titulo,
   descripcion: tareasOperativas.descripcion,
@@ -118,11 +118,11 @@ export class SinPermisoTareaError extends Error {}
 
 /** Roles con mando sobre el trabajo de otros. Son los que pueden delegar y aprobar. */
 export function esRolDeMando(rol: Rol): boolean {
-  return rol === "SUPER_ADMIN" || rol === "ADMIN" || rol === "SUPERVISOR" || rol === "TEAM_LEADER";
+  return rol === "SUPER_ADMIN" || rol === "ADMIN" || rol === "SUPERVISOR";
 }
 
 /** Los departamentos del usuario, resueltos a nombre (la tarea guarda el nombre, no el id). */
-async function departamentosDe(user: AuthUser): Promise<string[]> {
+export async function departamentosDe(user: AuthUser): Promise<string[]> {
   const ids = user.departamentoIds ?? (user.departamentoId ? [user.departamentoId] : []);
   const nombres: string[] = [];
   for (const id of ids) {
@@ -183,7 +183,7 @@ async function asegurarPuedeGestionar(user: AuthUser, tarea: TareaParaPermiso): 
 async function asegurarPuedeDelegar(user: AuthUser, tarea: TareaParaPermiso): Promise<void> {
   await asegurarPuedeGestionar(user, tarea);
   if (esRolDeMando(user.rol) || tarea.asignadoPorId === user.id) return;
-  throw new SinPermisoTareaError("Solo un Team Leader, Supervisor o Admin puede reasignar una tarea a otra persona.");
+  throw new SinPermisoTareaError("Solo un Supervisor o Admin puede reasignar una tarea a otra persona.");
 }
 
 export async function listarTareas(params: {
@@ -202,6 +202,73 @@ export async function listarTareas(params: {
     params.proyectoId ? eq(tareasOperativas.proyectoId, params.proyectoId) : undefined,
     params.canal ? eq(tareasOperativas.canal, params.canal) : undefined,
   ].filter(Boolean);
+
+  return db
+    .select(TAREA_COLUMNS)
+    .from(tareasOperativas)
+    .innerJoin(usuarios, eq(tareasOperativas.responsableId, usuarios.id))
+    .where(condiciones.length ? and(...condiciones) : undefined)
+    .orderBy(desc(tareasOperativas.updatedAt));
+}
+
+/**
+ * Listado con alcance por rol, pensado para la vista Tareas del módulo operativo.
+ *
+ * Regla de visibilidad (una sola fuente de verdad, sin duplicar tareas):
+ *  - SUPER_ADMIN → todo el sistema (sin restricción).
+ *  - USUARIO     → únicamente las tareas donde es responsable.
+ *  - Roles de mando (ADMIN/SUPERVISOR) → las de su departamento/área
+ *    (la tarea guarda el nombre del departamento) más aquellas donde participa
+ *    (responsable, quien la asignó, quien la pidió o quien la aprueba).
+ *
+ * Los filtros que lleguen (responsableId, departamento, estado…) SIEMPRE se
+ * ANDean sobre el alcance: un usuario no puede ampliarlo pidiendo un responsable
+ * o un departamento ajeno — el resultado simplemente queda vacío.
+ */
+export async function listarTareasVisibles(
+  usuario: AuthUser,
+  params: {
+    responsableId?: string;
+    departamento?: string;
+    estado?: EstadoTarea;
+    prioridad?: Prioridad;
+    proyectoId?: string;
+    canal?: string;
+  },
+) {
+  // Predicado de alcance calculado en el servidor a partir del rol y los
+  // departamentos del usuario autenticado (nunca de parámetros del cliente).
+  let condicionAlcance: ReturnType<typeof eq> | ReturnType<typeof or> | ReturnType<typeof inArray> | undefined;
+
+  if (usuario.rol === "SUPER_ADMIN") {
+    condicionAlcance = undefined; // visibilidad global
+  } else if (usuario.rol === "USUARIO") {
+    condicionAlcance = eq(tareasOperativas.responsableId, usuario.id);
+  } else {
+    // Roles de mando: participación directa (conserva "quien delega no pierde la
+    // tarea" aunque cambie de área) + su departamento/área por nombre.
+    const participa = or(
+      eq(tareasOperativas.responsableId, usuario.id),
+      eq(tareasOperativas.asignadoPorId, usuario.id),
+      eq(tareasOperativas.solicitanteId, usuario.id),
+      eq(tareasOperativas.aprobadorId, usuario.id),
+    );
+    const deptos = await departamentosDe(usuario);
+    condicionAlcance =
+      deptos.length > 0
+        ? or(participa!, inArray(tareasOperativas.departamento, deptos))
+        : participa;
+  }
+
+  const condiciones = [
+    condicionAlcance,
+    params.responsableId ? eq(tareasOperativas.responsableId, params.responsableId) : undefined,
+    params.departamento ? eq(tareasOperativas.departamento, params.departamento) : undefined,
+    params.estado ? eq(tareasOperativas.estado, params.estado) : undefined,
+    params.prioridad ? eq(tareasOperativas.prioridad, params.prioridad) : undefined,
+    params.proyectoId ? eq(tareasOperativas.proyectoId, params.proyectoId) : undefined,
+    params.canal ? eq(tareasOperativas.canal, params.canal) : undefined,
+  ].filter(Boolean) as NonNullable<typeof condicionAlcance>[];
 
   return db
     .select(TAREA_COLUMNS)
@@ -592,7 +659,7 @@ export async function resolverExtension(
     throw new SinPermisoTareaError("No puedes aprobar tu propia solicitud de extensión. Debe resolverla quien te asignó la tarea o un superior.");
   }
   if (!esRolDeMando(autorizador.rol) && tareaDeLaSolicitud.asignadoPorId !== autorizadorId) {
-    throw new SinPermisoTareaError("Solo un Team Leader, Supervisor o Admin — o quien asignó la tarea — puede resolver una solicitud de extensión.");
+    throw new SinPermisoTareaError("Solo un Supervisor o Admin — o quien asignó la tarea — puede resolver una solicitud de extensión.");
   }
 
   const nuevoEstado = aprobada ? "aprobada" : "rechazada";

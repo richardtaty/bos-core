@@ -78,3 +78,9 @@ ejecutarMigracion("0017_bmf_digital", sqlBmfDigital);
 
 const sqlActivosDigitales = readFileSync(join(__dirname, "migrations", "0018_activos_digitales.sql"), "utf-8");
 ejecutarMigracion("0018_activos_digitales", sqlActivosDigitales);
+
+const sqlIdempotenciaPagos = readFileSync(join(__dirname, "migrations", "0019_idempotencia_pagos.sql"), "utf-8");
+ejecutarMigracion("0019_idempotencia_pagos", sqlIdempotenciaPagos);
+
+const sqlEliminarTeamLeader = readFileSync(join(__dirname, "migrations", "0020_eliminar_team_leader.sql"), "utf-8");
+ejecutarMigracion("0020_eliminar_team_leader", sqlEliminarTeamLeader);

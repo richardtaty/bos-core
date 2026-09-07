@@ -1,6 +1,7 @@
 import { db } from "../db/client";
 import { personas } from "../db/schema";
 import { crearPersona } from "./personas.service";
+import type { CrearPersonaInput } from "../lib/validation";
 
 // ─── Búsqueda de invitados para el calendario de podcasts ─────────────
 //
@@ -181,4 +182,87 @@ export async function obtenerOCrearInvitado(nombre: string, autorId: string): Pr
   if (!persona) throw new Error("No se pudo crear la ficha del invitado");
 
   return { persona: { id: persona.id, nombre: persona.nombre }, creado: true };
+}
+
+// ─── Alta COMPLETA de un invitado (formulario "Nuevo contacto") ─────────
+//
+// Desde el calendario de podcasts, cuando el invitado no existe y el usuario
+// decide abrir el formulario completo, el alta llega aquí (misma validación y
+// misma creación central que Clientes, vía crearPersona). La diferencia es la
+// guardia anti-duplicado: si ya existe alguien con el mismo correo o teléfono
+// se DEVUELVE esa persona y NO se crea otra. Solo se confía en el nombre cuando
+// no se aporta ningún otro dato (correo ni teléfono) — entonces un nombre
+// normalizado idéntico reutiliza la ficha existente (el caso "Garzon/Garzón").
+
+function normalizarEmail(s: string | null | undefined): string {
+  return (s ?? "").trim().toLowerCase();
+}
+
+function soloDigitos(s: string): string {
+  return (s ?? "").replace(/\D/g, "");
+}
+
+// Dos teléfonos coinciden si son idénticos en dígitos o comparten los 10 últimos
+// (tolera prefijos tipo "+1", paréntesis, guiones…).
+function telefonosCoinciden(a: string, b: string): boolean {
+  const da = soloDigitos(a);
+  const db = soloDigitos(b);
+  if (!da || !db) return false;
+  if (da === db) return true;
+  if (da.length >= 10 && db.length >= 10) return da.slice(-10) === db.slice(-10);
+  return false;
+}
+
+export interface InvitadoDuplicado {
+  id: string;
+  nombre: string;
+  // Por qué se consideró la misma persona: mismo correo, mismo teléfono o solo
+  // el mismo nombre (cuando no se mandó correo ni teléfono).
+  por: "email" | "telefono" | "nombre";
+}
+
+export type ResultadoCrearInvitadoCompleto =
+  | { duplicado: InvitadoDuplicado }
+  | { persona: { id: string; nombre: string } };
+
+export async function crearInvitadoCompleto(
+  input: CrearPersonaInput,
+  autorId: string
+): Promise<ResultadoCrearInvitadoCompleto> {
+  const todas = await db
+    .select({ id: personas.id, nombre: personas.nombre, email: personas.email, telefono: personas.telefono })
+    .from(personas);
+
+  const emailBuscado = normalizarEmail(input.email);
+  const telefonoBuscado = input.telefono ? soloDigitos(input.telefono) : "";
+
+  let claro: InvitadoDuplicado | null = null;
+  for (const fila of todas) {
+    if (!claro && emailBuscado) {
+      const emailFila = normalizarEmail(fila.email);
+      if (emailFila && emailFila === emailBuscado) {
+        claro = { id: fila.id, nombre: fila.nombre, por: "email" };
+      }
+    }
+    if (!claro && telefonoBuscado && fila.telefono) {
+      if (telefonosCoinciden(fila.telefono, telefonoBuscado)) {
+        claro = { id: fila.id, nombre: fila.nombre, por: "telefono" };
+      }
+    }
+  }
+
+  // Sin correo ni teléfono no hay identificador fuerte: si el nombre (sin
+  // acentos/mayúsculas/espacios) ya existe, es la misma persona casi con
+  // seguridad → se reutiliza en vez de crear "Garzon" y "Garzón" aparte.
+  if (!claro && !emailBuscado && !telefonoBuscado) {
+    const nombreBuscado = normalizarNombre(input.nombre);
+    const existente = todas.find((f) => normalizarNombre(f.nombre) === nombreBuscado);
+    if (existente) claro = { id: existente.id, nombre: existente.nombre, por: "nombre" };
+  }
+
+  if (claro) return { duplicado: claro };
+
+  const persona = await crearPersona(input, autorId);
+  if (!persona) throw new Error("No se pudo crear el contacto");
+  return { persona: { id: persona.id, nombre: persona.nombre } };
 }

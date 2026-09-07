@@ -1,7 +1,7 @@
-// Jerarquía: SUPER_ADMIN > ADMIN > SUPERVISOR > TEAM_LEADER > USUARIO.
-// SUPERVISOR y TEAM_LEADER mandan sobre las tareas de su departamento, no sobre
+// Jerarquía: SUPER_ADMIN > ADMIN > SUPERVISOR > USUARIO.
+// SUPERVISOR manda sobre las tareas de su departamento, no sobre
 // facturación ni configuración — ver JERARQUIA en backend/src/middleware/auth.ts.
-export type Rol = "SUPER_ADMIN" | "ADMIN" | "SUPERVISOR" | "TEAM_LEADER" | "USUARIO";
+export type Rol = "SUPER_ADMIN" | "ADMIN" | "SUPERVISOR" | "USUARIO";
 
 export interface Usuario {
   id: string;

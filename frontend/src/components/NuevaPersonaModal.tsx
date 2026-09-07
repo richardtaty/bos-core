@@ -13,26 +13,65 @@ const NEGOCIOS_DISPONIBLES = [
   "Marketing", "Podcast", "Fábrica de Talentos", "Otro",
 ];
 
-interface Props {
-  onClose: () => void;
-  onCreated: () => void;
+// Contacto mínimo que devuelve el guardado (id + nombre bastan para elegirlo
+// como invitado de la cita; el resto ya vive en su ficha del CRM).
+export interface ContactoResumen {
+  id: string;
+  nombre: string;
 }
 
-export function NuevaPersonaModal({ onClose, onCreated }: Props) {
+// Mismo objeto que hoy manda el formulario (coincide con crearPersonaSchema).
+export interface DatosNuevoContacto {
+  nombre: string;
+  telefono?: string;
+  email?: string;
+  ciudad: string;
+  estado: string;
+  fuente: string;
+  referidoPor?: string;
+  responsableId: string;
+  fechaNacimiento?: string;
+  tags: string[];
+  negocios: string[];
+}
+
+interface Props {
+  onClose: () => void;
+  onCreated: (persona: ContactoResumen) => void;
+  // Precargas opcionales: si el formulario se abre desde el calendario de
+  // podcasts con el nombre ya escrito, aquí llega. Clientes no manda nada.
+  inicialNombre?: string;
+  inicialFuente?: string;
+  inicialTags?: string[];
+  // Quién crea el contacto. Por defecto el endpoint normal de Personas
+  // (api.crearPersona). El calendario de podcasts inyecta el suyo, que además
+  // bloquea duplicados por correo/teléfono antes de crear.
+  guardarContacto?: (datos: DatosNuevoContacto) => Promise<ContactoResumen>;
+}
+
+export function NuevaPersonaModal({
+  onClose,
+  onCreated,
+  inicialNombre,
+  inicialFuente,
+  inicialTags,
+  guardarContacto,
+}: Props) {
   const { usuario } = useAuth();
-  const [nombre, setNombre] = useState("");
+  const [nombre, setNombre] = useState(inicialNombre ?? "");
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
   const [ciudad, setCiudad] = useState("");
   const [estado, setEstado] = useState("");
-  const [fuente, setFuente] = useState("");
+  const [fuente, setFuente] = useState(inicialFuente ?? "");
   const [referidoPor, setReferidoPor] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
-  const [tagsSeleccionadas, setTagsSeleccionadas] = useState<string[]>([]);
+  const [tagsSeleccionadas, setTagsSeleccionadas] = useState<string[]>(inicialTags ?? []);
   const [negociosSeleccionados, setNegociosSeleccionados] = useState<string[]>([]);
   const [equipo, setEquipo] = useState<Usuario[]>([]);
   const [responsableId, setResponsableId] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [duplicado, setDuplicado] = useState<{ mensaje: string; claro: ContactoResumen } | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
@@ -48,35 +87,56 @@ export function NuevaPersonaModal({ onClose, onCreated }: Props) {
   const toggleNegocio = (negocio: string) =>
     setNegociosSeleccionados((prev) => (prev.includes(negocio) ? prev.filter((n) => n !== negocio) : [...prev, negocio]));
 
+  const armarDatos = (): DatosNuevoContacto => ({
+    nombre,
+    telefono: telefono || undefined,
+    email: email || undefined,
+    ciudad,
+    estado,
+    fuente,
+    referidoPor: fuente === "Referido" ? referidoPor : undefined,
+    responsableId,
+    fechaNacimiento: fechaNacimiento || undefined,
+    tags: tagsSeleccionadas,
+    negocios: negociosSeleccionados,
+  });
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setEnviando(true);
     setErrores({});
+    setDuplicado(null);
     try {
-      await api.crearPersona({
-        nombre,
-        telefono: telefono || undefined,
-        email: email || undefined,
-        ciudad,
-        estado,
-        fuente,
-        referidoPor: fuente === "Referido" ? referidoPor : undefined,
-        responsableId: responsableId,
-        fechaNacimiento: fechaNacimiento || undefined,
-        tags: tagsSeleccionadas,
-        negocios: negociosSeleccionados,
-      });
-      onCreated();
+      const persona = guardarContacto
+        ? await guardarContacto(armarDatos())
+        : await api.crearPersona(armarDatos());
+      onCreated({ id: persona.id, nombre: persona.nombre });
     } catch (err) {
       if (err instanceof ApiError && typeof err.payload === "object" && err.payload) {
-        const fieldErrors = (err.payload as { fieldErrors?: Record<string, string[]> }).fieldErrors ?? {};
-        const mapped: Record<string, string> = {};
-        for (const [k, v] of Object.entries(fieldErrors)) mapped[k] = v[0];
-        setErrores(mapped);
+        const payload = err.payload as {
+          fieldErrors?: Record<string, string[]>;
+          mensaje?: string;
+          claro?: ContactoResumen;
+        };
+        if (payload.claro) {
+          // Ya existe un contacto con esos datos: no crear, ofrecer usarlo.
+          setDuplicado({ mensaje: payload.mensaje ?? "Ya existe un contacto con estos datos.", claro: payload.claro });
+        } else if (payload.fieldErrors) {
+          const mapped: Record<string, string> = {};
+          for (const [k, v] of Object.entries(payload.fieldErrors)) mapped[k] = v[0];
+          setErrores(mapped);
+        }
       }
     } finally {
       setEnviando(false);
     }
+  };
+
+  // Al tocar nombre, correo o teléfono se limpia el aviso de duplicado: si era
+  // otra persona, basta corregir el dato y volver a intentar.
+  const alEditarDatoIdentificador = (aplicar: (v: string) => void) => (v: string) => {
+    setDuplicado(null);
+    aplicar(v);
   };
 
   return (
@@ -87,18 +147,34 @@ export function NuevaPersonaModal({ onClose, onCreated }: Props) {
           <button type="button" onClick={onClose} className="text-neutral-500 hover:text-neutral-600">✕</button>
         </div>
 
+        {duplicado && (
+          <div className="mb-4 rounded-lg border border-warning-200 bg-warning-50 p-3">
+            <p className="text-sm font-medium text-warning-800">{duplicado.mensaje}</p>
+            <button
+              type="button"
+              onClick={() => onCreated({ id: duplicado.claro.id, nombre: duplicado.claro.nombre })}
+              className="mt-2 text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600"
+            >
+              Usar este contacto existente
+            </button>
+            <p className="text-[11px] text-neutral-600 mt-1">
+              Si es otra persona, corrige el correo o el teléfono y guarda de nuevo.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="col-span-2">
             <label className="text-xs text-neutral-600">Nombre completo</label>
-            <input value={nombre} onChange={(e) => setNombre(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
+            <input value={nombre} onChange={(e) => alEditarDatoIdentificador(setNombre)(e.target.value)} required className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
             <label className="text-xs text-neutral-600">Teléfono</label>
-            <input value={telefono} onChange={(e) => setTelefono(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
+            <input value={telefono} onChange={(e) => alEditarDatoIdentificador(setTelefono)(e.target.value)} className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
             <label className="text-xs text-neutral-600">Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
+            <input value={email} onChange={(e) => alEditarDatoIdentificador(setEmail)(e.target.value)} type="email" className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-1.5 text-sm" />
           </div>
           <div>
             <label className="text-xs text-neutral-600">Fecha de nacimiento</label>

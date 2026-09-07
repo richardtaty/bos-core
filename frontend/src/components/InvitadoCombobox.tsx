@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, type BusquedaInvitadosDTO, type InvitadoMatchDTO } from "../api/client";
 
-// Valor "resuelto" del campo invitado:
-//  - existente: se eligió un contacto que ya está en el CRM (se guarda su ID).
-//  - nuevo:     el usuario eligió «+ Agregar»; se crea la ficha al guardar.
-export type ValorInvitado =
-  | { tipo: "existente"; id: string; nombre: string }
-  | { tipo: "nuevo"; nombre: string };
+// Valor "resuelto" del campo invitado: un contacto que YA está en el CRM.
+// Cuando el usuario elige «+ Agregar» un nombre nuevo NO se compromete nada:
+// el calendario abre el formulario completo de "Nuevo contacto" y, al crearse,
+// entrega aquí ese contacto con su ID real.
+export type ValorInvitado = { id: string; nombre: string };
 
 type Accion =
   | { tipo: "persona"; persona: InvitadoMatchDTO }
-  | { tipo: "nuevo" };
+  | { tipo: "nuevo"; nombre: string };
 
 const CLASE_INPUT =
   "w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm pr-9";
@@ -18,10 +17,13 @@ const CLASE_INPUT =
 interface Props {
   valor: ValorInvitado | null;
   onChange: (v: ValorInvitado | null) => void;
+  // Cuándo el usuario elige «+ Agregar "X"» (el nombre no existe). El padre
+  // abre el formulario completo de nuevo contacto con ese nombre precargado.
+  onAgregarNuevo?: (nombre: string) => void;
   disabled?: boolean;
 }
 
-export function InvitadoCombobox({ valor, onChange, disabled }: Props) {
+export function InvitadoCombobox({ valor, onChange, onAgregarNuevo, disabled }: Props) {
   // El texto del input refleja el valor comprometido (o lo que va escribiendo).
   const [texto, setTexto] = useState<string>(() => (valor ? valor.nombre : ""));
   const [abierto, setAbierto] = useState(false);
@@ -33,7 +35,6 @@ export function InvitadoCombobox({ valor, onChange, disabled }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const trimTexto = texto.trim();
-  const esNuevoComprometido = valor?.tipo === "nuevo";
 
   useEffect(() => {
     if (disabled) return;
@@ -93,7 +94,7 @@ export function InvitadoCombobox({ valor, onChange, disabled }: Props) {
   const acciones: Accion[] = [
     ...(resultado?.coincidencias ?? []).map((persona) => ({ tipo: "persona" as const, persona })),
     ...(mostrarParecidos ? (resultado?.parecidos ?? []).map((persona) => ({ tipo: "persona" as const, persona })) : []),
-    ...(puedeAgregarNuevo ? [{ tipo: "nuevo" as const }] : []),
+    ...(puedeAgregarNuevo ? [{ tipo: "nuevo" as const, nombre: trimTexto }] : []),
   ];
 
   const coincidencias = resultado?.coincidencias ?? [];
@@ -108,10 +109,18 @@ export function InvitadoCombobox({ valor, onChange, disabled }: Props) {
 
   function ejecutar(accion: Accion) {
     if (accion.tipo === "persona") {
-      comprometer({ tipo: "existente", id: accion.persona.id, nombre: accion.persona.nombre });
-    } else {
-      comprometer({ tipo: "nuevo", nombre: trimTexto });
+      comprometer({ id: accion.persona.id, nombre: accion.persona.nombre });
+      return;
     }
+    // «+ Agregar»: no se compromete un contacto mínimo. Se limpia la selección
+    // (por si antes había un invitado elegido), se cierra la lista y el padre
+    // abre el formulario completo de nuevo contacto con el nombre escrito.
+    setAbierto(false);
+    setIndice(0);
+    setResultado(null);
+    setErrorBusqueda(null);
+    onChange(null);
+    onAgregarNuevo?.(accion.nombre);
   }
 
   function manejarTeclado(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -192,15 +201,11 @@ export function InvitadoCombobox({ valor, onChange, disabled }: Props) {
         aria-label="Invitado"
         className={CLASE_INPUT}
       />
-      {/* Indicador de chevron / de contacto nuevo a la derecha */}
+      {/* Indicador de chevron a la derecha */}
       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-        {esNuevoComprometido ? (
-          <span className="text-[10px] font-semibold text-primary-600">+ nuevo</span>
-        ) : (
-          <svg className="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 7l5 5 5-5" />
-          </svg>
-        )}
+        <svg className="w-3.5 h-3.5 text-neutral-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 7l5 5 5-5" />
+        </svg>
       </span>
 
       {mostrarLista() && (
@@ -257,7 +262,7 @@ export function InvitadoCombobox({ valor, onChange, disabled }: Props) {
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => ejecutar({ tipo: "nuevo" })}
+              onClick={() => ejecutar({ tipo: "nuevo", nombre: trimTexto })}
               className={`block w-full text-left px-3 py-2 text-sm ${
                 acciones[indice]?.tipo === "nuevo" ? "bg-primary-50 text-primary-900" : "text-primary-600 hover:bg-neutral-50"
               }`}
@@ -270,13 +275,6 @@ export function InvitadoCombobox({ valor, onChange, disabled }: Props) {
             <div className="px-3 py-2 text-xs text-neutral-500">Escribe al menos 2 letras para buscar.</div>
           )}
         </div>
-      )}
-
-      {/* Ayuda: cuando se eligió un contacto nuevo, se crea su ficha al guardar */}
-      {esNuevoComprometido && (
-        <p className="text-[11px] text-primary-700 mt-1">
-          Se creará “{valor?.nombre}” como nuevo contacto de Podcast al guardar.
-        </p>
       )}
     </div>
   );

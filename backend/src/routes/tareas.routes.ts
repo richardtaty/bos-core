@@ -1,7 +1,8 @@
 import { Router, type Response } from "express";
-import { requireAuth, nombreDepartamentoDe } from "../middleware/auth";
+import { requireAuth, requireRole, nombreDepartamentoDe } from "../middleware/auth";
 import {
   listarTareas,
+  listarTareasVisibles,
   obtenerTarea,
   crearTarea,
   actualizarTarea,
@@ -20,6 +21,7 @@ import {
   resolverExtension,
   SinPermisoTareaError,
 } from "../services/tareas.service";
+import { SinPermisoReporteError, generarReporteTareas } from "../services/reporte-tareas.service";
 
 export const tareasRouter = Router();
 tareasRouter.use(requireAuth);
@@ -27,7 +29,8 @@ tareasRouter.use(requireAuth);
 /** Un fallo de permiso es 403, no 400: el dato estaba bien, el usuario no tiene derecho. */
 function responderError(res: Response, e: unknown): void {
   const mensaje = e instanceof Error ? e.message : "Error inesperado";
-  res.status(e instanceof SinPermisoTareaError ? 403 : 400).json({ error: mensaje });
+  const esPermiso = e instanceof SinPermisoTareaError || e instanceof SinPermisoReporteError;
+  res.status(esPermiso ? 403 : 400).json({ error: mensaje });
 }
 
 // ⚠️ Rutas específicas DEBEN ir antes que /:id (regla #2 de CLAUDE.md)
@@ -44,6 +47,21 @@ tareasRouter.get("/", async (req, res) => {
 tareasRouter.get("/mis-tareas", async (req, res) => {
   const { proyectoId, canal } = req.query as Record<string, string | undefined>;
   res.json(await listarTareas({ responsableId: req.user!.id, proyectoId, canal }));
+});
+
+// GET /api/tareas/visibles — listado con alcance por rol (módulo Tareas). El
+// servidor calcula el ámbito (global / solo las suyas / departamento o área del
+// usuario) y los filtros solo lo acotan, nunca lo amplían.
+tareasRouter.get("/visibles", async (req, res) => {
+  const q = req.query as Record<string, string | undefined>;
+  res.json(await listarTareasVisibles(req.user!, {
+    responsableId: q.responsableId,
+    departamento: q.departamento,
+    estado: q.estado as any,
+    prioridad: q.prioridad as any,
+    proyectoId: q.proyectoId,
+    canal: q.canal,
+  }));
 });
 
 // GET /api/tareas/calendario — calendario editorial
@@ -92,6 +110,31 @@ tareasRouter.patch("/checklist/:itemId", async (req, res) => {
 tareasRouter.delete("/checklist/:itemId", async (req, res) => {
   await eliminarChecklistItem(req.params.itemId);
   res.json({ ok: true });
+});
+
+// GET /api/tareas/reporte — exporta el reporte de tareas en PDF/Excel/Word.
+// SOLO SUPER_ADMIN: ADMIN, SUPERVISOR y USUARIO quedan fuera aunque conozcan la URL.
+// La ruta solo lee parámetros de FILTRO (formato, departamento, responsableId, grupo,
+// desde, hasta); el departamento autorizado lo decide el servicio desde req.user —
+// reglas completas en reporte-tareas.service.ts.
+tareasRouter.get("/reporte", requireRole("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const q = req.query as Record<string, string | undefined>;
+    const formato = q.formato === "excel" || q.formato === "word" ? q.formato : "pdf";
+    const r = await generarReporteTareas(req.user!, {
+      formato,
+      departamento: q.departamento,
+      responsableId: q.responsableId,
+      grupo: (q.grupo ?? "") as "pendiente" | "en_revision" | "en_proceso" | "realizado" | "cancelado" | "",
+      desde: q.desde,
+      hasta: q.hasta,
+    });
+    res.setHeader("Content-Type", r.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${r.filename}"`);
+    res.send(r.buffer);
+  } catch (e) {
+    responderError(res, e);
+  }
 });
 
 // ─── Rutas con /:id (DEBEN ir al final) ────────────────────

@@ -7,7 +7,7 @@ import { departamentos } from "../db/schema";
 // AGENTE es un rol de máquina (Hermes Agent), no de persona. A propósito NO aparece en
 // JERARQUIA más abajo: así `requireRole` lo rechaza en todas las rutas normales del sistema y
 // el agente solo puede llegar a su propia superficie de lectura (`/api/agente`).
-export type Rol = "SUPER_ADMIN" | "ADMIN" | "SUPERVISOR" | "TEAM_LEADER" | "USUARIO" | "AGENTE";
+export type Rol = "SUPER_ADMIN" | "ADMIN" | "SUPERVISOR" | "USUARIO" | "AGENTE";
 
 export interface AuthUser {
   id: string;
@@ -78,17 +78,17 @@ export function requirePinVerified(req: Request, res: Response, next: NextFuncti
   next();
 }
 
-// Jerarquía: SUPER_ADMIN > ADMIN > SUPERVISOR > TEAM_LEADER > USUARIO.
+// Jerarquía: SUPER_ADMIN > ADMIN > SUPERVISOR > USUARIO.
 // requireRole(["ADMIN"]) también permite SUPER_ADMIN.
 // AGENTE queda fuera a propósito: `indexOf` devuelve -1, que nunca alcanza ningún mínimo, así
 // que un token de máquina es rechazado por toda ruta con `requireRole`. Es la barrera principal;
 // el bloqueo de escritura de `requireAuth` es la segunda.
 //
-// SUPERVISOR y TEAM_LEADER entran POR DEBAJO de ADMIN a propósito: todo `requireRole("ADMIN")`
+// SUPERVISOR entra POR DEBAJO de ADMIN a propósito: todo `requireRole("ADMIN")`
 // y `requireRole("SUPER_ADMIN")` que ya existía (facturación, BMF, comentarios de contactos)
-// sigue cerrado para ellos. Estos dos roles mandan sobre las tareas de su departamento, no
+// sigue cerrado para él. Este rol manda sobre las tareas de su departamento, no
 // sobre el dinero ni sobre la configuración del sistema.
-const JERARQUIA: Rol[] = ["USUARIO", "TEAM_LEADER", "SUPERVISOR", "ADMIN", "SUPER_ADMIN"];
+const JERARQUIA: Rol[] = ["USUARIO", "SUPERVISOR", "ADMIN", "SUPER_ADMIN"];
 
 export function requireRole(minimo: Rol) {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -169,4 +169,61 @@ export function requireDepartamento(...nombres: string[]) {
 
     res.status(403).json({ error: "No tienes acceso a este recurso." });
   };
+}
+
+// ─── Autorización fina para la gestión de integrantes ─────────────
+// No usa requireRole porque SUPERVISOR gestiona SOLO a su propio
+// departamento sin heredar los poderes de ADMIN. Aquí viven las reglas
+// anti-escalamiento (un rol nunca administra la cuenta de un rol superior).
+
+/** Roles con gestión global de integrantes (ven y administran a toda la empresa). */
+export function esGestionGlobal(rol: Rol): boolean {
+  return rol === "SUPER_ADMIN" || rol === "ADMIN";
+}
+
+/** Roles que pueden administrar cuentas de otros (globales + supervisor de su área). */
+export const ROLES_QUE_ADMINISTRAN: Rol[] = ["SUPER_ADMIN", "ADMIN", "SUPERVISOR"];
+
+/**
+ * Roles que `actor` puede asignar a otro usuario (al crearlo o al cambiar su rol).
+ * SUPER_ADMIN → todos; ADMIN → no crea ni asciende a ADMIN/SUPER_ADMIN; SUPERVISOR
+ * solo mueve a los suyos entre USUARIO (nunca crea ni asciende a SUPERVISOR o superior).
+ */
+export function rolesAsignables(actor: Rol): Rol[] {
+  switch (actor) {
+    case "SUPER_ADMIN":
+      return ["SUPER_ADMIN", "ADMIN", "SUPERVISOR", "USUARIO"];
+    case "ADMIN":
+      return ["SUPERVISOR", "USUARIO"];
+    case "SUPERVISOR":
+      return ["USUARIO"];
+    default:
+      return [];
+  }
+}
+
+/**
+ * ¿Puede `actor` administrar la cuenta (rol/estado/contraseña) de `objetivo`?
+ * La barrera es por jerarquía: un rol nunca administra a uno superior.
+ */
+export function puedeAdministrarCuenta(actor: Rol, objetivo: Rol): boolean {
+  if (actor === "SUPER_ADMIN") return true;
+  if (actor === "ADMIN") return objetivo !== "SUPER_ADMIN";
+  if (actor === "SUPERVISOR") return objetivo === "USUARIO";
+  return false;
+}
+
+/** Departamentos del usuario: la M:N, con fallback a la columna legacy. */
+export function departamentoIdsDe(user: Pick<AuthUser, "departamentoId" | "departamentoIds">): string[] {
+  return user.departamentoIds ?? (user.departamentoId ? [user.departamentoId] : []);
+}
+
+/** ¿Comparten al menos un departamento? */
+export function compartenDepartamento(
+  a: Pick<AuthUser, "departamentoId" | "departamentoIds">,
+  b: Pick<AuthUser, "departamentoId" | "departamentoIds">,
+): boolean {
+  const idsA = departamentoIdsDe(a);
+  const idsB = departamentoIdsDe(b);
+  return idsA.some((id) => idsB.includes(id));
 }

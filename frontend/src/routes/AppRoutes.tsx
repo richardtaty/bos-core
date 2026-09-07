@@ -68,7 +68,7 @@ function RutaPorDepartamento({ children, secciones }: { children: React.ReactNod
 }
 
 /** Protege rutas por rol mínimo (ej. vistas de líder). Misma jerarquía que el backend. */
-const JERARQUIA_FRONT = ["USUARIO", "TEAM_LEADER", "SUPERVISOR", "ADMIN", "SUPER_ADMIN"];
+const JERARQUIA_FRONT = ["USUARIO", "SUPERVISOR", "ADMIN", "SUPER_ADMIN"];
 function RutaPorRol({ children, rol }: { children: React.ReactNode; rol: string }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/mi-dia" replace />;

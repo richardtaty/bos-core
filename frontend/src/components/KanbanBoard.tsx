@@ -1,14 +1,34 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, DragEvent } from "react";
 import { api, ApiError } from "../api/client";
+import { useAuth } from "../api/AuthContext";
 import type { TableroPipeline, Registro } from "../types";
 
+function nuevaClavePago(): string {
+  // Clave única por intento de pago: si el usuario reintenta (o un doble clic dispara dos
+  // requests), el backend descarta el duplicado gracias a esta clave. Se genera al abrir el
+  // modal y se reutiliza en reintentos — no se regenera tras un error.
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
 export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
+  const { usuario } = useAuth();
+  const esSuperAdmin = usuario?.rol === "SUPER_ADMIN";
+
   const [tablero, setTablero] = useState<TableroPipeline | null>(null);
   const [metricas, setMetricas] = useState<{ tasaConversion: number; valorAbierto: number; abiertos: number } | null>(null);
   const [arrastrando, setArrastrando] = useState<string | null>(null);
   const [pendienteMotivo, setPendienteMotivo] = useState<{ registroId: string; etapaId: string } | null>(null);
   const [motivo, setMotivo] = useState("");
+
+  // Modal de pago unificado: "Registrar pago" (primero) define el monto total del negocio;
+  // "Abonar pago" (siguientes) lo muestra como referencia fija. El monto total nunca se
+  // mezcla con los abonos posteriores — corregirlo una vez con pagos es de SUPER ADMIN.
   const [pagoModal, setPagoModal] = useState<Registro | null>(null);
+  const [montoTotalInput, setMontoTotalInput] = useState("");
   const [montoPago, setMontoPago] = useState("");
   const [notaPago, setNotaPago] = useState("");
   const [fechaPago, setFechaPago] = useState("");
@@ -17,22 +37,19 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
   const [metodoPago, setMetodoPago] = useState("");
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [guardandoPago, setGuardandoPago] = useState(false);
-  const [editandoValor, setEditandoValor] = useState(false);
-  const [nuevoValor, setNuevoValor] = useState("");
-  const [guardandoValor, setGuardandoValor] = useState(false);
+  const [clavePago, setClavePago] = useState("");
+
+  // Ajustar el monto total de un trato fuera del modal de pago. Sin pagos puede hacerlo
+  // cualquier miembro; con pagos ya registrados solo el SUPER ADMIN (el backend lo exige).
+  const [ajustandoValorId, setAjustandoValorId] = useState<string | null>(null);
+  const [ajusteValorInput, setAjusteValorInput] = useState("");
+  const [guardandoAjuste, setGuardandoAjuste] = useState(false);
+  const [errorAjuste, setErrorAjuste] = useState<string | null>(null);
 
   // Referencia al contenedor de columnas y altura visible disponible:
   // permite que cada columna tenga su propio scroll vertical sin agrandar la página.
   const tableroRef = useRef<HTMLDivElement>(null);
   const [altoColumna, setAltoColumna] = useState(560);
-
-  const [cerrarModal, setCerrarModal] = useState<Registro | null>(null);
-  const [cvMontoTotal, setCvMontoTotal] = useState("");
-  const [cvMontoCobrado, setCvMontoCobrado] = useState("");
-  const [cvFechaProximoCobro, setCvFechaProximoCobro] = useState("");
-  const [cvMetodoPago, setCvMetodoPago] = useState("");
-  const [cvError, setCvError] = useState<string | null>(null);
-  const [cvGuardando, setCvGuardando] = useState(false);
 
   function hoyStr(): string {
     const ahora = new Date();
@@ -96,8 +113,11 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
     setArrastrando(null);
   };
 
+  // ── Registrar / Abonar pago ─────────────────────────────────
   const abrirPago = (r: Registro) => {
     setPagoModal(r);
+    // El total se define/corrige libremente hasta el primer pago; con pagos es fijo.
+    setMontoTotalInput(r.valor != null ? String(r.valor) : "");
     setMontoPago("");
     setNotaPago("");
     setFechaPago(hoyStr());
@@ -105,47 +125,53 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
     setProximoPago("");
     setMetodoPago("");
     setErrorPago(null);
-    setEditandoValor(false);
-    setNuevoValor(r.valor != null ? String(r.valor) : "");
+    setClavePago(nuevaClavePago());
   };
 
-  const saldoActual = pagoModal ? pagoModal.saldoPendiente ?? 0 : 0;
+  const cerrarModalPago = () => setPagoModal(null);
+
+  const pagadoActual = pagoModal?.totalPagado ?? 0;
+  const valorActual = pagoModal?.valor ?? null;
+  const esPrimerPago = pagadoActual === 0;
+  // Solo si el trato no tiene total aún (valor == null) se pide el monto total en el modal.
+  const necesitaDefinirTotal = valorActual == null;
   const montoNum = Number(montoPago) || 0;
-  const saldoDespues = Math.max(0, saldoActual - montoNum);
-  const requiereFecha = saldoDespues > 0;
-
-  const guardarNuevoValor = async () => {
-    if (!pagoModal) return;
-    const valorNum = Number(nuevoValor);
-    if (!valorNum || valorNum <= 0) { setErrorPago("Ingresa un precio válido."); return; }
-    setGuardandoValor(true);
-    setErrorPago(null);
-    try {
-      const resultado = await api.actualizarValorRegistro(pagoModal.id, valorNum);
-      setPagoModal({ ...pagoModal, valor: resultado.valor, totalPagado: resultado.totalPagado, saldoPendiente: resultado.saldoPendiente });
-      setEditandoValor(false);
-      void cargar();
-    } catch (err) {
-      setErrorPago(err instanceof ApiError ? String(err.payload) : "Error al actualizar el precio");
-    } finally {
-      setGuardandoValor(false);
-    }
-  };
+  const totalInputNum = Number(montoTotalInput) || 0;
+  const totalRef = necesitaDefinirTotal ? totalInputNum : (valorActual ?? 0);
+  const saldoActual = Math.max(0, (valorActual ?? totalRef) - pagadoActual);
+  const saldoDespues = Math.max(0, totalRef - (pagadoActual + montoNum));
+  const requiereFecha = totalRef > 0 && saldoDespues > 0;
 
   const confirmarPago = async () => {
     if (!pagoModal) return;
-    if (!montoNum || montoNum <= 0) { setErrorPago("Ingresa un monto válido."); return; }
-    if (requiereFecha && !fechaProximoCobro) { setErrorPago("Queda saldo pendiente — indica la fecha del próximo cobro."); return; }
+    if (necesitaDefinirTotal && !(totalInputNum > 0)) {
+      setErrorPago("Indica el monto total del negocio.");
+      return;
+    }
+    if (!montoNum || montoNum <= 0) {
+      setErrorPago("Ingresa un monto de abono válido.");
+      return;
+    }
+    if (totalRef > 0 && montoNum > saldoActual + 0.001) {
+      setErrorPago(`El abono supera el saldo pendiente de $${saldoActual.toLocaleString()}.`);
+      return;
+    }
+    if (requiereFecha && !fechaProximoCobro) {
+      setErrorPago("Queda saldo pendiente — indica la fecha del próximo cobro.");
+      return;
+    }
     setGuardandoPago(true);
     setErrorPago(null);
     try {
       await api.registrarPago(pagoModal.id, {
         monto: montoNum,
+        montoTotal: necesitaDefinirTotal ? totalInputNum : undefined,
         nota: notaPago || undefined,
         fecha: fechaPago ? `${fechaPago}T16:00:00.000Z` : undefined,
         proximaFechaCobro: fechaProximoCobro ? new Date(fechaProximoCobro).toISOString() : undefined,
         proximoPago: proximoPago ? Number(proximoPago) : undefined,
         metodoPago: metodoPago || undefined,
+        idempotencyKey: clavePago,
       });
       setPagoModal(null);
       void cargar();
@@ -156,50 +182,29 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
     }
   };
 
-  // ── Cerrar venta en un solo paso ─────────────────────────────
-  const abrirCerrarVenta = (r: Registro) => {
-    setCerrarModal(r);
-    const total = r.valor != null ? String(r.valor) : "";
-    setCvMontoTotal(total);
-    setCvMontoCobrado(total); // por defecto cobra el total → queda saldado
-    setCvFechaProximoCobro("");
-    setCvMetodoPago("");
-    setCvError(null);
+  // ── Ajustar el monto total del trato (fuera del modal de pago) ──
+  const abrirAjusteValor = (r: Registro) => {
+    setAjustandoValorId(r.id);
+    setAjusteValorInput(r.valor != null ? String(r.valor) : "");
+    setErrorAjuste(null);
   };
 
-  const cvTotalNum = Number(cvMontoTotal) || 0;
-  const cvCobradoNum = Number(cvMontoCobrado) || 0;
-  const cvSaldo = Math.max(0, cvTotalNum - cvCobradoNum);
-  const cvRequiereFecha = cvSaldo > 0;
-
-  const cambiarCvTotal = (nuevo: string) => {
-    setCvMontoTotal(nuevo);
-    // Si el cobrado sigue en el valor por defecto (el total anterior), sincronízalo.
-    if (cvMontoCobrado === "" || Number(cvMontoCobrado) === Number(cvMontoTotal)) {
-      setCvMontoCobrado(nuevo);
+  const guardarAjusteValor = async (registroId: string) => {
+    const valorNum = Number(ajusteValorInput);
+    if (!valorNum || valorNum <= 0) {
+      setErrorAjuste("Ingresa un monto total válido.");
+      return;
     }
-  };
-
-  const confirmarCerrarVenta = async () => {
-    if (!cerrarModal) return;
-    if (!cvTotalNum || cvTotalNum <= 0) { setCvError("Ingresa el monto total de la venta."); return; }
-    if (!cvCobradoNum || cvCobradoNum <= 0) { setCvError("Ingresa cuánto se cobró hoy."); return; }
-    if (cvRequiereFecha && !cvFechaProximoCobro) { setCvError("Queda saldo pendiente — indica la fecha del próximo cobro."); return; }
-    setCvGuardando(true);
-    setCvError(null);
+    setGuardandoAjuste(true);
+    setErrorAjuste(null);
     try {
-      await api.cerrarVenta(cerrarModal.id, {
-        montoTotal: cvTotalNum,
-        montoCobrado: cvCobradoNum,
-        proximaFechaCobro: cvFechaProximoCobro ? new Date(cvFechaProximoCobro).toISOString() : undefined,
-        metodoPago: cvMetodoPago || undefined,
-      });
-      setCerrarModal(null);
+      await api.actualizarValorRegistro(registroId, valorNum);
+      setAjustandoValorId(null);
       void cargar();
     } catch (err) {
-      setCvError(err instanceof ApiError ? String(err.payload) : "Error al cerrar la venta");
+      setErrorAjuste(err instanceof ApiError ? String(err.payload) : "Error al actualizar el monto total");
     } finally {
-      setCvGuardando(false);
+      setGuardandoAjuste(false);
     }
   };
 
@@ -238,51 +243,97 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
               <span className="text-[11px] bg-neutral-100 rounded-full px-1.5 py-0.5 text-neutral-500">{etapa.registros.length}</span>
             </div>
             <div className="flex flex-col gap-2 overflow-y-auto min-h-0 pipeline-cards-scroll">
-              {etapa.registros.map((r) => (
-                <div
-                  key={r.id}
-                  draggable
-                  onDragStart={() => setArrastrando(r.id)}
-                  className="bg-neutral-50 rounded-lg border border-neutral-200 p-2.5 text-sm cursor-move shadow-sm "
-                >
-                  <p className="font-medium text-neutral-800">{r.personaNombre ?? "Sin persona asignada"}</p>
-                  {r.valor != null && (
-                    <>
-                      <p className="text-xs text-neutral-500">
-                        ${r.valor.toLocaleString()}
-                        {(r.totalPagado ?? 0) > 0 && <span className="text-success-600"> · pagado ${r.totalPagado!.toLocaleString()}</span>}
-                      </p>
-                      {r.saldoPendiente != null && r.saldoPendiente > 0 && (
-                        <p className="text-[11px] text-warning-600 font-medium">Saldo: ${r.saldoPendiente.toLocaleString()}</p>
-                      )}
-                      {r.saldoPendiente === 0 && <p className="text-[11px] text-success-600 font-medium">Saldado ✓</p>}
-                      {(r.proximoPago ?? 0) > 0 && (
-                        <p className="text-[11px] text-neutral-500">
-                          Próximo pago: ${r.proximoPago!.toLocaleString()}
-                          {r.metodoPago ? ` · ${r.metodoPago}` : ""}
+              {etapa.registros.map((r) => {
+                const pagado = r.totalPagado ?? 0;
+                const tieneTotal = r.valor != null;
+                const saldo = r.saldoPendiente ?? 0;
+                const saldado = tieneTotal && saldo <= 0;
+                const puedeAjustarTotal = tieneTotal && (pagado === 0 || esSuperAdmin);
+
+                return (
+                  <div
+                    key={r.id}
+                    draggable
+                    onDragStart={() => setArrastrando(r.id)}
+                    className="bg-neutral-50 rounded-lg border border-neutral-200 p-2.5 text-sm cursor-move shadow-sm "
+                  >
+                    <p className="font-medium text-neutral-800">{r.personaNombre ?? "Sin persona asignada"}</p>
+
+                    {tieneTotal && (
+                      <>
+                        <p className="text-xs text-neutral-500">
+                          Total ${r.valor!.toLocaleString()} · Pagado ${pagado.toLocaleString()}
                         </p>
-                      )}
-                      {(r.montoVencido ?? 0) > 0 && (
-                        <p className="text-[11px] text-danger-600 font-medium">Vencido: ${r.montoVencido!.toLocaleString()}</p>
-                      )}
+                        {saldado ? (
+                          <p className="text-[11px] text-success-600 font-medium">Pagado ✓ · Saldo $0</p>
+                        ) : (
+                          <p className="text-[11px] text-warning-600 font-medium">Saldo: ${saldo.toLocaleString()}</p>
+                        )}
+                        {(r.proximoPago ?? 0) > 0 && (
+                          <p className="text-[11px] text-neutral-500">
+                            Próximo pago: ${r.proximoPago!.toLocaleString()}
+                            {r.metodoPago ? ` · ${r.metodoPago}` : ""}
+                          </p>
+                        )}
+                        {(r.montoVencido ?? 0) > 0 && (
+                          <p className="text-[11px] text-danger-600 font-medium">Vencido: ${r.montoVencido!.toLocaleString()}</p>
+                        )}
+                        {puedeAjustarTotal && ajustandoValorId !== r.id && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); abrirAjusteValor(r); }}
+                            className="text-[10px] text-neutral-400 hover:text-primary-600 hover:underline"
+                          >
+                            ajustar total
+                          </button>
+                        )}
+                        {puedeAjustarTotal && ajustandoValorId === r.id && (
+                          <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-1.5 mt-1" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              value={ajusteValorInput}
+                              onChange={(e) => setAjusteValorInput(e.target.value)}
+                              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded px-1.5 py-1 text-xs mb-1"
+                              placeholder="Monto total (USD)"
+                            />
+                            {errorAjuste && <p className="text-[10px] text-danger-600 mb-1">{errorAjuste}</p>}
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => void guardarAjusteValor(r.id)}
+                                disabled={guardandoAjuste}
+                                className="text-[10px] bg-primary-500 text-white px-2 py-0.5 rounded font-medium disabled:bg-primary-100"
+                              >
+                                {guardandoAjuste ? "..." : "Guardar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAjustandoValorId(null)}
+                                className="text-[10px] px-1.5 text-neutral-500"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {!tieneTotal && pagado > 0 && (
+                      <p className="text-xs text-neutral-500">Pagado ${pagado.toLocaleString()}</p>
+                    )}
+
+                    {!saldado && (
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirPago(r); }}
                         className="text-[11px] text-primary-600 font-medium hover:underline mt-1"
                       >
-                        + Registrar pago
+                        {pagado === 0 ? "+ Registrar pago" : "+ Abonar pago"}
                       </button>
-                    </>
-                  )}
-                  {!etapa.esGanada && !etapa.esPerdida && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); abrirCerrarVenta(r); }}
-                      className="w-full mt-1.5 text-[11px] bg-primary-500 text-white font-semibold py-1 px-2 rounded-md hover:bg-primary-600"
-                    >
-                      ✅ Cerrar venta
-                    </button>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -322,44 +373,33 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
       {pagoModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-neutral-50 rounded-xl p-5 w-full max-w-sm border border-neutral-200">
-            <p className="text-sm font-medium mb-1 text-neutral-800">Registrar pago — {pagoModal.personaNombre}</p>
+            <p className="text-sm font-medium mb-1 text-neutral-800">
+              {esPrimerPago ? "Registrar pago" : "Abonar pago"} — {pagoModal.personaNombre}
+            </p>
 
-            {!editandoValor ? (
-              <p className="text-xs text-neutral-500 mb-1">
-                Total ${pagoModal.valor?.toLocaleString()} · Pagado ${(pagoModal.totalPagado ?? 0).toLocaleString()} · Saldo actual ${saldoActual.toLocaleString()}
-                {" · "}
-                <button type="button" onClick={() => setEditandoValor(true)} className="text-primary-600 hover:underline">
-                  editar precio
-                </button>
-              </p>
+            {necesitaDefinirTotal ? (
+              <>
+                <p className="text-xs text-neutral-500 mb-2">
+                  Este trato aún no tiene monto total. Defínelo ahora junto con este primer pago; quedará fijo.
+                </p>
+                <label className="text-xs text-neutral-600">Monto total del negocio (USD)</label>
+                <input
+                  type="number"
+                  value={montoTotalInput}
+                  onChange={(e) => setMontoTotalInput(e.target.value)}
+                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
+                  placeholder="0"
+                />
+              </>
             ) : (
-              <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-2.5 mb-2">
-                <label className="text-xs text-neutral-600">Precio total correcto del trato (USD)</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    type="number"
-                    value={nuevoValor}
-                    onChange={(e) => setNuevoValor(e.target.value)}
-                    className="flex-1 border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-2 py-1.5 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={guardarNuevoValor}
-                    disabled={guardandoValor}
-                    className="text-xs bg-primary-500 text-white px-3 py-1.5 rounded-lg font-medium disabled:bg-primary-100 disabled:text-primary-800"
-                  >
-                    {guardandoValor ? "..." : "Guardar"}
-                  </button>
-                  <button type="button" onClick={() => setEditandoValor(false)} className="text-xs px-2 text-neutral-500">
-                    Cancelar
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs text-neutral-500 mb-3">
+                Total ${pagoModal.valor?.toLocaleString()} · Pagado ${pagadoActual.toLocaleString()} · Saldo restante ${saldoActual.toLocaleString()}
+              </p>
             )}
 
-            <div className="mb-3" />
-
-            <label className="text-xs text-neutral-600">Monto del pago (USD)</label>
+            <label className="text-xs text-neutral-600">
+              {esPrimerPago ? "Abono / pago recibido ahora (USD)" : "Nuevo abono (USD)"}
+            </label>
             <input
               type="number"
               value={montoPago}
@@ -431,7 +471,7 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
             {errorPago && <p className="text-xs text-danger-600 mb-3">{errorPago}</p>}
 
             <div className="flex justify-end gap-2">
-              <button onClick={() => setPagoModal(null)} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600">
+              <button onClick={cerrarModalPago} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600">
                 Cancelar
               </button>
               <button
@@ -439,83 +479,7 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
                 disabled={guardandoPago}
                 className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:bg-primary-100 disabled:text-primary-800"
               >
-                {guardandoPago ? "Guardando..." : "Confirmar pago"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {cerrarModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-neutral-50 rounded-xl p-5 w-full max-w-sm border border-neutral-200">
-            <p className="text-sm font-medium mb-1 text-neutral-800">Cerrar venta — {cerrarModal.personaNombre}</p>
-            <p className="text-xs text-neutral-500 mb-3">
-              Fija el total, registra lo cobrado hoy y mueve la tarjeta a la etapa ganada en un solo paso.
-            </p>
-
-            <label className="text-xs text-neutral-600">Monto total de la venta (USD)</label>
-            <input
-              type="number"
-              value={cvMontoTotal}
-              onChange={(e) => cambiarCvTotal(e.target.value)}
-              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
-              placeholder="0"
-            />
-
-            <label className="text-xs text-neutral-600">Cobrado hoy (USD)</label>
-            <input
-              type="number"
-              value={cvMontoCobrado}
-              onChange={(e) => setCvMontoCobrado(e.target.value)}
-              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-1"
-              placeholder="0"
-            />
-
-            {cvTotalNum > 0 && cvCobradoNum > 0 && (
-              <p className={`text-xs mb-3 ${cvSaldo > 0 ? "text-warning-600" : "text-success-600"}`}>
-                {cvSaldo > 0 ? `Quedará un saldo de $${cvSaldo.toLocaleString()}` : "Queda saldado por completo ✓"}
-              </p>
-            )}
-
-            {cvRequiereFecha && (
-              <>
-                <label className="text-xs text-neutral-600">Próxima fecha de cobro *</label>
-                <input
-                  type="date"
-                  value={cvFechaProximoCobro}
-                  onChange={(e) => setCvFechaProximoCobro(e.target.value)}
-                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
-                />
-
-                <label className="text-xs text-neutral-600">Método de pago</label>
-                <select
-                  value={cvMetodoPago}
-                  onChange={(e) => setCvMetodoPago(e.target.value)}
-                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded-lg px-3 py-1.5 text-sm mb-3"
-                >
-                  <option value="">Selecciona...</option>
-                  <option value="Tarjeta">Tarjeta</option>
-                  <option value="Zelle">Zelle</option>
-                  <option value="Efectivo">Efectivo</option>
-                  <option value="Transferencia">Transferencia</option>
-                  <option value="Otro">Otro</option>
-                </select>
-              </>
-            )}
-
-            {cvError && <p className="text-xs text-danger-600 mb-3">{cvError}</p>}
-
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setCerrarModal(null)} className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600">
-                Cancelar
-              </button>
-              <button
-                onClick={confirmarCerrarVenta}
-                disabled={cvGuardando}
-                className="text-sm px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium disabled:bg-primary-100 disabled:text-primary-800"
-              >
-                {cvGuardando ? "Cerrando..." : "Cerrar venta"}
+                {guardandoPago ? "Guardando..." : esPrimerPago ? "Registrar pago" : "Registrar abono"}
               </button>
             </div>
           </div>
