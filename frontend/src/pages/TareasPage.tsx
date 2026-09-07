@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../api/AuthContext";
+import { usePermisos } from "../hooks/usePermisos";
 import { TareaCard } from "../components/TareaCard";
 import { TareaForm } from "../components/TareaForm";
 import { ExportarReporteModal } from "../components/ExportarReporteModal";
+import { RecordatoriosCumpleanos } from "../components/RecordatoriosCumpleanos";
 import { KpiCard } from "../components/KpiCard";
 import type { TareaOperativa, Usuario, Departamento } from "../types";
 import { GRUPOS, grupoDeEstado, ESTADOS_ACTIVOS } from "../lib/estados";
@@ -19,6 +21,7 @@ function compartenDepartamento(u: Usuario, idsDepto: string[]): boolean {
 
 export function TareasPage() {
   const { usuario } = useAuth();
+  const permisos = usePermisos();
   const [tareas, setTareas] = useState<TareaOperativa[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
@@ -232,6 +235,11 @@ export function TareasPage() {
           </select>
         </div>
       </div>
+
+      {/* 🎂 Recordatorios de cumpleaños en su ventana de aviso — grupo propio arriba de
+          las tareas. Solo para quien tiene acceso al módulo (Marketing/Podcast/ADMIN);
+          no altera la consulta, los estados ni los permisos de las tareas normales. */}
+      {!permisos.cargando && permisos.puedeVerCumpleanos && <RecordatoriosCumpleanos />}
 
       {/* Lista de tareas */}
       {visibles.length === 0 ? (

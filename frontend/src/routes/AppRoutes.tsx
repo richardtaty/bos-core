@@ -19,6 +19,7 @@ import { ReporteVentasPage } from "../pages/ReporteVentasPage";
 import { MarketingDashboardPage } from "../pages/MarketingDashboardPage";
 import { CentroActividadPage } from "../pages/CentroActividadPage";
 import { TareasPage } from "../pages/TareasPage";
+import { CumpleanosPage } from "../pages/CumpleanosPage";
 import { CalendarioEditorialPage } from "../pages/CalendarioEditorialPage";
 import { CentroControlPage } from "../pages/CentroControlPage";
 import { ArchivosPage } from "../pages/ArchivosPage";
@@ -150,6 +151,9 @@ export function AppRoutes() {
         <Route path="/mi-dia" element={<MiDiaPage />} />
         <Route path="/centro-actividad" element={<CentroActividadPage />} />
         <Route path="/tareas" element={<TareasPage />} />
+        {/* 🎂 Próximos cumpleaños — acceso por rol/departamento (Marketing+Podcast+ADMIN).
+            La página redirige sola si no hay permiso; el backend además protege /api/cumpleanos. */}
+        <Route path="/cumpleanos" element={<CumpleanosPage />} />
         <Route path="/organigrama" element={<OrganigramaPage />} />
 
         {/* Legado */}

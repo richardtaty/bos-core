@@ -13,6 +13,9 @@ export interface PermisosDepartamento {
   puedeVerPipelineKanban: boolean;
   puedeVerCEO: boolean;
   puedeVerReportesGlobales: boolean;
+  // 🎂 Próximos cumpleaños: lo ven ADMIN/SUPER_ADMIN y los miembros de Marketing/Podcast
+  // (misma regla que el backend — este flag es solo para mostrar/ocultar la UI).
+  puedeVerCumpleanos: boolean;
 }
 
 const SUPER_ADMIN_PERMISOS: PermisosDepartamento = {
@@ -25,6 +28,7 @@ const SUPER_ADMIN_PERMISOS: PermisosDepartamento = {
   puedeVerPipelineKanban: true,
   puedeVerCEO: true,
   puedeVerReportesGlobales: true,
+  puedeVerCumpleanos: true,
 };
 
 // Los nombres de departamento son estables (no cambian entre deploy).
@@ -36,6 +40,7 @@ const PERMISOS_POR_NOMBRE: Record<string, Partial<PermisosDepartamento>> = {
     puedeVerPipelineKanban: false,
     puedeVerCEO: false,
     puedeVerReportesGlobales: false,
+    puedeVerCumpleanos: true,
   },
   "Sala de OFERTAS": {
     menuSecciones: ["ventas"],
@@ -60,6 +65,7 @@ const PERMISOS_POR_NOMBRE: Record<string, Partial<PermisosDepartamento>> = {
     puedeVerPipelineKanban: true,
     puedeVerCEO: false,
     puedeVerReportesGlobales: false,
+    puedeVerCumpleanos: true,
   },
   // Áreas con tablero Scrum propio. Hoy no tienen usuarios asignados: solo el
   // Super Admin ve estos tableros. Al asignar gente a estas áreas, el acceso
@@ -92,6 +98,7 @@ const PERMISO_MINIMO: PermisosDepartamento = {
   puedeVerPipelineKanban: false,
   puedeVerCEO: false,
   puedeVerReportesGlobales: false,
+  puedeVerCumpleanos: false,
 };
 
 const PERMISO_CARGANDO: PermisosDepartamento = {
@@ -104,6 +111,7 @@ const PERMISO_CARGANDO: PermisosDepartamento = {
   puedeVerPipelineKanban: false,
   puedeVerCEO: false,
   puedeVerReportesGlobales: false,
+  puedeVerCumpleanos: false,
 };
 
 // ─── Caché global de departamentos ───────────────────────────────
@@ -182,6 +190,10 @@ export function usePermisos(): PermisosDepartamento {
   const puedeVerPipelineKanban = nombresDeptos.some((n) => PERMISOS_POR_NOMBRE[n]?.puedeVerPipelineKanban ?? false);
   const puedeVerCEO = nombresDeptos.some((n) => PERMISOS_POR_NOMBRE[n]?.puedeVerCEO ?? false);
   const puedeVerReportesGlobales = nombresDeptos.some((n) => PERMISOS_POR_NOMBRE[n]?.puedeVerReportesGlobales ?? false);
+  // ADMIN pasa aunque sus departamentos sean de Ventas/Operaciones: es un rol de mando
+  // global del sistema. Los demás lo ven solo si su unidad es Marketing o Podcast.
+  const puedeVerCumpleanos =
+    usuario?.rol === "ADMIN" || nombresDeptos.some((n) => PERMISOS_POR_NOMBRE[n]?.puedeVerCumpleanos ?? false);
 
   return {
     nombreDepto: nombresDeptos.join(", "),
@@ -193,5 +205,6 @@ export function usePermisos(): PermisosDepartamento {
     puedeVerPipelineKanban,
     puedeVerCEO,
     puedeVerReportesGlobales,
+    puedeVerCumpleanos,
   };
 }

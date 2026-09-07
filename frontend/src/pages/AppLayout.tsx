@@ -101,6 +101,12 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
     { to: "/personas", label: "👤 Clientes" },
   );
 
+  // 🎂 Próximos cumpleaños — solo para quien puede verlo (Marketing/Podcast/ADMIN).
+  if (p.puedeVerCumpleanos) {
+    items.push({ to: "/cumpleanos", label: "🎂 Próximos cumpleaños" });
+  }
+
+
   // Pipelines (solo deptos que venden)
   if (p.puedeVerPipelineKanban) {
     items.push(

@@ -322,6 +322,42 @@ export const api = {
 
   cumpleanos: () => request<{ hoy: import("../types").Cumpleanero[]; proximos: import("../types").Cumpleanero[] }>("/personas/cumpleanos"),
 
+  // ─── 🎂 Próximos cumpleaños (módulo propio) ──────────────
+  // Cada método pega a /api/cumpleanos (router del módulo). No tocar api.cumpleanos
+  // de arriba: ese alimenta la tarjeta "hoy" de Mi Día y apunta a /personas/cumpleanos.
+  permisoCumpleanos: () => request<{ puede: boolean }>("/cumpleanos/permiso"),
+
+  listarCumpleanos: (params: { meses?: number; q?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.meses) qs.set("meses", String(params.meses));
+    if (params.q) qs.set("q", params.q);
+    const s = qs.toString();
+    return request<import("../types").ListaCumpleanos>(`/cumpleanos${s ? `?${s}` : ""}`);
+  },
+
+  obtenerCumpleano: (id: string) => request<import("../types").CumpleanoDetalle>(`/cumpleanos/${id}`),
+
+  crearCumpleano: (data: unknown) =>
+    request<import("../types").CumpleanoDetalle>("/cumpleanos", { method: "POST", body: JSON.stringify(data) }),
+
+  actualizarCumpleano: (id: string, data: unknown) =>
+    request<import("../types").CumpleanoDetalle>(`/cumpleanos/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  activarCumpleano: (id: string) =>
+    request<import("../types").CumpleanoDetalle>(`/cumpleanos/${id}/activar`, { method: "POST" }),
+
+  desactivarCumpleano: (id: string) =>
+    request<import("../types").CumpleanoDetalle>(`/cumpleanos/${id}/desactivar`, { method: "POST" }),
+
+  listarRecordatoriosCumpleanos: () =>
+    request<import("../types").RecordatorioCumpleanoActivo[]>("/cumpleanos/recordatorios/activos"),
+
+  marcarRecordatorioRealizado: (id: string) =>
+    request<{ id: string; cumpleanosId: string; anio: number; estado: string }>(
+      `/cumpleanos/recordatorios/${id}/marcar-realizado`,
+      { method: "POST" },
+    ),
+
   listarPersonas: (params: { search?: string; estado?: string; pagina?: number; limite?: number } = {}) => {
     const qs = new URLSearchParams(params as Record<string, string>).toString();
     return request<{ items: import("../types").Persona[]; total: number; pagina: number; limite: number; totalPaginas: number }>(`/personas${qs ? `?${qs}` : ""}`);

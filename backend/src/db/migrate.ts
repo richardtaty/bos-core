@@ -84,3 +84,6 @@ ejecutarMigracion("0019_idempotencia_pagos", sqlIdempotenciaPagos);
 
 const sqlEliminarTeamLeader = readFileSync(join(__dirname, "migrations", "0020_eliminar_team_leader.sql"), "utf-8");
 ejecutarMigracion("0020_eliminar_team_leader", sqlEliminarTeamLeader);
+
+const sqlCumpleanos0021 = readFileSync(join(__dirname, "migrations", "0021_cumpleanos.sql"), "utf-8");
+ejecutarMigracion("0021_cumpleanos", sqlCumpleanos0021);

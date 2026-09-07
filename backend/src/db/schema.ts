@@ -930,3 +930,45 @@ export const podcastCitas = sqliteTable(
   },
   (t) => ({ fechaIdx: index("podcast_citas_fecha_idx").on(t.fecha) })
 );
+
+// ---------- 🎂 Módulo "Próximos cumpleaños" ----------
+// Cada cumpleaños es un registro permanente independiente (una fila por persona, sin
+// filas por año). La recurrencia anual se calcula en vuelo desde mes/día/año; cuando el
+// próximo cumpleaños entra en la ventana de aviso (7 días), el worker crea UN recordatorio
+// compartido por ocurrencia en cumpleanos_recordatorios. La clave de idempotencia de la
+// BD es (cumpleanos_id, anio) — ver migración 0021.
+
+export const cumpleanos = sqliteTable(
+  "cumpleanos",
+  {
+    id: cuid(),
+    // Vínculo opcional a la ficha. Cuando existe, el contacto se lee en vivo desde
+    // personas — aquí nunca se duplica teléfono/email.
+    personaId: text("persona_id").references(() => personas.id),
+    nombre: text("nombre").notNull(),
+    mes: integer("mes").notNull(),
+    dia: integer("dia").notNull(),
+    anio: integer("anio"),
+    activo: integer("activo", { mode: "boolean" }).notNull().default(true),
+    notas: text("notas"),
+    creadoPor: text("creado_por").notNull().references(() => usuarios.id),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+    updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({ personaUq: uniqueIndex("cumpleanos_persona_uq").on(t.personaId) })
+);
+
+export const cumpleanosRecordatorios = sqliteTable(
+  "cumpleanos_recordatorios",
+  {
+    id: cuid(),
+    cumpleanosId: text("cumpleanos_id").notNull().references(() => cumpleanos.id, { onDelete: "cascade" }),
+    anio: integer("anio").notNull(), // año de la ocurrencia (ET)
+    fechaCumpleanos: text("fecha_cumpleanos").notNull(), // YYYY-MM-DD (ET)
+    estado: text("estado", { enum: ["pendiente", "realizado", "cancelado"] }).notNull().default("pendiente"),
+    completadoPor: text("completado_por").references(() => usuarios.id),
+    completadoEn: timestamp("completado_en"),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({ ocurrenciaUq: uniqueIndex("cumpleanos_recordatorio_uq").on(t.cumpleanosId, t.anio) })
+);

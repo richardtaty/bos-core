@@ -87,6 +87,67 @@ export interface Cumpleanero {
   fechaNacimiento: string;
 }
 
+// ─── 🎂 Próximos cumpleaños (módulo propio) ─────────────────
+
+/** Contacto vinculado a un cumpleaños (solo lo mínimo: el resto vive en su ficha). */
+export interface VinculoPersonaCumpleanos {
+  id: string;
+  telefono: string | null;
+  email: string | null;
+}
+
+/** Fila de la lista cronológica del módulo (un registro por persona). */
+export interface Cumpleano {
+  id: string;
+  nombre: string;
+  personaId: string | null;
+  persona: VinculoPersonaCumpleanos | null;
+  mes: number;
+  dia: number;
+  anio: number | null;
+  edad: number | null;
+  nextBirthday: string; // YYYY-MM-DD (ET) de la próxima ocurrencia
+  daysUntil: number;
+  activo: boolean;
+  notas: string | null;
+}
+
+/** Un recordatorio por año (historial en el detalle). */
+export interface RecordatorioCumpleano {
+  id: string;
+  anio: number;
+  fechaCumpleanos: string;
+  estado: "pendiente" | "realizado" | "cancelado";
+  etiquetaEstado: string;
+  completadoPor: string | null;
+  completadoEn: string | null;
+}
+
+export interface CumpleanoDetalle extends Cumpleano {
+  recordatorios: RecordatorioCumpleano[];
+}
+
+/** Recordatorio pendiente en la ventana de aviso (el grupo "🎂 Cumpleaños" de Tareas). */
+export interface RecordatorioCumpleanoActivo {
+  id: string;
+  cumpleanosId: string;
+  nombre: string;
+  personaId: string | null;
+  persona: VinculoPersonaCumpleanos | null;
+  fechaCumpleanos: string;
+  anio: number;
+  etiqueta: string; // "14 de septiembre"
+  daysUntil: number;
+  diasAviso: number;
+}
+
+export interface ListaCumpleanos {
+  items: Cumpleano[];
+  meses: number;
+  total: number;
+  totalActivos: number;
+}
+
 export interface FichaPersona extends Persona {
   comentarios?: string | null;
   interacciones: Interaccion[];

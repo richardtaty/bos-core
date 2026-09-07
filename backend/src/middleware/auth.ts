@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { departamentos } from "../db/schema";
+import { UNIDADES_AUDIENCIA } from "../lib/cumpleanos-config";
 
 // AGENTE es un rol de máquina (Hermes Agent), no de persona. A propósito NO aparece en
 // JERARQUIA más abajo: así `requireRole` lo rechaza en todas las rutas normales del sistema y
@@ -169,6 +170,45 @@ export function requireDepartamento(...nombres: string[]) {
 
     res.status(403).json({ error: "No tienes acceso a este recurso." });
   };
+}
+
+// ─── Acceso al módulo 🎂 Próximos cumpleaños ───────────────────
+// Regla exacta (matriz de acceso): SUPER_ADMIN ∨ ADMIN ∨ Marketing ∨ Podcast. ADMIN y
+// SUPER_ADMIN entran SIEMPRE, aunque su departamento sea Ventas u Operaciones. Marketing
+// y Podcast entran por NOMBRE de unidad (como requireDepartamento), resuelto por el caché
+// de nombreDepartamentoDe — nunca se hardcodean IDs. El resto del sistema (Ventas,
+// Operaciones, BMF, etc.) recibe 403. Frontend y backend aplican la misma regla.
+
+/** ¿Puede este usuario acceder al módulo de cumpleaños? Consulta nombres → es async. */
+export async function puedeAccederCumpleanos(user: AuthUser): Promise<boolean> {
+  if (user.rol === "SUPER_ADMIN" || user.rol === "ADMIN") return true;
+  const ids = user.departamentoIds ?? (user.departamentoId ? [user.departamentoId] : []);
+  for (const id of ids) {
+    const nombre = await nombreDepartamentoDe(id);
+    if (nombre && UNIDADES_AUDIENCIA.includes(nombre)) return true;
+  }
+  return false;
+}
+
+/**
+ * Middleware que exige acceso al módulo 🎂. Envuelve puedeAccederCumpleanos y responde
+ * 403 cuando el usuario no es ADMIN/SUPER_ADMIN ni miembro de Marketing/Podcast.
+ */
+export async function requireAccesoCumpleanos(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  const puede = await puedeAccederCumpleanos(req.user);
+  if (!puede) {
+    res.status(403).json({ error: "No tienes acceso a este recurso." });
+    return;
+  }
+  next();
 }
 
 // ─── Autorización fina para la gestión de integrantes ─────────────

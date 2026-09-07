@@ -257,3 +257,45 @@ export const activoDigitalSchema = z
   });
 
 export type ActivoDigitalInput = z.infer<typeof activoDigitalSchema>;
+
+// ─── 🎂 Próximos cumpleaños ──────────────────────────────
+// día/mes/año de nacimiento. `mes`/`dia`/`nombre` son opcionales en el schema porque al
+// vincular un contacto con fecha_nacimiento el backend los deduce de la ficha; el
+// servicio valida que al final queden día y mes presentes y coherentes (p. ej. no
+// existe el 31 de abril). `anio` (nacimiento) es opcional y solo sirve para la edad.
+
+const mesCumpleSchema = z.number().int("El mes debe ser un número entero").min(1, "El mes debe estar entre 1 y 12").max(12, "El mes debe estar entre 1 y 12");
+const diaCumpleSchema = z.number().int("El día debe ser un número entero").min(1, "El día debe estar entre 1 y 31").max(31, "El día debe estar entre 1 y 31");
+const anioCumpleSchema = z.number().int("El año debe ser un número entero").min(1800, "El año de nacimiento no puede ser anterior a 1800").max(new Date().getFullYear(), "El año de nacimiento no puede ser futuro");
+
+export const crearCumpleanoSchema = z
+  .object({
+    personaId: z.string().min(1, "Contacto inválido").optional(),
+    nombre: z.string().trim().min(2, "El nombre es obligatorio").max(200, "El nombre no puede superar 200 caracteres").optional(),
+    mes: mesCumpleSchema.optional(),
+    dia: diaCumpleSchema.optional(),
+    anio: anioCumpleSchema.optional(),
+    notas: z.string().max(2000, "Las notas no pueden superar 2000 caracteres").optional(),
+  })
+  .refine((d) => !!d.personaId || (!!d.nombre && !!d.mes && !!d.dia), {
+    message: "Indica el día, el mes y el nombre, o vincula un contacto existente.",
+    path: ["nombre"],
+  });
+
+export const actualizarCumpleanoSchema = z
+  .object({
+    // null = desvincular el contacto (el registro sigue existiendo como cumpleaños suelto)
+    personaId: z.string().min(1, "Contacto inválido").nullable().optional(),
+    nombre: z.string().trim().min(2, "El nombre es obligatorio").max(200, "El nombre no puede superar 200 caracteres").optional(),
+    mes: mesCumpleSchema.optional(),
+    dia: diaCumpleSchema.optional(),
+    anio: anioCumpleSchema.nullable().optional(),
+    notas: z.string().max(2000, "Las notas no pueden superar 2000 caracteres").nullable().optional(),
+    activo: z.boolean().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "No se envió ningún campo para actualizar",
+  });
+
+export type CrearCumpleanoInput = z.infer<typeof crearCumpleanoSchema>;
+export type ActualizarCumpleanoInput = z.infer<typeof actualizarCumpleanoSchema>;

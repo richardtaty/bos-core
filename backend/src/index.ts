@@ -20,7 +20,9 @@ import { ingresosRouter } from "./routes/ingresos.routes";
 import { metaAdsRouter } from "./routes/metaAds.routes";
 import { agenteRouter } from "./routes/agente.routes";
 import { publicBmfRouter } from "./routes/public-bmf.routes";
+import { cumpleanosRouter } from "./routes/cumpleanos.routes";
 import { iniciarFundingWorker } from "./services/funding-worker.service";
+import { iniciarCumpleanosWorker } from "./services/cumpleanos-worker.service";
 import { emailActivo, iaActiva, documentosActivos } from "./lib/funding-env";
 
 const app = express();
@@ -62,6 +64,8 @@ app.use("/api/meta-ads", metaAdsRouter);
 app.use("/api/agente", agenteRouter);
 // Rutas públicas de BMF Funding (landing + aplicación) — SIN autenticación.
 app.use("/api/public", publicBmfRouter);
+// Módulo 🎂 Próximos cumpleaños — ver routes/cumpleanos.routes.ts (requiere acceso).
+app.use("/api/cumpleanos", cumpleanosRouter);
 
 // Sirve el frontend ya compilado (dist) desde el mismo servicio — un solo deploy en Fly.io,
 // sin necesidad de CORS entre dos dominios ni de correr dos apps separadas.
@@ -87,3 +91,5 @@ app.listen(PORT, () => {
 
 // Worker de BMF Funding (confirmación + follow-ups por email). Se enciende solo con RESEND_API_KEY.
 iniciarFundingWorker();
+// Worker de 🎂 cumpleaños: asegura los recordatorios compartidos en la ventana de aviso.
+iniciarCumpleanosWorker();

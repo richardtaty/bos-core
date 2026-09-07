@@ -15,6 +15,7 @@ import {
   bitacoraAuditoria,
 } from "../db/schema";
 import { registrarAuditoria } from "./auditoria.service";
+import { sincronizarCumpleanosDePersona } from "./cumpleanos.service";
 import type { CrearPersonaInput, CrearInteraccionInput } from "../lib/validation";
 
 export async function listarPersonas(params: { search?: string; estado?: string; responsableId?: string; pagina?: number; limite?: number }) {
@@ -202,17 +203,15 @@ export async function crearPersona(input: CrearPersonaInput, autorId: string) {
     await db.insert(personaNegocios).values({ personaId: id, negocioId: negocio.id });
   }
 
-  // Si el contacto tiene fecha de nacimiento, crear tarea de seguimiento para su próximo cumpleaños
+  // El cumpleaños ya NO se modela como tarea de seguimiento (ver módulo 🎂). Si la ficha
+  // trae fecha de nacimiento, se registra en la tabla `cumpleanos` del módulo. Un fallo
+  // aquí no debe tumbar la creación del contacto (ya insertado), solo se loguea.
   if (input.fechaNacimiento) {
-    const proximoCumple = calcularProximoCumpleanos(input.fechaNacimiento);
-    await db.insert(tareasSeguimiento).values({
-      id: crypto.randomUUID(),
-      personaId: id,
-      fecha: proximoCumple,
-      nota: `🎂 Cumpleaños de ${input.nombre}`,
-      autorId,
-      createdAt: new Date(),
-    });
+    try {
+      await sincronizarCumpleanosDePersona(id, autorId);
+    } catch (err) {
+      console.error(`[🎂] no se pudo registrar el cumpleaños del contacto ${id}:`, err);
+    }
   }
 
   await registrarAuditoria({
@@ -276,27 +275,10 @@ export async function completarTarea(tareaId: string, autorId: string) {
     personaId: tarea.personaId,
   });
 
-  // Si es una tarea de cumpleaños, crear la del próximo año automáticamente
-  if (tarea.nota?.includes("🎂 Cumpleaños")) {
-    const [persona] = await db.select({ fechaNacimiento: personas.fechaNacimiento, nombre: personas.nombre })
-      .from(personas).where(eq(personas.id, tarea.personaId));
-    if (persona?.fechaNacimiento) {
-      // Calcular el próximo cumpleaños: siempre para el año siguiente al actual,
-      // porque el de este año ya fue felicitado (acabamos de completar su tarea).
-      const partes = persona.fechaNacimiento.split("-").map(Number);
-      const ahora = new Date();
-      const et = new Date(ahora.toLocaleString("en-US", { timeZone: "America/New_York" }));
-      const proximoCumple = new Date(et.getFullYear() + 1, partes[1] - 1, partes[2]);
-      await db.insert(tareasSeguimiento).values({
-        id: crypto.randomUUID(),
-        personaId: tarea.personaId,
-        fecha: proximoCumple,
-        nota: `🎂 Cumpleaños de ${persona.nombre}`,
-        autorId,
-        createdAt: new Date(),
-      });
-    }
-  }
+  // Antes, al completar una tarea "🎂 Cumpleaños de …", se creaba automáticamente la del
+  // año siguiente. Ya NO: el cumpleaños vive en el módulo 🎂 (tabla `cumpleanos`) y la
+  // recurrencia se calcula sola cada año. Las tareas viejas que existan se completan y
+  // quedan como están — no se borran, solo se deja de auto-generar la próxima.
 
   return { ...tarea, completado: true };
 }
@@ -408,6 +390,17 @@ export async function actualizarDatosPersona(
     // validados por actualizarPersonaSchema y solo se vacían los campos que aceptan null.
     .set({ ...(cambios as Partial<typeof personas.$inferInsert>), updatedAt: new Date() })
     .where(eq(personas.id, personaId));
+
+  // Si se fijó/actualizó la fecha de nacimiento por la ficha, el módulo 🎂 queda en sync
+  // (crea la fila si no existía o recalibra la vinculada). No debe tumbar la edición.
+  const nuevaFecha = cambios["fechaNacimiento"] as string | null | undefined;
+  if (nuevaFecha) {
+    try {
+      await sincronizarCumpleanosDePersona(personaId, autor.id);
+    } catch (err) {
+      console.error(`[🎂] no se pudo sincronizar el cumpleaños de ${personaId}:`, err);
+    }
+  }
 
   await registrarAuditoria({
     entidad: "Persona",

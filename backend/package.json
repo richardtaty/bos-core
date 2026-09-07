@@ -10,7 +10,8 @@
     "migrate": "ts-node src/db/migrate.ts",
     "seed": "ts-node src/db/seed.ts",
     "token:agente": "ts-node src/scripts/token-agente.ts",
-    "corregir:estados": "ts-node src/scripts/corregir-estados.ts"
+    "corregir:estados": "ts-node src/scripts/corregir-estados.ts",
+    "inventario:cumpleanos": "ts-node src/scripts/inventariar-cumpleanos.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1124.0",
