@@ -15,6 +15,7 @@ const camposPublicacion = {
   proyectoId: marketingCalendario.proyectoId,
   proyectoNombre: proyectos.nombre,
   fecha: marketingCalendario.fecha,
+  nota: marketingCalendario.nota, // texto libre de ESTE elemento (null si no tiene)
   creadoPor: marketingCalendario.creadoPor,
   creadoPorNombre: usuarios.nombre,
   createdAt: marketingCalendario.createdAt,
@@ -64,7 +65,7 @@ async function obtenerPublicacion(id: string) {
  * responde con error claro — el alta de proyectos vive en Marketing → Proyectos.
  */
 export async function crearPublicacion(
-  input: { proyectoId: string; fecha: string },
+  input: { proyectoId: string; fecha: string; nota?: string | null },
   user: AuthUser,
 ) {
   const [proyecto] = await db
@@ -82,10 +83,45 @@ export async function crearPublicacion(
     id,
     proyectoId: input.proyectoId,
     fecha: input.fecha,
+    nota: input.nota?.trim() ? input.nota : null,
     creadoPor: user.id,
     createdAt: ahora,
     updatedAt: ahora,
   });
+  return obtenerPublicacion(id);
+}
+
+/**
+ * Edita un elemento del Calendario de Marketing sin crear otro. Permite cambiar el
+ * proyecto, la fecha o la nota (incluido BORRAR la nota enviándola vacía/null). Quien
+ * no sea SUPER_ADMIN solo puede tocar elementos de proyectos de su departamento.
+ */
+export async function actualizarPublicacion(
+  id: string,
+  cambios: { proyectoId?: string; fecha?: string; nota?: string | null },
+  user: AuthUser,
+) {
+  const [existente] = await db
+    .select({ id: marketingCalendario.id, proyectoId: marketingCalendario.proyectoId })
+    .from(marketingCalendario)
+    .where(eq(marketingCalendario.id, id));
+  if (!existente) throw new Error("El elemento del calendario ya no existe.");
+
+  const proyectoDestino = cambios.proyectoId ?? existente.proyectoId;
+  const [proyecto] = await db
+    .select({ departamentoId: proyectos.departamentoId })
+    .from(proyectos)
+    .where(eq(proyectos.id, proyectoDestino));
+  if (!proyecto) throw new Error("El proyecto seleccionado ya no existe.");
+  if (user.rol !== "SUPER_ADMIN" && !departamentoIdsDe(user).includes(proyecto.departamentoId)) {
+    throw new Error("No tienes acceso a ese elemento del calendario.");
+  }
+
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  if (cambios.proyectoId !== undefined) set.proyectoId = cambios.proyectoId;
+  if (cambios.fecha !== undefined) set.fecha = cambios.fecha;
+  if (cambios.nota !== undefined) set.nota = cambios.nota?.trim() ? cambios.nota : null;
+  await db.update(marketingCalendario).set(set).where(eq(marketingCalendario.id, id));
   return obtenerPublicacion(id);
 }
 

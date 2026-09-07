@@ -166,6 +166,15 @@ export const actualizarCitaPodcastSchema = z
 export const crearPublicacionMarketingSchema = z.object({
   proyectoId: z.string().min(1, "El proyecto es obligatorio"),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD)"),
+  nota: z.string().max(10000, "La nota es demasiado larga").optional().nullable(),
+});
+
+// Edición de un elemento del Calendario de Marketing: todos los campos opcionales.
+// nota vacía o null = se BORRA la nota (regla 13). Sin nota en el body = se conserva.
+export const actualizarPublicacionMarketingSchema = z.object({
+  proyectoId: z.string().min(1, "El proyecto es obligatorio").optional(),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD)").optional(),
+  nota: z.string().max(10000, "La nota es demasiado larga").optional().nullable(),
 });
 
 // ─── BMF Digital Funding — aplicación pública (inglés) ───────

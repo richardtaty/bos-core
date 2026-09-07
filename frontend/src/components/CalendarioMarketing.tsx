@@ -27,6 +27,11 @@ function fmtDia(ymdStr: string): string {
   return new Date(y, m - 1, d).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
 }
 
+function fmtFechaLarga(ymdStr: string): string {
+  const [y, m, d] = ymdStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+}
+
 // Sin acentos, mayúsculas ni espacios dobles, para buscar "maur" → "Mauricio Sopo".
 function normalizar(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
@@ -56,6 +61,12 @@ export function CalendarioMarketing() {
   const [listaAbierta, setListaAbierta] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  // Nota del elemento (texto libre/multilínea) — se guarda junto al registro.
+  const [nota, setNota] = useState("");
+  // Edición de un elemento existente: reutiliza el MISMO formulario.
+  const [editando, setEditando] = useState<PublicacionMarketing | null>(null);
+  // Qué elemento del día está expandido (muestra Fecha/Nota) — uno a la vez.
+  const [expandidoId, setExpandidoId] = useState<string | null>(null);
 
   // Proyectos reales existentes (el backend ya limita el acceso del usuario).
   useEffect(() => {
@@ -140,10 +151,24 @@ export function CalendarioMarketing() {
 
   /** Abre el MISMO formulario. Si viene con fecha, esa se preselecciona (regla 11). */
   function abrirNuevo(fechaInicial?: string) {
+    setEditando(null);
     setProyectoSel(null);
     setQuery("");
     setListaAbierta(false);
     setFecha(fechaInicial ?? diaSel);
+    setNota("");
+    setError("");
+    setMostrarModal(true);
+  }
+
+  /** Editar un elemento existente (agregar/modificar/BORRAR la nota — regla 13). */
+  function abrirEditar(p: PublicacionMarketing) {
+    setEditando(p);
+    setProyectoSel({ id: p.proyectoId, nombre: p.proyectoNombre });
+    setQuery(p.proyectoNombre);
+    setListaAbierta(false);
+    setFecha(p.fecha);
+    setNota(p.nota ?? "");
     setError("");
     setMostrarModal(true);
   }
@@ -178,7 +203,18 @@ export function CalendarioMarketing() {
     setGuardando(true);
     setError("");
     try {
-      await api.crearMarketingCalendario({ proyectoId: proyectoSel.id, fecha });
+      // Texto vacío se guarda como null (el registro queda sin nota, no con espacios).
+      const notaFinal = nota.trim() ? nota : null;
+      if (editando) {
+        // Editar = actualizar el MISMO registro (regla 13), nunca crear uno nuevo.
+        await api.editarMarketingCalendario(editando.id, {
+          proyectoId: proyectoSel.id,
+          fecha,
+          nota: notaFinal,
+        });
+      } else {
+        await api.crearMarketingCalendario({ proyectoId: proyectoSel.id, fecha, nota: notaFinal });
+      }
       setMostrarModal(false);
       const [pubs] = await Promise.all([api.marketingCalendario(rangoMes.desde, rangoMes.hasta)]);
       setPublicaciones(pubs);
@@ -284,14 +320,56 @@ export function CalendarioMarketing() {
           <p className="text-sm text-neutral-500">Sin correos o contenido programado este día.</p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {pubsDia.map((p) => (
-              <div key={p.id} className="flex items-center justify-between border border-primary-500/20 bg-primary-500/5 rounded-lg px-3 py-2">
-                <p className="text-sm font-medium text-neutral-900">✉️ {p.proyectoNombre}</p>
-                <button onClick={() => eliminar(p)} className="text-xs text-neutral-400 hover:text-danger-600 hover:underline">
-                  Quitar
-                </button>
-              </div>
-            ))}
+            {pubsDia.map((p) => {
+              const abierto = expandidoId === p.id;
+              return (
+                <div
+                  key={p.id}
+                  className={`rounded-lg border transition-colors ${
+                    abierto ? "border-primary-400/50 bg-primary-500/10" : "border-primary-500/20 bg-primary-500/5"
+                  }`}
+                >
+                  <div className="flex items-center justify-between px-3 py-2">
+                    {/* Clic sobre el correo: expandir/contraer este MISMO elemento. */}
+                    <button
+                      onClick={() => setExpandidoId(abierto ? null : p.id)}
+                      className="flex-1 min-w-0 text-left text-sm font-medium text-neutral-900 flex items-center gap-2"
+                    >
+                      <span className="truncate">✉️ {p.proyectoNombre}</span>
+                      <span className="text-[10px] text-neutral-400 shrink-0">{abierto ? "▴" : "▾"}</span>
+                    </button>
+                    <div className="flex items-center gap-3 shrink-0 ml-3">
+                      <button onClick={() => abrirEditar(p)} className="text-xs text-neutral-500 hover:underline">
+                        Editar
+                      </button>
+                      <button onClick={() => eliminar(p)} className="text-xs text-danger-600 hover:underline">
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                  {abierto && (
+                    <div className="px-3 pb-3 pt-2 border-t border-primary-500/10 flex flex-col gap-1 text-sm">
+                      <p className="text-neutral-800">
+                        <span className="text-xs font-semibold uppercase text-neutral-400">Proyecto: </span>
+                        {p.proyectoNombre}
+                      </p>
+                      <p className="text-neutral-800">
+                        <span className="text-xs font-semibold uppercase text-neutral-400">Fecha: </span>
+                        {fmtFechaLarga(p.fecha)}
+                      </p>
+                      <div className="text-neutral-800">
+                        <span className="text-xs font-semibold uppercase text-neutral-400">Nota: </span>
+                        {p.nota?.trim() ? (
+                          <span className="whitespace-pre-wrap">{p.nota}</span>
+                        ) : (
+                          <span className="text-neutral-400">Sin nota</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -315,7 +393,9 @@ export function CalendarioMarketing() {
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setMostrarModal(false)}>
           <form onSubmit={guardar} className="bg-neutral-50 rounded-xl p-6 w-full max-w-md shadow-xl border border-neutral-200" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Nuevo elemento del calendario</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+              {editando ? "Editar elemento" : "Nuevo elemento del calendario"}
+            </h3>
             <div className="flex flex-col gap-4">
               <div>
                 <span className="text-xs text-neutral-500 block mb-1">Proyecto</span>
@@ -361,6 +441,18 @@ export function CalendarioMarketing() {
                   onChange={(e) => setFecha(e.target.value)}
                   className="border border-neutral-200 bg-white text-neutral-800 rounded-lg px-3 py-2 text-sm w-full"
                   required
+                />
+              </div>
+              <div>
+                <span className="text-xs text-neutral-500 block mb-1">
+                  Nota <span className="text-neutral-400">(opcional)</span>
+                </span>
+                <textarea
+                  value={nota}
+                  onChange={(e) => setNota(e.target.value)}
+                  rows={4}
+                  placeholder="De qué trata el correo, instrucciones, contexto, observaciones…"
+                  className="border border-neutral-200 bg-white text-neutral-800 rounded-lg px-3 py-2 text-sm w-full resize-y"
                 />
               </div>
               {error && <p className="text-sm text-danger-600">{error}</p>}

@@ -528,6 +528,7 @@ export interface PublicacionMarketing {
   proyectoId: string;
   proyectoNombre: string;
   fecha: string; // YYYY-MM-DD
+  nota: string | null; // texto libre de este elemento (null si no tiene)
   creadoPor: string;
   creadoPorNombre: string;
   createdAt: string;

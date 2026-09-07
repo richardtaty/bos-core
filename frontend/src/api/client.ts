@@ -834,9 +834,18 @@ export const api = {
     return request<import("../types").PublicacionMarketing[]>(`/marketing/calendario${s ? `?${s}` : ""}`);
   },
 
-  crearMarketingCalendario: (data: { proyectoId: string; fecha: string }) =>
+  crearMarketingCalendario: (data: { proyectoId: string; fecha: string; nota?: string | null }) =>
     request<import("../types").PublicacionMarketing>("/marketing/calendario", {
       method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  editarMarketingCalendario: (
+    id: string,
+    data: { proyectoId?: string; fecha?: string; nota?: string | null },
+  ) =>
+    request<import("../types").PublicacionMarketing>(`/marketing/calendario/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     }),
 

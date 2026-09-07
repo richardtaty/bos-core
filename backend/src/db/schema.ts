@@ -941,6 +941,7 @@ export const marketingCalendario = sqliteTable(
     id: cuid(),
     proyectoId: text("proyecto_id").notNull().references(() => proyectos.id),
     fecha: text("fecha").notNull(), // YYYY-MM-DD
+    nota: text("nota"), // Texto libre (multilínea, sin límite práctico) de este elemento.
     creadoPor: text("creado_por").notNull().references(() => usuarios.id),
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
     updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
