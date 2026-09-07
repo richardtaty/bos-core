@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, type CitaPodcastDTO } from "../api/client";
 import { InvitadoCombobox, type ValorInvitado } from "../components/InvitadoCombobox";
 import { NuevaPersonaModal } from "../components/NuevaPersonaModal";
+import type { CumpleanoDelMes } from "../types";
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = [
@@ -30,6 +31,8 @@ export function PodcastCalendarioPage() {
   const [mes, setMes] = useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1));
   const [diaSel, setDiaSel] = useState(ymd(hoy));
   const [citas, setCitas] = useState<CitaPodcastDTO[]>([]);
+  // 🎂 Cumpleaños activos del mes visible (solo lectura desde "Próximos cumpleaños").
+  const [cumpleanos, setCumpleanos] = useState<CumpleanoDelMes[]>([]);
   const [cargando, setCargando] = useState(true);
 
   // Modal (crear / editar)
@@ -59,6 +62,25 @@ export function PodcastCalendarioPage() {
     });
   }, [rangoMes]);
 
+  // 🎂 Cumpleaños del MES visible: se consulta el módulo "Próximos cumpleaños" por mes
+  // (regla 8), sin la ventana de 3 meses que aplica a la lista de ese módulo (regla 9).
+  // Solo lectura: no se crean ni copian registros. Si el usuario no tiene acceso al
+  // módulo 🎂, el calendario sigue funcionando (sin cumpleaños).
+  useEffect(() => {
+    let vivo = true;
+    api
+      .cumpleanosPorMes(mes.getMonth() + 1)
+      .then((c) => {
+        if (vivo) setCumpleanos(c);
+      })
+      .catch(() => {
+        if (vivo) setCumpleanos([]);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [mes]);
+
   const celdas = useMemo(() => {
     const first = new Date(mes.getFullYear(), mes.getMonth(), 1);
     const offset = (first.getDay() + 6) % 7; // semana empieza lunes
@@ -81,6 +103,20 @@ export function PodcastCalendarioPage() {
   }, [citas]);
 
   const citasDia = citasPorDia.get(diaSel) ?? [];
+
+  // Cumpleaños por día (solo número de día: son anuales y coinciden con el mes visible).
+  const cumplePorDia = useMemo(() => {
+    const map = new Map<number, CumpleanoDelMes[]>();
+    for (const c of cumpleanos) {
+      const arr = map.get(c.dia) ?? [];
+      arr.push(c);
+      map.set(c.dia, arr);
+    }
+    for (const arr of map.values()) arr.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    return map;
+  }, [cumpleanos]);
+
+  const cumpleDia = cumplePorDia.get(Number(diaSel.slice(8, 10))) ?? [];
 
   function cambiarMes(delta: number) {
     setMes((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
@@ -183,6 +219,7 @@ export function PodcastCalendarioPage() {
           if (d === null) return <div key={`b${i}`} />;
           const fechaStr = ymd(new Date(mes.getFullYear(), mes.getMonth(), d));
           const delDia = citasPorDia.get(fechaStr) ?? [];
+          const cumplesDia = cumplePorDia.get(d) ?? [];
           const esHoy = fechaStr === ymd(hoy);
           const esSel = fechaStr === diaSel;
           return (
@@ -201,6 +238,14 @@ export function PodcastCalendarioPage() {
                   </span>
                 ))}
                 {delDia.length > 2 && <span className="text-[9px] text-neutral-500">+{delDia.length - 2} más</span>}
+                {cumplesDia.slice(0, 2).map((c) => (
+                  <span key={`cumple${c.id}`} className="text-[9px] px-1 py-0.5 rounded truncate bg-pink-100 text-pink-700">
+                    🎂 {c.nombre}
+                  </span>
+                ))}
+                {cumplesDia.length > 2 && (
+                  <span className="text-[9px] text-neutral-500">+{cumplesDia.length - 2} cumpleaños</span>
+                )}
               </div>
             </button>
           );
@@ -212,8 +257,12 @@ export function PodcastCalendarioPage() {
         <h3 className="text-sm font-medium text-neutral-700 capitalize">{fmtDia(diaSel)}</h3>
         <button onClick={abrirNuevo} className="text-xs text-primary-600 hover:underline">+ agregar</button>
       </div>
-      {citasDia.length === 0 ? (
+      {citasDia.length === 0 && cumpleDia.length === 0 ? (
         <p className="text-sm text-neutral-500">Sin podcasts este día.</p>
+      ) : citasDia.length === 0 ? (
+        // Solo hay cumpleaños: el día sigue siendo seleccionable y muestra únicamente
+        // la sección "Cumpleaños" de abajo (regla 5) — no se exige una cita de Podcast.
+        <div />
       ) : (
         <div className="flex flex-col gap-2">
           {citasDia.map((c) => (
@@ -232,6 +281,28 @@ export function PodcastCalendarioPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 🎂 Cumpleaños del día (regla 4/5): solo lectura, se muestran cuando existen,
+          aunque el día no tenga ninguna cita de Podcast. */}
+      {cumpleDia.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase text-neutral-500 tracking-wider mb-1.5">
+            Cumpleaños <span className="text-neutral-400">({cumpleDia.length})</span>
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {cumpleDia.map((c) => (
+              <div key={c.id} className="flex items-center justify-between border border-pink-500/20 bg-pink-500/5 rounded-lg px-3 py-2">
+                <p className="text-sm font-medium text-neutral-900">🎂 {c.nombre}</p>
+                {c.personaId ? (
+                  <Link to={`/personas/${c.personaId}`} className="text-xs text-primary-600 hover:underline">
+                    Ver contacto
+                  </Link>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
