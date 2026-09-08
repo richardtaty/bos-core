@@ -147,6 +147,8 @@ export function AppLayout() {
   const [conteoEquipo, setConteoEquipo] = useState(0);
   const [notificado, setNotificado] = useState(false);
   const [notificadoCumple, setNotificadoCumple] = useState(false);
+  // Sección del sidebar expandida (acordeón). Máximo una a la vez; empieza todo comprimido.
+  const [seccionAbierta, setSeccionAbierta] = useState<string | null>(null);
 
   const actualizarConteos = useCallback(async () => {
     const [propias, equipo] = await Promise.all([
@@ -211,43 +213,97 @@ export function AppLayout() {
         <nav className="flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto">
           {(() => {
             const items = buildNav(permisos, usuario?.rol);
-            return items.map((item, i) => {
-              const prevSeccion = i > 0 ? items[i - 1].seccion : undefined;
-              const mostrarHeader = item.seccion && item.seccion !== prevSeccion;
-              const headerLabels: Record<string, string> = {
-                moc: "Marketing Ops",
-                scrum: "Tableros Scrum",
-                ventas: "Sala de OFERTAS",
-                bmf: "Business Market Finders",
-                podcast: "Podcast",
-                ceo: "CEO",
-                dev: "DEV",
-              };
-              const badgeCount = item.badge === "propias" ? conteoPropias : item.badge === "equipo" ? conteoEquipo : 0;
+            const headerLabels: Record<string, string> = {
+              moc: "Marketing Ops",
+              scrum: "Tableros Scrum",
+              ventas: "Sala de OFERTAS",
+              bmf: "Business Market Finders",
+              podcast: "Podcast",
+              ceo: "CEO",
+              dev: "DEV",
+            };
+
+            const badgeDe = (item: NavItem) =>
+              item.badge === "propias" ? conteoPropias : item.badge === "equipo" ? conteoEquipo : 0;
+
+            // Agrupar el nav como antes: cada tramo contiguo de módulos con la misma
+            // `seccion` forma un bloque bajo un encabezado; los módulos sin seccion van sueltos.
+            type Fila =
+              | { tipo: "link"; item: NavItem }
+              | { tipo: "seccion"; id: string; etiqueta: string; items: NavItem[] };
+            const filas: Fila[] = [];
+            const usosSeccion: Record<string, number> = {};
+            for (const item of items) {
+              if (!item.seccion) {
+                filas.push({ tipo: "link", item });
+                continue;
+              }
+              const ultima = filas[filas.length - 1];
+              if (ultima?.tipo === "seccion" && ultima.items[0].seccion === item.seccion) {
+                ultima.items.push(item);
+                continue;
+              }
+              // Si el mismo nombre de seccion aparece en dos bloques separados (ej. Sala de
+              // OFERTAS arriba y de nuevo ante "Pipelines"), se tratan como grupos distintos.
+              usosSeccion[item.seccion] = (usosSeccion[item.seccion] ?? 0) + 1;
+              filas.push({
+                tipo: "seccion",
+                id: `${item.seccion}:${usosSeccion[item.seccion]}`,
+                etiqueta: headerLabels[item.seccion] ?? item.seccion,
+                items: [item],
+              });
+            }
+
+            const renderNavLink = (item: NavItem, key: string) => {
+              const badgeCount = badgeDe(item);
               return (
-                <div key={item.to}>
-                  {mostrarHeader && (
-                    <p className="text-[10px] font-semibold uppercase text-neutral-500 tracking-wider mt-3 mb-1 px-1">
-                      {headerLabels[item.seccion!] ?? item.seccion}
-                    </p>
+                <NavLink
+                  key={key}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between transition-all ${
+                      isActive
+                        ? "bg-primary-500/15 text-primary-700"
+                        : "text-neutral-600 hover:bg-neutral-100"
+                    }`
+                  }
+                >
+                  <span>{item.label}</span>
+                  {badgeCount > 0 && (
+                    <span className="bg-danger-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-sm shadow-danger-500/30">
+                      {badgeCount}
+                    </span>
                   )}
-                  <NavLink
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between transition-all ${
-                        isActive
-                          ? "bg-primary-500/15 text-primary-700"
-                          : "text-neutral-600 hover:bg-neutral-100"
-                      }`
-                    }
+                </NavLink>
+              );
+            };
+
+            return filas.map((fila) => {
+              if (fila.tipo === "link") {
+                return renderNavLink(fila.item, `link:${fila.item.to}`);
+              }
+              const abierta = seccionAbierta === fila.id;
+              return (
+                <div key={fila.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSeccionAbierta(abierta ? null : fila.id)}
+                    aria-expanded={abierta}
+                    className="w-full flex items-center justify-between text-left text-[10px] font-semibold uppercase text-neutral-500 tracking-wider mt-3 mb-1 px-1 cursor-pointer hover:text-neutral-800 transition-colors"
                   >
-                    <span>{item.label}</span>
-                    {badgeCount > 0 && (
-                      <span className="bg-danger-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-sm shadow-danger-500/30">
-                        {badgeCount}
-                      </span>
-                    )}
-                  </NavLink>
+                    <span>{fila.etiqueta}</span>
+                    <span
+                      aria-hidden="true"
+                      className={`text-[9px] text-neutral-400 transition-transform duration-200 ${abierta ? "rotate-90" : ""}`}
+                    >
+                      ›
+                    </span>
+                  </button>
+                  {abierta && (
+                    <div className="flex flex-col gap-1 pl-2">
+                      {fila.items.map((item) => renderNavLink(item, `${fila.id}:${item.to}`))}
+                    </div>
+                  )}
                 </div>
               );
             });
