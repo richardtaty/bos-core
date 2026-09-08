@@ -262,6 +262,25 @@ export interface BusquedaInvitadosDTO {
   hayExacto: boolean;
 }
 
+// Una venta GANADA del Resumen de Ventas (vista principal de Sala de OFERTAS). El backend la
+// sirve en solo lectura: valor total del deal, lo efectivamente cobrado (suma de pagos reales) y
+// el saldo pendiente (siempre calculado), más quién la cerró y cuándo (historial de etapas).
+export interface VentaResumen {
+  id: string;
+  pipelineId: string;
+  pipelineNombre: string | null;
+  etapaNombre: string | null;
+  personaId: string | null;
+  personaNombre: string | null;
+  valor: number | null;
+  totalPagado: number;
+  saldoPendiente: number | null;
+  pagadaCompleta: boolean;
+  responsableId: string | null;
+  responsableNombre: string | null;
+  fechaVenta: string;
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<{
@@ -381,6 +400,9 @@ export const api = {
     request<unknown>(`/personas/tareas/${tareaId}/completar`, { method: "PATCH" }),
 
   listarPipelines: () => request<import("../types").Pipeline[]>("/pipelines"),
+
+  resumenVentas: (limite?: number) =>
+    request<VentaResumen[]>(`/pipelines/resumen-ventas${limite ? `?limite=${limite}` : ""}`),
 
   tableroKanban: (pipelineId: string) =>
     request<import("../types").TableroPipeline>(`/pipelines/${pipelineId}/tablero`),

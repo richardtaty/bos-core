@@ -12,6 +12,7 @@ import {
   actualizarValorRegistro,
   actualizarPlanPago,
   eliminarPago,
+  resumenVentas,
 } from "../services/pipelines.service";
 
 export const pipelinesRouter = Router();
@@ -27,6 +28,20 @@ pipelinesRouter.get("/", async (req, res) => {
   }
   const ids = user.departamentoIds ?? (user.departamentoId ? [user.departamentoId] : []);
   res.json(await listarPipelines({ departamentoIds: ids }));
+});
+
+// Resumen de Ventas (vista principal de Sala de OFERTAS) — SOLO LECTURA. Mismo aislamiento por
+// unidad de negocio que el listado de pipelines de arriba. Va ANTES de las rutas con :id para que
+// "resumen-ventas" no se interprete como un parámetro dinámico (ver errores ya resueltos).
+pipelinesRouter.get("/resumen-ventas", async (req, res) => {
+  const user = req.user!;
+  const limite = Math.min(Math.max(Number(req.query.limite) || 50, 1), 200);
+  if (user.rol === "SUPER_ADMIN") {
+    res.json(await resumenVentas({ limite }));
+    return;
+  }
+  const ids = user.departamentoIds ?? (user.departamentoId ? [user.departamentoId] : []);
+  res.json(await resumenVentas({ departamentoIds: ids, limite }));
 });
 
 pipelinesRouter.get("/:id/tablero", async (req, res) => {

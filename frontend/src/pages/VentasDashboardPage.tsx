@@ -1,123 +1,123 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api/client";
+import { api, type VentaResumen } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import { KpiCard } from "../components/KpiCard";
-import type { Pipeline } from "../types";
 
-interface Metrica {
-  nombre: string;
-  total: number;
-  ganados: number;
-  perdidos: number;
-  abiertos: number;
-  valorAbierto: number;
-  tasaConversion: number;
+// Formatea montos como el resto del sistema: enteros, sin decimales ($12,500).
+function fmtMonto(n: number): string {
+  return `$${Math.round(n).toLocaleString()}`;
+}
+
+function fmtFecha(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/New_York" });
 }
 
 export function VentasDashboardPage() {
   const { usuario } = useAuth();
-  const [metricas, setMetricas] = useState<Metrica[]>([]);
+  const [ventas, setVentas] = useState<VentaResumen[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const cargar = async () => {
-      const pipelines = await api.listarPipelines();
-
-      const resultados: Metrica[] = await Promise.all(
-        pipelines.map(async (p: Pipeline) => {
-          const m = await api.metricasPipeline(p.id);
-          return { nombre: p.nombre, ...m };
-        })
-      );
-
-      setMetricas(resultados);
-      setCargando(false);
+      try {
+        const datos = await api.resumenVentas(50);
+        setVentas(datos);
+      } catch {
+        setError("No se pudo cargar el resumen de ventas. Inténtalo de nuevo.");
+      } finally {
+        setCargando(false);
+      }
     };
     void cargar();
   }, []);
 
+  const totalVendido = ventas.reduce((s, v) => s + (v.valor ?? 0), 0);
+  const totalCobrado = ventas.reduce((s, v) => s + v.totalPagado, 0);
+  const totalPorCobrar = ventas.reduce((s, v) => s + (v.saldoPendiente ?? 0), 0);
+
   if (cargando) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
-  const totalRegistros = metricas.reduce((s, m) => s + m.total, 0);
-  const totalGanados = metricas.reduce((s, m) => s + m.ganados, 0);
-  const totalPerdidos = metricas.reduce((s, m) => s + m.perdidos, 0);
-  const valorAbiertoTotal = metricas.reduce((s, m) => s + m.valorAbierto, 0);
-  const tasaGlobal = totalRegistros ? Math.round((totalGanados / totalRegistros) * 100) : 0;
+  if (error) {
+    return (
+      <div>
+        <h1 className="text-xl font-semibold text-neutral-900 mb-1">Resumen de Ventas</h1>
+        <p className="text-sm text-danger-600 mb-6">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Sala de OFERTAS</h1>
-      <p className="text-sm text-neutral-500 mb-6">Hola, {usuario?.nombre.split(" ")[0]} — Centro de Ventas de Taty's Enterprises</p>
+      <h1 className="text-xl font-semibold text-neutral-900 mb-1">Resumen de Ventas</h1>
+      <p className="text-sm text-neutral-500 mb-6">
+        Hola, {usuario?.nombre.split(" ")[0]} — lo que se ha vendido, a quién, por cuánto y cuánto se
+        ha cobrado. Son ventas ganadas reales, con sus fechas de cierre.
+      </p>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <KpiCard titulo="Valor abierto" valor={`$${Math.round(valorAbiertoTotal).toLocaleString()}`} icono="💰" color="success" />
-        <KpiCard titulo="Deals activos" valor={totalRegistros} icono="📋" color="primary" />
-        <KpiCard titulo="Ganados" valor={totalGanados} icono="🏆" color="success" />
-        <KpiCard titulo="Perdidos" valor={totalPerdidos} icono="❌" color="danger" />
-        <KpiCard titulo="Conversión" valor={`${tasaGlobal}%`} icono="📊" color="neutral" />
+      {/* Estado general de las ventas mostradas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <KpiCard titulo="Ventas ganadas" valor={ventas.length} icono="🏆" color="success" subtitulo="Las más recientes primero" />
+        <KpiCard titulo="Total vendido" valor={fmtMonto(totalVendido)} icono="💰" color="primary" subtitulo="Suma del valor de los deals" />
+        <KpiCard titulo="Cobrado" valor={fmtMonto(totalCobrado)} icono="✅" color="success" subtitulo="Pagos reales registrados" />
+        <KpiCard titulo="Por cobrar" valor={fmtMonto(totalPorCobrar)} icono="⏳" color={totalPorCobrar > 0 ? "warning" : "success"} subtitulo="Saldo pendiente de cobro" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pipelines */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-neutral-700">🏗 Pipelines activos</h3>
-            <Link to="/pipelines" className="text-xs text-primary-600 hover:underline">Ver todos →</Link>
-          </div>
-          <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
-                <tr>
-                  <th className="text-left px-4 py-2.5">Pipeline</th>
-                  <th className="text-left px-4 py-2.5">Total</th>
-                  <th className="text-left px-4 py-2.5">Ganados</th>
-                  <th className="text-left px-4 py-2.5">Perdidos</th>
-                  <th className="text-left px-4 py-2.5">Valor abierto</th>
-                  <th className="text-left px-4 py-2.5">Conversión</th>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-neutral-700">💸 Ventas ganadas recientes</h3>
+        <Link to="/pipelines" className="text-xs text-primary-600 hover:underline">Ver pipelines →</Link>
+      </div>
+
+      {ventas.length === 0 ? (
+        <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-8 text-center">
+          <p className="text-sm text-neutral-500">Aún no hay ventas ganadas registradas. Cuando un deal llegue a una etapa ganada, aparecerá aquí.</p>
+        </div>
+      ) : (
+        <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-100 text-xs text-neutral-500 uppercase">
+              <tr>
+                <th className="text-left px-4 py-2.5">Cliente</th>
+                <th className="text-left px-4 py-2.5">Qué se vendió</th>
+                <th className="text-left px-4 py-2.5">Responsable</th>
+                <th className="text-left px-4 py-2.5">Fecha de cierre</th>
+                <th className="text-right px-4 py-2.5">Total</th>
+                <th className="text-right px-4 py-2.5">Pagado</th>
+                <th className="text-right px-4 py-2.5">Saldo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ventas.map((v) => (
+                <tr key={v.id} className="border-t border-neutral-200">
+                  <td className="px-4 py-2.5 font-medium text-neutral-900 whitespace-nowrap">{v.personaNombre ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-700">{v.pipelineNombre ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-600 whitespace-nowrap">{v.responsableNombre ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-neutral-600 whitespace-nowrap">{fmtFecha(v.fechaVenta)}</td>
+                  <td className="px-4 py-2.5 text-neutral-900 text-right whitespace-nowrap">{v.valor != null ? fmtMonto(v.valor) : "—"}</td>
+                  <td className="px-4 py-2.5 text-success-600 text-right whitespace-nowrap">{fmtMonto(v.totalPagado)}</td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                    {v.pagadaCompleta ? (
+                      <span className="text-success-600 font-medium">Pagada ✓</span>
+                    ) : v.saldoPendiente != null ? (
+                      <span className="text-warning-600 font-medium">{fmtMonto(v.saldoPendiente)}</span>
+                    ) : (
+                      <span className="text-neutral-400">—</span>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {metricas
-                  .sort((a, b) => b.valorAbierto - a.valorAbierto)
-                  .map((m) => (
-                    <tr key={m.nombre} className="border-t border-neutral-200">
-                      <td className="px-4 py-2.5 font-medium text-neutral-900">{m.nombre}</td>
-                      <td className="px-4 py-2.5 text-neutral-600">{m.total}</td>
-                      <td className="px-4 py-2.5 text-success-600">{m.ganados}</td>
-                      <td className="px-4 py-2.5 text-danger-600">{m.perdidos}</td>
-                      <td className="px-4 py-2.5 text-neutral-700">${Math.round(m.valorAbierto).toLocaleString()}</td>
-                      <td className="px-4 py-2.5 text-neutral-600">{m.tasaConversion}%</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-neutral-400 px-4 py-2.5 border-t border-neutral-200">
+            Se muestran las últimas {ventas.length} ventas ganadas. "Pagado" y "Saldo" se calculan
+            siempre de los cobros reales, nunca se guardan.
+          </p>
         </div>
-
-        {/* Accesos rápidos */}
-        <div>
-          <h3 className="text-sm font-medium text-neutral-700 mb-3">Accesos rápidos</h3>
-          <div className="flex flex-col gap-2">
-            {[
-              { to: "/personas", label: "👤 Contactos", desc: "Gestionar leads y clientes" },
-              { to: "/pipelines", label: "🔄 Pipelines", desc: "Tableros Kanban de ventas" },
-              { to: "/reporte-ventas", label: "💰 Reporte de ventas", desc: "Facturación y comisiones" },
-              { to: "/moc/proyectos", label: "📁 Proyectos", desc: "Proyectos comerciales" },
-            ].map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 hover:border-primary-300 hover:border-primary-500/30 hover:shadow-sm transition-all"
-              >
-                <p className="font-medium text-sm text-neutral-900 mb-1">{item.label}</p>
-                <p className="text-xs text-neutral-500">{item.desc}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

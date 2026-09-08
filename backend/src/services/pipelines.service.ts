@@ -1,6 +1,6 @@
-import { and, eq, or, sum } from "drizzle-orm";
+import { and, eq, or, sum, inArray } from "drizzle-orm";
 import { db } from "../db/client";
-import { pipelines, etapas, registros, historialEtapas, bitacoraAuditoria, personas, pagos, tareasSeguimiento } from "../db/schema";
+import { pipelines, etapas, registros, historialEtapas, bitacoraAuditoria, personas, pagos, tareasSeguimiento, usuarios } from "../db/schema";
 
 export async function listarPipelines(opts?: { departamentoIds?: string[] }) {
   const ids = opts?.departamentoIds ?? [];
@@ -178,6 +178,99 @@ export async function metricasPipeline(pipelineId: string) {
     valorAbierto,
     tasaConversion: total > 0 ? Number(((ganados / total) * 100).toFixed(1)) : 0,
   };
+}
+
+// Resumen de Ventas (vista principal de Sala de OFERTAS): las ventas GANADAS visibles para el
+// usuario, con lo esencial de cada una — qué se vendió (pipeline), a quién (cliente), por cuánto
+// (valor total del deal), cuánto se ha pagado (suma real de pagos), cuánto falta (saldo, siempre
+// calculado, nunca guardado), quién la cerró (autor de la entrada del historial que la movió a la
+// etapa ganada = "asesor que cerró la venta") y cuándo. SOLO LECTURA: no modifica datos ni registra
+// nada. El alcance copia a listarPipelines (SUPER_ADMIN ve todas las unidades; el resto, solo los
+// pipelines de sus departamentos). Ordenadas de la más reciente a la más antigua, con tope.
+export async function resumenVentas(opts?: { departamentoIds?: string[]; limite?: number }) {
+  const pipelinesVisibles = await listarPipelines({ departamentoIds: opts?.departamentoIds });
+
+  const etapaGanadaPorId = new Map<string, { pipelineId: string; pipelineNombre: string; etapaNombre: string }>();
+  for (const p of pipelinesVisibles) {
+    for (const e of p.etapas) {
+      if (e.esGanada) etapaGanadaPorId.set(e.id, { pipelineId: p.id, pipelineNombre: p.nombre, etapaNombre: e.nombre });
+    }
+  }
+  const idsEtapasGanadas = [...etapaGanadaPorId.keys()];
+  if (idsEtapasGanadas.length === 0) return [];
+
+  const ganados = await db
+    .select({
+      id: registros.id,
+      pipelineId: registros.pipelineId,
+      etapaId: registros.etapaId,
+      personaId: registros.personaId,
+      personaNombre: personas.nombre,
+      valor: registros.valor,
+      responsablePersonaNombre: usuarios.nombre,
+      updatedAt: registros.updatedAt,
+    })
+    .from(registros)
+    .leftJoin(personas, eq(registros.personaId, personas.id))
+    .leftJoin(usuarios, eq(usuarios.id, personas.responsableId))
+    .where(inArray(registros.etapaId, idsEtapasGanadas));
+
+  if (ganados.length === 0) return [];
+  const idsRegistros = ganados.map((g) => g.id);
+
+  const pagosPorRegistro = new Map<string, number>();
+  const filasPagos = await db
+    .select({ registroId: pagos.registroId, total: sum(pagos.monto) })
+    .from(pagos)
+    .where(inArray(pagos.registroId, idsRegistros))
+    .groupBy(pagos.registroId);
+  for (const f of filasPagos) pagosPorRegistro.set(f.registroId, Number(f.total ?? 0));
+
+  // Responsable y fecha de cierre: la entrada del historial que movió el deal a la etapa GANADA
+  // (un deal ganado tiene esa entrada; si no, se usa el responsable del cliente como respaldo).
+  const cierres = await db
+    .select({
+      registroId: historialEtapas.registroId,
+      autorId: historialEtapas.autorId,
+      autorNombre: usuarios.nombre,
+      fecha: historialEtapas.fecha,
+    })
+    .from(historialEtapas)
+    .innerJoin(usuarios, eq(historialEtapas.autorId, usuarios.id))
+    .where(inArray(historialEtapas.etapaNuevaId, idsEtapasGanadas));
+
+  const cierrePorRegistro = new Map<string, { autorId: string; autorNombre: string; fecha: Date }>();
+  for (const c of cierres) {
+    const previo = cierrePorRegistro.get(c.registroId);
+    if (!previo || c.fecha >= previo.fecha) {
+      cierrePorRegistro.set(c.registroId, { autorId: c.autorId, autorNombre: c.autorNombre, fecha: c.fecha });
+    }
+  }
+
+  return ganados
+    .map((g) => {
+      const meta = etapaGanadaPorId.get(g.etapaId);
+      const totalPagado = pagosPorRegistro.get(g.id) ?? 0;
+      const saldoPendiente = g.valor != null ? Math.max(0, g.valor - totalPagado) : null;
+      const cierre = cierrePorRegistro.get(g.id);
+      return {
+        id: g.id,
+        pipelineId: g.pipelineId,
+        pipelineNombre: meta?.pipelineNombre ?? null,
+        etapaNombre: meta?.etapaNombre ?? null,
+        personaId: g.personaId,
+        personaNombre: g.personaNombre,
+        valor: g.valor,
+        totalPagado,
+        saldoPendiente,
+        pagadaCompleta: g.valor != null && totalPagado >= g.valor,
+        responsableId: cierre?.autorId ?? null,
+        responsableNombre: cierre?.autorNombre ?? g.responsablePersonaNombre ?? null,
+        fechaVenta: cierre?.fecha ?? g.updatedAt,
+      };
+    })
+    .sort((a, b) => new Date(b.fechaVenta).getTime() - new Date(a.fechaVenta).getTime())
+    .slice(0, opts?.limite ?? 50);
 }
 
 // Registrar un pago (abono/cuota) contra un registro — la ÚNICA forma de crear dinero hoy.

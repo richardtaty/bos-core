@@ -54,7 +54,7 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
   // Solo se muestra a quien ve esta sección (permiso real decidido arriba).
   if (p.menuSecciones.includes("ventas")) {
     items.push(
-      { to: "/ventas", label: "💰 Sala de Ofertas", seccion: "ventas" },
+      { to: "/ventas", label: "💰 Resumen de Ventas", seccion: "ventas" },
       { to: "/reportes-diarios", label: "📝 Reportes diarios", seccion: "ventas" },
       { to: "/tareas", label: "📋 Tareas", seccion: "ventas" },
       { to: "/calendario", label: "📅 Calendario", seccion: "ventas" },
