@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, type FormEvent } from "react";
+import { useEffect, useState, useCallback, useMemo, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../api/AuthContext";
@@ -127,63 +127,16 @@ export function DevPage() {
         <p className="text-sm text-neutral-500 py-10 text-center">Cargando...</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
-          {COLUMNAS.map((col) => {
-            const lista = tareasPorEstado(col.estado);
-            return (
-              <div key={col.estado} className="flex flex-col">
-                <div className={`flex items-center justify-between rounded-t-xl px-3 py-2 border ${col.header}`}>
-                  <span className="text-xs font-semibold tracking-wide">{col.titulo}</span>
-                  <span className="text-[10px] bg-white/80 px-1.5 py-0.5 rounded-full text-neutral-600 font-medium">
-                    {lista.length}
-                  </span>
-                </div>
-                <div className="flex-1 bg-neutral-50 border border-neutral-200 border-t-0 rounded-b-xl p-2 flex flex-col gap-2 min-h-[120px]">
-                  {lista.length === 0 ? (
-                    <p className="text-xs text-neutral-400 text-center py-6">Sin tareas</p>
-                  ) : (
-                    lista.map((t) => {
-                      const avance = ACCION_AVANCE(t.estado);
-                      const ocupada = cambiandoId === t.id;
-                      return (
-                        <div key={t.id} className="bg-white border border-neutral-200 rounded-lg shadow-sm hover:border-primary-300 hover:shadow">
-                          {/* Zona de información: clic abre el detalle (como siempre) */}
-                          <button
-                            type="button"
-                            onClick={() => setTareaActiva(t)}
-                            className="w-full text-left p-2.5 cursor-pointer"
-                            title="Abrir detalle"
-                          >
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORIDAD_DOT[t.prioridad] ?? "bg-neutral-300"}`} title={t.prioridad} />
-                              <p className="text-xs font-medium text-neutral-900 truncate">{t.titulo}</p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-neutral-500">
-                              {t.fechaLimite && <span>📅 {new Date(t.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
-                              <span>👤 {t.responsableNombre}</span>
-                            </div>
-                          </button>
-                          {/* Acción rápida: avanza al siguiente estado sin abrir el detalle.
-                              La tarea FINALIZADA no tiene acción de avance. */}
-                          {avance && (
-                            <button
-                              type="button"
-                              disabled={cambiandoId !== null}
-                              onClick={() => { void avanzarDesdeTarjeta(t, avance.estado); }}
-                              className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-b-lg border-t border-neutral-100 transition-colors ${
-                                ocupada ? "text-neutral-400 cursor-wait" : avance.clases
-                              }`}
-                            >
-                              {ocupada ? "Guardando..." : avance.etiqueta}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {COLUMNAS.map((col) => (
+            <ColumnaDev
+              key={col.estado}
+              config={col}
+              tareas={tareasPorEstado(col.estado)}
+              cambiandoId={cambiandoId}
+              onAbrir={(t) => setTareaActiva(t)}
+              onAvanzar={(t, siguiente) => void avanzarDesdeTarjeta(t, siguiente)}
+            />
+          ))}
         </div>
       )}
 
@@ -202,6 +155,320 @@ export function DevPage() {
           onClose={() => setTareaActiva(null)}
           onCambio={aplicarCambio}
         />
+      )}
+    </div>
+  );
+}
+
+// ─── Columna DEV: agrupación por día + días colapsables + filtro ──
+//
+// Organiza cada columna en grupos por día. La fecha de cada grupo depende del estado:
+//  PENDIENTE  → created_at      (siempre se muestran todas)
+//  EN PROCESO → started_at      (siempre se muestran todas)
+//  FINALIZADA → completed_at    (filtro temporal Hoy / 7 días / 30 días / Rango; 7 días por defecto)
+// Es presentación pura: no cambia estados, ni timestamps, ni borra nada. Cada grupo
+// puede abrirse/cerrarse; por defecto HOY queda abierto y los días anteriores cerrados.
+
+type ConfigColumna = (typeof COLUMNAS)[number];
+type FiltroFinalizada = "hoy" | "7" | "30" | "rango";
+
+const OPCIONES_FILTRO: { valor: FiltroFinalizada; etiqueta: string }[] = [
+  { valor: "hoy", etiqueta: "Hoy" },
+  { valor: "7", etiqueta: "7 días" },
+  { valor: "30", etiqueta: "30 días" },
+  { valor: "rango", etiqueta: "Rango" },
+];
+
+const MESES_ES = [
+  "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
+  "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
+] as const;
+
+/** Medianoche local de una fecha (referencia para agrupar por día del CRM). */
+function inicioDeDia(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** Suma/resta días sobre una fecha, manteniéndola a medianoche local. */
+function sumarDias(d: Date, n: number): Date {
+  const r = inicioDeDia(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function mismaDia(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/** Días enteros que separan a de b (positivo si a es posterior). Compara medianoches locales. */
+function diasEntre(a: Date, b: Date): number {
+  return Math.round((inicioDeDia(a).getTime() - inicioDeDia(b).getTime()) / 86400000);
+}
+
+function claveDia(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Fecha con la que se agrupa una tarea según su columna:
+ * PENDIENTE → created_at · EN PROCESO → started_at · FINALIZADA → completed_at.
+ * Si el timestamp de esa etapa falta (tarea DEV previa al registro de tiempos), se usa
+ * created_at como respaldo para que ninguna tarea desaparezca. Solo cambia la consulta.
+ */
+function fechaGrupoDeTarea(t: TareaOperativa, estado: TareaOperativa["estado"]): Date {
+  let iso: string | null = t.createdAt;
+  if (estado === "en_proceso") iso = t.startedAt ?? t.createdAt;
+  else if (estado === "completada") iso = t.completedAt ?? t.createdAt;
+  const d = iso ? new Date(iso) : new Date();
+  return Number.isNaN(d.getTime()) ? inicioDeDia(new Date()) : inicioDeDia(d);
+}
+
+/** Texto del encabezado: "HOY · 8 SEPTIEMBRE", "AYER · 7 SEPTIEMBRE" o "6 SEPTIEMBRE". */
+function etiquetaDia(d: Date, hoy: Date): string {
+  const base = `${d.getDate()} ${MESES_ES[d.getMonth()]}`;
+  const conAnio = d.getFullYear() !== hoy.getFullYear() ? `${base} ${d.getFullYear()}` : base;
+  if (mismaDia(d, hoy)) return `HOY · ${conAnio}`;
+  if (diasEntre(hoy, d) === 1) return `AYER · ${conAnio}`;
+  return conAnio;
+}
+
+interface GrupoDia {
+  clave: string;
+  inicio: number; // medianoche local en ms → el orden siempre usa timestamps reales
+  etiqueta: string;
+  esHoy: boolean;
+  items: TareaOperativa[];
+}
+
+/** Agrupa una lista por día (más reciente primero). Dentro del día respeta el orden del tablero. */
+function agruparPorDia(lista: TareaOperativa[], estado: TareaOperativa["estado"], hoy: Date): GrupoDia[] {
+  const mapa = new Map<string, GrupoDia>();
+  for (const t of lista) {
+    const dia = fechaGrupoDeTarea(t, estado);
+    const clave = claveDia(dia);
+    let grupo = mapa.get(clave);
+    if (!grupo) {
+      grupo = { clave, inicio: dia.getTime(), etiqueta: etiquetaDia(dia, hoy), esHoy: mismaDia(dia, hoy), items: [] };
+      mapa.set(clave, grupo);
+    }
+    grupo.items.push(t);
+  }
+  return [...mapa.values()].sort((a, b) => b.inicio - a.inicio);
+}
+
+/** ¿El día del grupo cae dentro del filtro temporal elegido? (solo FINALIZADA, solo visual). */
+function diaCaeEnFiltro(grupo: GrupoDia, hoy: Date, filtro: FiltroFinalizada, desde: string, hasta: string): boolean {
+  const inicio = grupo.inicio;
+  switch (filtro) {
+    case "hoy": return grupo.esHoy;
+    case "7": return inicio >= sumarDias(hoy, -6).getTime(); // HOY inclusive = 7 días corridos
+    case "30": return inicio >= sumarDias(hoy, -29).getTime();
+    case "rango": {
+      if (!desde && !hasta) return true;
+      let dentro = true;
+      if (desde) dentro = dentro && inicio >= new Date(`${desde}T00:00:00`).getTime();
+      if (hasta) dentro = dentro && inicio <= new Date(`${hasta}T00:00:00`).getTime();
+      return dentro;
+    }
+    default: return false;
+  }
+}
+
+function ColumnaDev({
+  config,
+  tareas,
+  cambiandoId,
+  onAbrir,
+  onAvanzar,
+}: {
+  config: ConfigColumna;
+  tareas: TareaOperativa[];
+  cambiandoId: string | null;
+  onAbrir: (t: TareaOperativa) => void;
+  onAvanzar: (t: TareaOperativa, siguiente: string) => void;
+}) {
+  const esFinalizada = config.estado === "completada";
+  // El filtro vive SOLO en la columna FINALIZADA. Valor inicial: 7 días.
+  const [filtro, setFiltro] = useState<FiltroFinalizada>("7");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  // Días que el usuario plegó (true = cerrado). La clave incluye la columna para que
+  // cada columna recuerde los suyos sin mezclarse. Los días nuevos toman el valor por defecto.
+  const [cerrados, setCerrados] = useState<Record<string, boolean>>({});
+
+  const hoy = useMemo(() => inicioDeDia(new Date()), []);
+
+  const grupos = useMemo(() => agruparPorDia(tareas, config.estado, hoy), [tareas, config.estado, hoy]);
+
+  // PENDIENTE y EN PROCESO: se muestran todos los días (sin límite temporal).
+  // FINALIZADA: solo los días que caen en el periodo elegido.
+  const gruposVisibles = useMemo(
+    () => (esFinalizada ? grupos.filter((g) => diaCaeEnFiltro(g, hoy, filtro, desde, hasta)) : grupos),
+    [esFinalizada, grupos, hoy, filtro, desde, hasta],
+  );
+
+  const hayHoyVisible = gruposVisibles.some((g) => g.esHoy);
+
+  /** Valor inicial de cada grupo: en FINALIZADA HOY abierto y el resto cerrado (si no hay
+   *  HOY en el periodo, se abre el día más reciente). En las columnas activas todo abierto,
+   *  para que una tarea pendiente/en proceso antigua nunca quede oculta. */
+  function cerradoPorDefecto(g: GrupoDia, indice: number): boolean {
+    if (!esFinalizada) return false;
+    if (hayHoyVisible) return !g.esHoy;
+    return indice !== 0;
+  }
+
+  function estaCerrado(g: GrupoDia, indice: number): boolean {
+    return cerrados[`${config.estado}:${g.clave}`] ?? cerradoPorDefecto(g, indice);
+  }
+
+  function alternar(g: GrupoDia, indice: number) {
+    const k = `${config.estado}:${g.clave}`;
+    setCerrados((prev) => ({ ...prev, [k]: !estaCerrado(g, indice) }));
+  }
+
+  return (
+    <div className="flex flex-col">
+      {/* Encabezado de la columna: el contador es el total REAL (aunque el filtro
+          muestre solo un periodo). */}
+      <div className={`flex items-center justify-between rounded-t-xl px-3 py-2 border ${config.header}`}>
+        <span className="text-xs font-semibold tracking-wide">{config.titulo}</span>
+        <span className="text-[10px] bg-white/80 px-1.5 py-0.5 rounded-full text-neutral-600 font-medium">
+          {tareas.length}
+        </span>
+      </div>
+
+      <div className="flex-1 bg-neutral-50 border border-neutral-200 border-t-0 rounded-b-xl p-2 flex flex-col gap-2 min-h-[120px]">
+        {/* Filtro temporal, solo en FINALIZADA. Puramente visual. */}
+        {esFinalizada && (
+          <div className="flex flex-col gap-1">
+            <div className="flex gap-1 flex-wrap">
+              {OPCIONES_FILTRO.map((op) => {
+                const activo = filtro === op.valor;
+                return (
+                  <button
+                    key={op.valor}
+                    type="button"
+                    onClick={() => setFiltro(op.valor)}
+                    className={`px-2 py-1 rounded-md text-[10px] font-medium transition-colors ${
+                      activo
+                        ? "bg-neutral-800 text-white"
+                        : "bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                    }`}
+                  >
+                    {op.etiqueta}
+                  </button>
+                );
+              })}
+            </div>
+            {filtro === "rango" && (
+              <div className="flex flex-wrap items-center gap-1 text-[10px] text-neutral-600">
+                <label className="font-medium">Desde</label>
+                <input
+                  type="date"
+                  value={desde}
+                  onChange={(e) => setDesde(e.target.value)}
+                  className="border border-neutral-200 bg-white rounded-md px-1.5 py-1 text-[10px] text-neutral-700"
+                />
+                <label className="font-medium">Hasta</label>
+                <input
+                  type="date"
+                  value={hasta}
+                  onChange={(e) => setHasta(e.target.value)}
+                  className="border border-neutral-200 bg-white rounded-md px-1.5 py-1 text-[10px] text-neutral-700"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {tareas.length === 0 ? (
+          <p className="text-xs text-neutral-400 text-center py-6">Sin tareas</p>
+        ) : gruposVisibles.length === 0 ? (
+          <p className="text-xs text-neutral-400 text-center py-6">Sin tareas en este periodo</p>
+        ) : (
+          gruposVisibles.map((g, i) => {
+            const cerrado = estaCerrado(g, i);
+            return (
+              <div key={g.clave} className="flex flex-col gap-1.5">
+                {/* Encabezado del día: fecha + cantidad + abierto/cerrado. Clic lo pliega o despliega. */}
+                <button
+                  type="button"
+                  onClick={() => alternar(g, i)}
+                  title={cerrado ? "Mostrar este día" : "Ocultar este día"}
+                  className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-[10px] font-semibold border transition-colors ${
+                    g.esHoy
+                      ? "bg-neutral-800 text-white border-neutral-800 hover:bg-neutral-700"
+                      : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                  }`}
+                >
+                  <span className="truncate">{g.etiqueta}</span>
+                  <span className={`flex items-center gap-1.5 shrink-0 ${g.esHoy ? "text-white/70" : "text-neutral-400"}`}>
+                    <span>{g.items.length} {g.items.length === 1 ? "tarea" : "tareas"}</span>
+                    <span aria-hidden>{cerrado ? "▶" : "▼"}</span>
+                  </span>
+                </button>
+                {!cerrado && (
+                  <div className="flex flex-col gap-2">
+                    {g.items.map((t) => (
+                      <TarjetaDev key={t.id} tarea={t} cambiandoId={cambiandoId} onAbrir={onAbrir} onAvanzar={onAvanzar} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Tarjeta de una tarea DEV (extraída del tablero para reutilizarla en los grupos de día). */
+function TarjetaDev({
+  tarea,
+  cambiandoId,
+  onAbrir,
+  onAvanzar,
+}: {
+  tarea: TareaOperativa;
+  cambiandoId: string | null;
+  onAbrir: (t: TareaOperativa) => void;
+  onAvanzar: (t: TareaOperativa, siguiente: string) => void;
+}) {
+  const avance = ACCION_AVANCE(tarea.estado);
+  const ocupada = cambiandoId === tarea.id;
+  return (
+    <div className="bg-white border border-neutral-200 rounded-lg shadow-sm hover:border-primary-300 hover:shadow">
+      {/* Zona de información: clic abre el detalle (como siempre) */}
+      <button
+        type="button"
+        onClick={() => onAbrir(tarea)}
+        className="w-full text-left p-2.5 cursor-pointer"
+        title="Abrir detalle"
+      >
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORIDAD_DOT[tarea.prioridad] ?? "bg-neutral-300"}`} title={tarea.prioridad} />
+          <p className="text-xs font-medium text-neutral-900 truncate">{tarea.titulo}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-neutral-500">
+          {tarea.fechaLimite && <span>📅 {new Date(tarea.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
+          <span>👤 {tarea.responsableNombre}</span>
+        </div>
+      </button>
+      {/* Acción rápida: avanza al siguiente estado sin abrir el detalle.
+          La tarea FINALIZADA no tiene acción de avance. */}
+      {avance && (
+        <button
+          type="button"
+          disabled={cambiandoId !== null}
+          onClick={() => onAvanzar(tarea, avance.estado)}
+          className={`w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-b-lg border-t border-neutral-100 transition-colors ${
+            ocupada ? "text-neutral-400 cursor-wait" : avance.clases
+          }`}
+        >
+          {ocupada ? "Guardando..." : avance.etiqueta}
+        </button>
       )}
     </div>
   );
