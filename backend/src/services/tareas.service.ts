@@ -105,6 +105,8 @@ export const TAREA_COLUMNS = {
   resultadoFinal: tareasOperativas.resultadoFinal,
   createdAt: tareasOperativas.createdAt,
   updatedAt: tareasOperativas.updatedAt,
+  startedAt: tareasOperativas.startedAt,
+  completedAt: tareasOperativas.completedAt,
 };
 
 // ─── Permisos sobre una tarea ─────────────────────────────
@@ -475,6 +477,21 @@ export async function actualizarTarea(id: string, input: ActualizarTareaInput, a
   if (input.fechaInicio !== undefined) data.fechaInicio = input.fechaInicio ? fechaNoon(input.fechaInicio) : null;
   if (input.fechaLimite !== undefined) data.fechaLimite = input.fechaLimite ? fechaNoon(input.fechaLimite) : null;
   if (input.estado !== undefined) data.estado = input.estado;
+
+  // ─── DEV: timestamps de cambio de estado ────────────────────────
+  // Cuando una tarea DEV cambia de estado (desde la tarjeta o desde el detalle — ambas
+  // pasan por esta misma función, no hay dos lógicas) se registra el momento real:
+  //  - paso a EN PROCESO  → started_at, solo la PRIMERA vez (si ya tiene valor no se
+  //    reemplaza: es el primer arranque histórico de la tarea).
+  //  - paso a FINALIZADA   → completed_at, momento real de finalización.
+  // Nunca se toca created_at y un cambio hacia atrás (FINALIZADA→EN PROCESO→PENDIENTE)
+  // no borra timestamps ya registrados. Se aplica solo a tareas DEV; el resto del sistema
+  // no cambia su comportamiento.
+  const cambiaEstado = input.estado !== undefined && input.estado !== tarea.estado;
+  if (esTareaDev && cambiaEstado) {
+    if (input.estado === "en_proceso" && !tarea.startedAt) data.startedAt = new Date();
+    if (input.estado === "completada") data.completedAt = new Date();
+  }
   if (input.aprobadorId !== undefined) data.aprobadorId = input.aprobadorId;
   if (input.proyectoId !== undefined) data.proyectoId = input.proyectoId;
   if (input.porcentajeAvance !== undefined) data.porcentajeAvance = input.porcentajeAvance;

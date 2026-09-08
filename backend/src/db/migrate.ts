@@ -93,3 +93,6 @@ ejecutarMigracion("0022_marketing_calendario", sqlMarketingCalendario);
 
 const sqlMarketingCalendarioNota = readFileSync(join(__dirname, "migrations", "0023_marketing_calendario_nota.sql"), "utf-8");
 ejecutarMigracion("0023_marketing_calendario_nota", sqlMarketingCalendarioNota);
+
+const sqlTareasTiempos = readFileSync(join(__dirname, "migrations", "0024_tareas_tiempos.sql"), "utf-8");
+ejecutarMigracion("0024_tareas_tiempos", sqlTareasTiempos);

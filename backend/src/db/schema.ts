@@ -346,6 +346,11 @@ export const tareasOperativas = sqliteTable(
     resultadoFinal: text("resultado_final"),
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
     updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+    // Momento real en que la tarea pasó a EN PROCESO (started_at) y a FINALIZADA
+    // (completed_at). Los registra el módulo DEV (departamento = "DEV"); para el resto
+    // de tareas quedan NULL. Opcionales y aditivos — nunca se calculan retroactivamente.
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
   },
   (t) => ({
     responsableIdx: index("tareas_responsable_idx").on(t.responsableId),

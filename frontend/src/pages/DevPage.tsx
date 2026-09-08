@@ -483,13 +483,25 @@ function TareaDevModal({
                   <p className="text-sm text-neutral-700 whitespace-pre-wrap">{tarea.descripcion}</p>
                 </div>
               )}
+
+              {/* Historial de tiempos: muestra SOLO los estados que ya ocurrieron.
+                  Creada siempre existe; En proceso/Finalizada solo si hay timestamp
+                  registrado (las tareas previas a esta función no tienen y no se inventan). */}
+              <div className="border-t border-neutral-200 pt-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500 mb-2">⏱️ Tiempos</p>
+                <div className="flex flex-col gap-1.5 text-xs">
+                  <TiempoFila etiqueta="Creada" fecha={tarea.createdAt} dot="bg-neutral-400" />
+                  {tarea.startedAt && <TiempoFila etiqueta="En proceso" fecha={tarea.startedAt} dot="bg-primary-500" />}
+                  {tarea.completedAt && <TiempoFila etiqueta="Finalizada" fecha={tarea.completedAt} dot="bg-success-500" />}
+                </div>
+              </div>
             </>
           )}
         </div>
 
         <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-200 bg-neutral-100 rounded-b-xl">
           <span className="text-[10px] text-neutral-500">
-            Creada el {new Date(tarea.createdAt).toLocaleDateString("es-ES")}
+            Creada el {formatoFechaHora(tarea.createdAt)}
           </span>
           <div className="flex gap-2">
             {editando ? (
@@ -550,6 +562,34 @@ function ACCION_AVANCE(estado: string): { estado: string; etiqueta: string; clas
     default:
       return null; // FINALIZADA (y cualquier estado inesperado): sin botón de avance
   }
+}
+
+/**
+ * Formatea una fecha para mostrarla en la zona horaria del CRM (la de la máquina del
+ * usuario): día/mes/año sin ceros + hora en formato 12 h. Ej: "7/9/2026 · 10:42 AM".
+ */
+function formatoFechaHora(fecha: string | Date | null | undefined): string {
+  if (!fecha) return "—";
+  const d = typeof fecha === "string" ? new Date(fecha) : fecha;
+  if (Number.isNaN(d.getTime())) return "—";
+  const dia = d.getDate();
+  const mes = d.getMonth() + 1;
+  const anio = d.getFullYear();
+  const hora = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${dia}/${mes}/${anio} · ${hora}`;
+}
+
+/** Una fila del historial de tiempos del detalle DEV: etiqueta + fecha y hora. */
+function TiempoFila({ etiqueta, fecha, dot }: { etiqueta: string; fecha: string; dot: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="flex items-center gap-1.5 text-neutral-600">
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+        {etiqueta}
+      </span>
+      <span className="font-medium text-neutral-800">{formatoFechaHora(fecha)}</span>
+    </div>
+  );
 }
 
 function Campo({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {

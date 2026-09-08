@@ -346,6 +346,10 @@ export interface TareaOperativa {
   resultadoFinal: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Momento real del paso a EN PROCESO (módulo DEV). null si aún no ocurrió. */
+  startedAt: string | null;
+  /** Momento real del paso a FINALIZADA (módulo DEV). null si aún no ocurrió. */
+  completedAt: string | null;
   checklist?: ChecklistItem[];
   comentarios?: ComentarioTarea[];
   subtareas?: TareaOperativa[];
