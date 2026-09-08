@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../api/AuthContext";
 import { CambiarPasswordModal } from "../components/CambiarPasswordModal";
@@ -49,11 +49,20 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
   }
 
   // ── Sala de OFERTAS ──────────────────────────────────
+  // Centro de la operación comercial: agrupa los accesos a Sala de Ofertas,
+  // Reportes diarios, Tareas, Calendario, Pipelines y Reporte de Ventas.
+  // Solo se muestra a quien ve esta sección (permiso real decidido arriba).
   if (p.menuSecciones.includes("ventas")) {
     items.push(
-      { to: "/ventas", label: "💰 Sala de OFERTAS", seccion: "ventas" },
+      { to: "/ventas", label: "💰 Sala de Ofertas", seccion: "ventas" },
+      { to: "/reportes-diarios", label: "📝 Reportes diarios", seccion: "ventas" },
+      { to: "/tareas", label: "📋 Tareas", seccion: "ventas" },
       { to: "/calendario", label: "📅 Calendario", seccion: "ventas" },
     );
+    if (p.puedeVerPipelineKanban) {
+      items.push({ to: "/pipelines", label: "🔄 Pipelines", seccion: "ventas" });
+    }
+    items.push({ to: "/reporte-ventas", label: "💰 Reporte de Ventas", seccion: "ventas" });
   }
 
   // ── BMF ──────────────────────────────────────────────
@@ -100,28 +109,24 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
   }
 
   // ── Compartidos (todos los usuarios) → sección General ──────
-  items.push(
+  const generales: NavItem[] = [
     { to: "/mi-dia", label: "📍 Mi día", badge: "propias", seccion: "general" },
     { to: "/centro-actividad", label: "🕐 Actividad", seccion: "general" },
-    { to: "/tareas", label: "📋 Tareas", seccion: "general" },
+  ];
+  // Tareas: quien ve SALA DE OFERTAS la usa desde esa sección (centro de la
+  // operación comercial); los demás departamentos la conservan aquí. Nunca duplicada.
+  if (!p.menuSecciones.includes("ventas")) {
+    generales.push({ to: "/tareas", label: "📋 Tareas", seccion: "general" });
+  }
+  generales.push(
     { to: "/equipo", label: "⚙️ Mi Equipo", seccion: "general" },
     { to: "/personas", label: "👤 Clientes", seccion: "general" },
   );
+  items.push(...generales);
 
   // 🎂 Próximos cumpleaños — solo para quien puede verlo (Marketing/Podcast/ADMIN).
   if (p.puedeVerCumpleanos) {
     items.push({ to: "/cumpleanos", label: "🎂 Próximos cumpleaños", seccion: "general" });
-  }
-
-
-  // Pipelines y Reporte Ventas: módulos de ventas. Por decisión de negocio viven
-  // dentro de la sección "Sala de OFERTAS". Si el usuario no ve Sala de OFERTAS
-  // (solo BMF o Podcast), no se muestran en el menú.
-  if (p.menuSecciones.includes("ventas")) {
-    if (p.puedeVerPipelineKanban) {
-      items.push({ to: "/pipelines", label: "🔄 Pipelines", seccion: "ventas" });
-    }
-    items.push({ to: "/reporte-ventas", label: "💰 Reporte Ventas", seccion: "ventas" });
   }
 
   return items;
@@ -145,6 +150,18 @@ export function AppLayout() {
   const [notificadoCumple, setNotificadoCumple] = useState(false);
   // Sección del sidebar expandida (acordeón). Máximo una a la vez; empieza todo comprimido.
   const [seccionAbierta, setSeccionAbierta] = useState<string | null>(null);
+
+  const { pathname } = useLocation();
+
+  // Ítems del menú (permisos ya resueltos arriba) y sección del módulo activo:
+  // al navegar, la sección que contiene la página actual se mantiene abierta.
+  const items = buildNav(permisos, usuario?.rol);
+  const seccionActiva =
+    items.find((i) => pathname === i.to || pathname.startsWith(i.to + "/"))?.seccion ?? null;
+
+  useEffect(() => {
+    if (seccionActiva) setSeccionAbierta(seccionActiva);
+  }, [seccionActiva]);
 
   const actualizarConteos = useCallback(async () => {
     const [propias, equipo] = await Promise.all([
@@ -208,7 +225,6 @@ export function AppLayout() {
 
         <nav className="flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto">
           {(() => {
-            const items = buildNav(permisos, usuario?.rol);
             const headerLabels: Record<string, string> = {
               moc: "Marketing Ops",
               scrum: "Tableros Scrum",

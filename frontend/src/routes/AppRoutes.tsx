@@ -37,6 +37,7 @@ import { OrganigramaPage } from "../pages/OrganigramaPage";
 import { VerificarPinPage } from "../pages/VerificarPinPage";
 import { SeguridadPage } from "../pages/SeguridadPage";
 import { VentasDashboardPage } from "../pages/VentasDashboardPage";
+import { VentasReportesDiariosPage } from "../pages/VentasReportesDiariosPage";
 import { BmfDashboardPage } from "../pages/BmfDashboardPage";
 import { BmfAdminDashboardPage } from "../pages/BmfAdminDashboardPage";
 import { BmfLendersPage } from "../pages/BmfLendersPage";
@@ -113,6 +114,9 @@ export function AppRoutes() {
 
         {/* Sala de OFERTAS — Ventas */}
         <Route path="/ventas" element={<RutaPorDepartamento secciones={["ventas"]}><VentasDashboardPage /></RutaPorDepartamento>} />
+        {/* Reportes diarios (Sala de OFERTAS): acceso provisional; la funcionalidad
+            completa del módulo se desarrolla en una tarea posterior. */}
+        <Route path="/reportes-diarios" element={<RutaPorDepartamento secciones={["ventas"]}><VentasReportesDiariosPage /></RutaPorDepartamento>} />
 
         {/* BMF — Business Market Finders */}
         <Route path="/bmf" element={<RutaPorDepartamento secciones={["bmf"]}><BmfDashboardPage /></RutaPorDepartamento>} />
