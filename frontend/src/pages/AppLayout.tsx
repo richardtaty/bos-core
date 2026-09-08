@@ -99,33 +99,29 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
     );
   }
 
-  // ── Compartidos (todos los usuarios) ─────────────────
+  // ── Compartidos (todos los usuarios) → sección General ──────
   items.push(
-    { to: "/mi-dia", label: "📍 Mi día", badge: "propias" },
-    { to: "/centro-actividad", label: "🕐 Actividad" },
-    { to: "/tareas", label: "📋 Tareas" },
-    { to: "/equipo", label: "⚙️ Mi Equipo" },
-    { to: "/personas", label: "👤 Clientes" },
+    { to: "/mi-dia", label: "📍 Mi día", badge: "propias", seccion: "general" },
+    { to: "/centro-actividad", label: "🕐 Actividad", seccion: "general" },
+    { to: "/tareas", label: "📋 Tareas", seccion: "general" },
+    { to: "/equipo", label: "⚙️ Mi Equipo", seccion: "general" },
+    { to: "/personas", label: "👤 Clientes", seccion: "general" },
   );
 
   // 🎂 Próximos cumpleaños — solo para quien puede verlo (Marketing/Podcast/ADMIN).
   if (p.puedeVerCumpleanos) {
-    items.push({ to: "/cumpleanos", label: "🎂 Próximos cumpleaños" });
+    items.push({ to: "/cumpleanos", label: "🎂 Próximos cumpleaños", seccion: "general" });
   }
 
 
-  // Pipelines (solo deptos que venden)
-  if (p.puedeVerPipelineKanban) {
-    items.push(
-      { to: "/pipelines", label: "🔄 Pipelines", seccion: p.menuSecciones.includes("ventas") ? "ventas" : undefined },
-    );
-  }
-
-  // Reporte de ventas (Sala de OFERTAS, BMF y Podcast — los que venden)
-  if (p.puedeVerReportesGlobales || p.menuSecciones.includes("ventas") || p.menuSecciones.includes("bmf") || p.menuSecciones.includes("podcast")) {
-    items.push(
-      { to: "/reporte-ventas", label: "💰 Reporte Ventas" },
-    );
+  // Pipelines y Reporte Ventas: módulos de ventas. Por decisión de negocio viven
+  // dentro de la sección "Sala de OFERTAS". Si el usuario no ve Sala de OFERTAS
+  // (solo BMF o Podcast), no se muestran en el menú.
+  if (p.menuSecciones.includes("ventas")) {
+    if (p.puedeVerPipelineKanban) {
+      items.push({ to: "/pipelines", label: "🔄 Pipelines", seccion: "ventas" });
+    }
+    items.push({ to: "/reporte-ventas", label: "💰 Reporte Ventas", seccion: "ventas" });
   }
 
   return items;
@@ -221,37 +217,27 @@ export function AppLayout() {
               podcast: "Podcast",
               ceo: "CEO",
               dev: "DEV",
+              general: "General",
             };
 
             const badgeDe = (item: NavItem) =>
               item.badge === "propias" ? conteoPropias : item.badge === "equipo" ? conteoEquipo : 0;
 
-            // Agrupar el nav como antes: cada tramo contiguo de módulos con la misma
-            // `seccion` forma un bloque bajo un encabezado; los módulos sin seccion van sueltos.
-            type Fila =
-              | { tipo: "link"; item: NavItem }
-              | { tipo: "seccion"; id: string; etiqueta: string; items: NavItem[] };
-            const filas: Fila[] = [];
-            const usosSeccion: Record<string, number> = {};
+            // Todo módulo pertenece a una sección (buildNav ya lo marca). Se agrupa UNA
+            // sola vez por sección, en el orden en que aparece por primera vez, así no hay
+            // encabezados duplicados ni módulos sueltos. Si algo quedara sin seccion, cae
+            // en "general" como red de seguridad.
+            type GrupoNav = { id: string; etiqueta: string; items: NavItem[] };
+            const grupos: GrupoNav[] = [];
+            const indiceGrupo: Record<string, number> = {};
             for (const item of items) {
-              if (!item.seccion) {
-                filas.push({ tipo: "link", item });
-                continue;
+              const sec = item.seccion ?? "general";
+              if (sec in indiceGrupo) {
+                grupos[indiceGrupo[sec]].items.push(item);
+              } else {
+                indiceGrupo[sec] = grupos.length;
+                grupos.push({ id: sec, etiqueta: headerLabels[sec] ?? sec, items: [item] });
               }
-              const ultima = filas[filas.length - 1];
-              if (ultima?.tipo === "seccion" && ultima.items[0].seccion === item.seccion) {
-                ultima.items.push(item);
-                continue;
-              }
-              // Si el mismo nombre de seccion aparece en dos bloques separados (ej. Sala de
-              // OFERTAS arriba y de nuevo ante "Pipelines"), se tratan como grupos distintos.
-              usosSeccion[item.seccion] = (usosSeccion[item.seccion] ?? 0) + 1;
-              filas.push({
-                tipo: "seccion",
-                id: `${item.seccion}:${usosSeccion[item.seccion]}`,
-                etiqueta: headerLabels[item.seccion] ?? item.seccion,
-                items: [item],
-              });
             }
 
             const renderNavLink = (item: NavItem, key: string) => {
@@ -278,20 +264,17 @@ export function AppLayout() {
               );
             };
 
-            return filas.map((fila) => {
-              if (fila.tipo === "link") {
-                return renderNavLink(fila.item, `link:${fila.item.to}`);
-              }
-              const abierta = seccionAbierta === fila.id;
+            return grupos.map((grupo) => {
+              const abierta = seccionAbierta === grupo.id;
               return (
-                <div key={fila.id}>
+                <div key={grupo.id}>
                   <button
                     type="button"
-                    onClick={() => setSeccionAbierta(abierta ? null : fila.id)}
+                    onClick={() => setSeccionAbierta(abierta ? null : grupo.id)}
                     aria-expanded={abierta}
                     className="w-full flex items-center justify-between text-left text-[10px] font-semibold uppercase text-neutral-500 tracking-wider mt-3 mb-1 px-1 cursor-pointer hover:text-neutral-800 transition-colors"
                   >
-                    <span>{fila.etiqueta}</span>
+                    <span>{grupo.etiqueta}</span>
                     <span
                       aria-hidden="true"
                       className={`text-[9px] text-neutral-400 transition-transform duration-200 ${abierta ? "rotate-90" : ""}`}
@@ -301,7 +284,7 @@ export function AppLayout() {
                   </button>
                   {abierta && (
                     <div className="flex flex-col gap-1 pl-2">
-                      {fila.items.map((item) => renderNavLink(item, `${fila.id}:${item.to}`))}
+                      {grupo.items.map((item, idx) => renderNavLink(item, `${grupo.id}:${idx}`))}
                     </div>
                   )}
                 </div>
