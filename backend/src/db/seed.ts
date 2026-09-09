@@ -12,6 +12,21 @@ async function asignarDepartamento(usuarioId: string, deptoId: string) {
   }
 }
 
+// ─── Simplificación de etapas (SALA DE OFERTAS) ─────────────────────────────
+// Todos los pipelines de ventas usan el MISMO flujo comercial de 4 columnas:
+//   NUEVO → EN SEGUIMIENTO → CERRADO GANADO / CERRADO PERDIDO
+// Cualquier etapa intermedia que antes representaba "seguimiento" (Contactado,
+// Calificado, Propuesta, Negociación, etc.) se consolida en EN SEGUIMIENTO.
+// La migración de datos reales vive en simplificarEtapasVentas() más abajo; esta
+// constante solo define cómo deben quedar los pipelines NUEVOS (y la meta a la
+// que converge la migración en cada arranque).
+const ETAPAS_VENTAS_SIMPLIFICADAS: { nombre: string; esGanada?: boolean; esPerdida?: boolean }[] = [
+  { nombre: "NUEVO" },
+  { nombre: "EN SEGUIMIENTO" },
+  { nombre: "CERRADO GANADO", esGanada: true },
+  { nombre: "CERRADO PERDIDO", esPerdida: true },
+];
+
 const PIPELINES: Record<string, { nombre: string; esGanada?: boolean; esPerdida?: boolean }[]> = {
   "Préstamo para negocios": [
     { nombre: "Lead Nuevo" },
@@ -52,81 +67,15 @@ const PIPELINES: Record<string, { nombre: string; esGanada?: boolean; esPerdida?
     { nombre: "Lost", esPerdida: true },
     { nombre: "Future Opportunity" },
   ],
-  "Código Financiero": [
-    { nombre: "Interesado" },
-    { nombre: "Matriculado" },
-    { nombre: "En progreso" },
-    { nombre: "Completado" },
-    { nombre: "Certificado", esGanada: true },
-  ],
-  "Tu Negocio en USA": [
-    { nombre: "Nuevo" },
-    { nombre: "Contactado" },
-    { nombre: "Calificado" },
-    { nombre: "Propuesta enviada" },
-    { nombre: "Negociación" },
-    { nombre: "Cerrado ganado", esGanada: true },
-    { nombre: "Cerrado perdido", esPerdida: true },
-  ],
-  "Mentoría Estratégica": [
-    { nombre: "Prospecto" },
-    { nombre: "Diagnóstico agendado" },
-    { nombre: "Propuesta presentada" },
-    { nombre: "Contrato firmado" },
-    { nombre: "Onboarding" },
-    { nombre: "Activo" },
-    { nombre: "Graduado", esGanada: true },
-    { nombre: "Perdido", esPerdida: true },
-  ],
-  "Kappitalia CRM": [
-    { nombre: "Trial iniciado" },
-    { nombre: "Onboarding" },
-    { nombre: "Activo" },
-    { nombre: "En riesgo" },
-    { nombre: "Renovado", esGanada: true },
-    { nombre: "Cancelado", esPerdida: true },
-  ],
-  Libros: [
-    { nombre: "Nuevo" },
-    { nombre: "Contactado" },
-    { nombre: "Calificado" },
-    { nombre: "Propuesta enviada" },
-    { nombre: "Negociación" },
-    { nombre: "Cerrado ganado", esGanada: true },
-    { nombre: "Cerrado perdido", esPerdida: true },
-  ],
-  "Crea tu libro": [
-    { nombre: "Idea" },
-    { nombre: "Guion" },
-    { nombre: "Grabación" },
-    { nombre: "Edición" },
-    { nombre: "Aprobación" },
-    { nombre: "Publicado", esGanada: true },
-  ],
-  "Eventos presenciales": [
-    { nombre: "Invitado" },
-    { nombre: "Registrado" },
-    { nombre: "Confirmado" },
-    { nombre: "Asistió", esGanada: true },
-    { nombre: "No-show", esPerdida: true },
-  ],
-  "Eventos virtuales": [
-    { nombre: "Prospectado" },
-    { nombre: "Contactado" },
-    { nombre: "Propuesta enviada" },
-    { nombre: "Confirmado" },
-    { nombre: "Contrato firmado" },
-    { nombre: "Presentó", esGanada: true },
-  ],
-  Marketing: [
-    { nombre: "Nuevo" },
-    { nombre: "Contactado" },
-    { nombre: "Calificado" },
-    { nombre: "Propuesta enviada" },
-    { nombre: "Negociación" },
-    { nombre: "Cerrado ganado", esGanada: true },
-    { nombre: "Cerrado perdido", esPerdida: true },
-  ],
+  "Código Financiero": ETAPAS_VENTAS_SIMPLIFICADAS,
+  "Tu Negocio en USA": ETAPAS_VENTAS_SIMPLIFICADAS,
+  "Mentoría Estratégica": ETAPAS_VENTAS_SIMPLIFICADAS,
+  "Kappitalia CRM": ETAPAS_VENTAS_SIMPLIFICADAS,
+  Libros: ETAPAS_VENTAS_SIMPLIFICADAS,
+  "Crea tu libro": ETAPAS_VENTAS_SIMPLIFICADAS,
+  "Eventos presenciales": ETAPAS_VENTAS_SIMPLIFICADAS,
+  "Eventos virtuales": ETAPAS_VENTAS_SIMPLIFICADAS,
+  Marketing: ETAPAS_VENTAS_SIMPLIFICADAS,
   // Flujo específico del módulo Podcast (brief del 01/ago/2026). El brief pide 9 etapas
   // lineales, pero los KPIs piden contar no-shows y ventas cerradas por separado — el motor
   // de pipelines necesita una etapa marcada esPerdida/esGanada para calcular conversión, así
@@ -144,15 +93,7 @@ const PIPELINES: Record<string, { nombre: string; esGanada?: boolean; esPerdida?
     { nombre: "Venta cerrada", esGanada: true },
     { nombre: "No cerró", esPerdida: true },
   ],
-  "Fábrica de Talentos": [
-    { nombre: "Nuevo" },
-    { nombre: "Contactado" },
-    { nombre: "Calificado" },
-    { nombre: "Propuesta enviada" },
-    { nombre: "Negociación" },
-    { nombre: "Cerrado ganado", esGanada: true },
-    { nombre: "Cerrado perdido", esPerdida: true },
-  ],
+  "Fábrica de Talentos": ETAPAS_VENTAS_SIMPLIFICADAS,
   Otro: [
     { nombre: "Saludable" },
     { nombre: "Vigilancia" },
@@ -276,6 +217,144 @@ async function consolidarServicios() {
     await db.update(pipelines).set({ nombre: nuevo }).where(eq(pipelines.id, p.id));
   }
   console.log("Servicios: pipelines renombrados a los 13 servicios.");
+}
+
+// ─── Simplificación de etapas en SALA DE OFERTAS ─────────────────────────────
+// Objetivo (tarea 2026-09-08): que cada pipeline de ventas tenga SOLO 4 columnas:
+//   NUEVO → EN SEGUIMIENTO → CERRADO GANADO / CERRADO PERDIDO.
+// Las columnas intermedias de "seguimiento" (Contactado, Calificado, Propuesta,
+// Negociación, Onboarding, Activo, etc.) se consolidan en EN SEGUIMIENTO.
+//
+// Reglas de la migración (idempotente, segura de correr cada arranque):
+//  - Una etapa marcada esGanada  → CERRADO GANADO  (nunca se toca su estado final).
+//  - Una etapa marcada esPerdida → CERRADO PERDIDO (nunca se toca su estado final).
+//  - La primera etapa abierta    → NUEVO.
+//  - Cualquier otra etapa abierta→ EN SEGUIMIENTO.
+//  - NUNCA se borran oportunidades: cada registro se reasigna a la columna que le
+//    corresponde, y cada entrada de historial_etapas se re-apunta al mismo destino
+//    para no dejar referencias colgando. Montos, pagos, responsables y fechas quedan
+//    intactos (solo cambia el estado comercial de la tarjeta).
+//  - Una vez que el pipeline quedó canónico (4 etapas con nombres y orden exactos),
+//    la función no hace nada y solo imprime "ya canónico".
+
+interface EtapaLite {
+  id: string;
+  nombre: string;
+  orden: number;
+  esGanada: boolean;
+  esPerdida: boolean;
+}
+
+const SLOTS_VENTAS: { nombre: string; esGanada: boolean; esPerdida: boolean }[] = [
+  { nombre: "NUEVO", esGanada: false, esPerdida: false },
+  { nombre: "EN SEGUIMIENTO", esGanada: false, esPerdida: false },
+  { nombre: "CERRADO GANADO", esGanada: true, esPerdida: false },
+  { nombre: "CERRADO PERDIDO", esGanada: false, esPerdida: true },
+];
+
+function etapasCanonicas(etapas: EtapaLite[]): boolean {
+  if (etapas.length !== SLOTS_VENTAS.length) return false;
+  return etapas.every((e, i) => {
+    const s = SLOTS_VENTAS[i];
+    return e.nombre === s.nombre && e.orden === i && e.esGanada === s.esGanada && e.esPerdida === s.esPerdida;
+  });
+}
+
+async function insertarEtapaVentas(pipelineId: string, slot: (typeof SLOTS_VENTAS)[number], orden: number): Promise<EtapaLite> {
+  const id = crypto.randomUUID();
+  await db.insert(etapas).values({
+    id,
+    pipelineId,
+    nombre: slot.nombre,
+    orden,
+    esGanada: slot.esGanada,
+    esPerdida: slot.esPerdida,
+  });
+  return { id, nombre: slot.nombre, orden, esGanada: slot.esGanada, esPerdida: slot.esPerdida };
+}
+
+async function simplificarEtapasDeUnPipeline(pipelineId: string): Promise<string | null> {
+  const filas = await db.select().from(etapas).where(eq(etapas.pipelineId, pipelineId));
+  if (filas.length === 0) return null;
+
+  const actuales: EtapaLite[] = filas.map((f) => ({
+    id: f.id,
+    nombre: f.nombre,
+    orden: f.orden,
+    esGanada: f.esGanada,
+    esPerdida: f.esPerdida,
+  })).sort((a, b) => a.orden - b.orden);
+
+  if (etapasCanonicas(actuales)) return "ya canónico (4 etapas)";
+
+  const abiertas = actuales.filter((e) => !e.esGanada && !e.esPerdida).sort((a, b) => a.orden - b.orden);
+  const ganadas = actuales.filter((e) => e.esGanada);
+  const perdidas = actuales.filter((e) => e.esPerdida);
+
+  const porNombre = new Map(actuales.map((e) => [e.nombre, e]));
+
+  // Elegir qué etapa existente se convierte en cada columna canónica (reusar = conserva
+  // el historial que ya apunta a ese id). Si no hay candidata, se crea una nueva.
+  let nueva = porNombre.get("NUEVO") ?? abiertas[0];
+  let seguimiento = porNombre.get("EN SEGUIMIENTO") ?? abiertas.find((a) => a.id !== nueva?.id);
+  if (seguimiento && nueva && seguimiento.id === nueva.id) seguimiento = undefined;
+  let ganada = porNombre.get("CERRADO GANADO") ?? ganadas[0];
+  let perdida = porNombre.get("CERRADO PERDIDO") ?? perdidas[0];
+
+  if (!nueva) nueva = await insertarEtapaVentas(pipelineId, SLOTS_VENTAS[0], 0);
+  if (!seguimiento) seguimiento = await insertarEtapaVentas(pipelineId, SLOTS_VENTAS[1], 1);
+  if (!ganada) ganada = await insertarEtapaVentas(pipelineId, SLOTS_VENTAS[2], 2);
+  if (!perdida) perdida = await insertarEtapaVentas(pipelineId, SLOTS_VENTAS[3], 3);
+
+  const objetivo = {
+    nueva: nueva.id,
+    seguimiento: seguimiento.id,
+    ganada: ganada.id,
+    perdida: perdida.id,
+  };
+  const idsFinales = new Set(Object.values(objetivo));
+
+  // Etapas que sobran → a qué columna final van sus registros e historial.
+  const destinoDe = (e: EtapaLite): string => {
+    if (e.esGanada) return objetivo.ganada;
+    if (e.esPerdida) return objetivo.perdida;
+    // Cualquier etapa abierta que no sea la que quedó como NUEVO es "seguimiento".
+    return objetivo.seguimiento;
+  };
+
+  const sobrantes = actuales.filter((e) => !idsFinales.has(e.id));
+  let registrosMovidos = 0;
+  for (const e of sobrantes) {
+    const destinoId = destinoDe(e);
+    const idsRegistros = await db.select({ id: registros.id }).from(registros).where(eq(registros.etapaId, e.id));
+    registrosMovidos += idsRegistros.length;
+    await db.update(registros).set({ etapaId: destinoId }).where(eq(registros.etapaId, e.id));
+    await db.update(historialEtapas).set({ etapaNuevaId: destinoId }).where(eq(historialEtapas.etapaNuevaId, e.id));
+    await db.delete(etapas).where(eq(etapas.id, e.id));
+  }
+
+  // Ajustar nombre/orden/flags de las 4 columnas finales.
+  const ajustar = async (etapa: EtapaLite, slot: (typeof SLOTS_VENTAS)[number], orden: number) => {
+    if (etapa.nombre === slot.nombre && etapa.orden === orden && etapa.esGanada === slot.esGanada && etapa.esPerdida === slot.esPerdida) return;
+    await db.update(etapas).set({ nombre: slot.nombre, orden, esGanada: slot.esGanada, esPerdida: slot.esPerdida }).where(eq(etapas.id, etapa.id));
+  };
+  await ajustar(nueva, SLOTS_VENTAS[0], 0);
+  await ajustar(seguimiento, SLOTS_VENTAS[1], 1);
+  await ajustar(ganada, SLOTS_VENTAS[2], 2);
+  await ajustar(perdida, SLOTS_VENTAS[3], 3);
+
+  const eliminadas = sobrantes.length;
+  return `simplificado: ${registrosMovidos} registro(s) reasignado(s), ${eliminadas} etapa(s) redundante(s) consolidada(s).`;
+}
+
+async function simplificarEtapasVentas() {
+  const [deptoVentas] = await db.select().from(departamentos).where(eq(departamentos.nombre, "Sala de OFERTAS"));
+  if (!deptoVentas) return;
+  const pipelinesVentas = await db.select().from(pipelines).where(eq(pipelines.departamentoId, deptoVentas.id));
+  for (const p of pipelinesVentas) {
+    const info = await simplificarEtapasDeUnPipeline(p.id);
+    if (info) console.log(`  Sala de OFERTAS · "${p.nombre}": ${info}`);
+  }
 }
 
 // ─── Migración de nombres de negocio (servicios) legacy ─────────────────────
@@ -492,6 +571,11 @@ async function main() {
   await migrarNegociosLegacy();
   await migrarOfertasLegacy();
 
+  // SALA DE OFERTAS: convertir cada pipeline a NUEVO / EN SEGUIMIENTO / CERRADO
+  // GANADO / CERRADO PERDIDO. Va ANTES del loop de etapas para no mezclar las
+  // columnas canónicas recién creadas con las antiguas que se están consolidando.
+  await simplificarEtapasVentas();
+
   // Resolver IDs de departamentos para el mapeo pipeline → unidad de negocio
   const deptos = await db.select().from(departamentos);
   const deptoNombreId = new Map(deptos.map((d) => [d.nombre, d.id]));
@@ -526,6 +610,13 @@ async function main() {
       }
     }
   }
+
+  // Segunda pasada de simplificación: los pipelines legacy que llegaron a "Sala de
+  // OFERTAS" recién aquí (su departamento se asignó dentro del loop de arriba, ej.
+  // "Contenido"→"Crea tu libro" que estaba sin departamento) acaban de recibir sus
+  // etapas canónicas. Esta pasada consolida sus etapas viejas restantes y los deja
+  // canónicos en el mismo arranque. Es idempotente: un pipeline ya canónico no hace nada.
+  await simplificarEtapasVentas();
 
   // ─── Crear equipo de Marketing si no existe ──────────────
   const [equipoMarketing] = await db.select().from(equipos).where(eq(equipos.nombre, "Equipo Marketing"));
