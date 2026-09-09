@@ -105,6 +105,11 @@ export const tareasSeguimiento = sqliteTable(
     personaId: text("persona_id").notNull().references(() => personas.id, { onDelete: "cascade" }),
     fecha: timestamp("fecha").notNull(),
     nota: text("nota"),
+    // Tipo estructurado del registro del Calendario: 'alerta' | 'recordatorio' | 'seguimiento'.
+    // Los seguimientos que agenda el CRM (interacciones/cobros) quedan como 'seguimiento'.
+    tipo: text("tipo").notNull().default("seguimiento"),
+    // Título/motivo corto que identifica el registro (ej. "Llamar para seguimiento").
+    titulo: text("titulo"),
     completado: integer("completado", { mode: "boolean" }).notNull().default(false),
     // Cuándo y quién completó la tarea — para series diarias de "follow-ups realizados hoy".
     completadoEn: timestamp("completado_en"),

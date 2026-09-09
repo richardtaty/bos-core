@@ -23,6 +23,7 @@ import { agenteRouter } from "./routes/agente.routes";
 import { publicBmfRouter } from "./routes/public-bmf.routes";
 import { cumpleanosRouter } from "./routes/cumpleanos.routes";
 import { marketingRouter } from "./routes/marketing.routes";
+import { calendarioRouter } from "./routes/calendario.routes";
 import { iniciarFundingWorker } from "./services/funding-worker.service";
 import { iniciarCumpleanosWorker } from "./services/cumpleanos-worker.service";
 import { emailActivo, iaActiva, documentosActivos } from "./lib/funding-env";
@@ -72,6 +73,8 @@ app.use("/api/public", publicBmfRouter);
 app.use("/api/cumpleanos", cumpleanosRouter);
 // 📅 Calendario de Marketing (correos/contenido por proyecto) — rutas/marketing.routes.ts.
 app.use("/api/marketing", marketingRouter);
+// 📅 Calendario (SALA DE OFERTAS → Calendario): crear alertas/recordatorios/seguimientos.
+app.use("/api/calendario", calendarioRouter);
 
 // Sirve el frontend ya compilado (dist) desde el mismo servicio — un solo deploy en Fly.io,
 // sin necesidad de CORS entre dos dominios ni de correr dos apps separadas.

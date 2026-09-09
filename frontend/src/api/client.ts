@@ -474,6 +474,10 @@ export const api = {
   listarTareasPendientes: (propias = false) =>
     request<import("../types").TareaPendiente[]>(`/personas/tareas/pendientes${propias ? "?propias=true" : ""}`),
 
+  // 📅 Crear un registro del Calendario (alerta/recordatorio/seguimiento) ligado a un cliente real.
+  crearRegistroCalendario: (data: import("../types").RegistroCalendarioInput) =>
+    request<{ ok: boolean; id: string }>("/calendario/registros", { method: "POST", body: JSON.stringify(data) }),
+
   listarPagos: (registroId: string) =>
     request<import("../types").Pago[]>(`/pipelines/registros/${registroId}/pagos`),
 

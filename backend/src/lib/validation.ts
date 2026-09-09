@@ -64,6 +64,20 @@ export const crearInteraccionSchema = z.object({
   notaSeguimiento: z.string().optional(),
 });
 
+// Tipos de registro del Calendario (SALA DE OFERTAS → Calendario). Valor estructurado,
+// nunca se deduce por el texto del título. 'seguimiento' es también el tipo de los
+// seguimientos que el CRM agenda desde interacciones/cobros (default de la tabla).
+export const TIPOS_REGISTRO_CALENDARIO = ["alerta", "recordatorio", "seguimiento"] as const;
+export const crearRegistroCalendarioSchema = z.object({
+  personaId: z.string().min(1, "Selecciona un cliente"),
+  tipo: z.enum(TIPOS_REGISTRO_CALENDARIO),
+  // Fecha en la que debe realizarse la alerta/recordatorio/seguimiento. ISO con hora
+  // (la hora es opcional desde el formulario; sin hora se guarda al mediodía).
+  fecha: z.string().datetime({ message: "Fecha inválida" }),
+  titulo: z.string().min(1, "El título o motivo es obligatorio").max(300, "El título es demasiado largo"),
+  nota: z.string().optional(),
+});
+
 export const moverEtapaSchema = z.object({
   etapaId: z.string().min(1),
   motivoPerdida: z.string().optional(),
@@ -224,6 +238,7 @@ export type CrearPersonaInput = z.infer<typeof crearPersonaSchema>;
 export type CrearSolicitudFundingInput = z.infer<typeof crearSolicitudFundingSchema>;
 export type ActualizarPersonaInput = z.infer<typeof actualizarPersonaSchema>;
 export type CrearInteraccionInput = z.infer<typeof crearInteraccionSchema>;
+export type CrearRegistroCalendarioInput = z.infer<typeof crearRegistroCalendarioSchema>;
 export type CrearUsuarioInput = z.infer<typeof crearUsuarioSchema>;
 export type CambiarPasswordInput = z.infer<typeof cambiarPasswordSchema>;
 export type RegistrarPagoInput = z.infer<typeof registrarPagoSchema>;

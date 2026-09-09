@@ -75,10 +75,28 @@ export interface TareaPendiente {
   id: string;
   fecha: string;
   nota: string | null;
+  // Tipo estructurado del registro del Calendario ('alerta' | 'recordatorio' | 'seguimiento').
+  tipo: string;
+  // Título/motivo corto (opcional en los seguimientos que agenda el CRM).
+  titulo: string | null;
   personaId: string;
   personaNombre: string;
   responsableId: string;
   responsableNombre: string;
+}
+
+// ─── 📅 Registros del Calendario (SALA DE OFERTAS → Calendario) ─────────
+// Alerta / Recordatorio / Seguimiento. Se guardan en la misma tabla que alimenta el resumen
+// ATRASADAS/PARA HOY/PRÓXIMAS. Valor estructurado, nunca deducido por el texto.
+
+export type TipoRegistroCalendario = "alerta" | "recordatorio" | "seguimiento";
+
+export interface RegistroCalendarioInput {
+  personaId: string;
+  tipo: TipoRegistroCalendario;
+  fecha: string; // ISO
+  titulo: string;
+  nota?: string;
 }
 
 export interface Cumpleanero {

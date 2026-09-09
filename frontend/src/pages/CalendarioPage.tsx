@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { api } from "../api/client";
+import { NuevoRegistroCalendarioModal } from "../components/NuevoRegistroCalendarioModal";
+import { claseChipTipoRegistro, etiquetaTipoRegistro } from "../lib/calendario-tipos";
 import type { TareaPendiente } from "../types";
 
 function diasDiferencia(fechaIso: string): number {
@@ -67,7 +69,7 @@ const GRUPOS_DEF: {
     dot: "bg-success-500",
     pill: "bg-success-500 text-white",
     tarjeta: "bg-success-50 border-success-100",
-    vacio: "Sin seguimientos pendientes para hoy.",
+    vacio: "Sin registros pendientes para hoy.",
     conVencimiento: false,
   },
   {
@@ -76,7 +78,7 @@ const GRUPOS_DEF: {
     dot: "bg-warning-500",
     pill: "bg-warning-500 text-neutral-900",
     tarjeta: "bg-warning-50 border-warning-100",
-    vacio: "Sin próximos seguimientos agendados.",
+    vacio: "Sin próximos registros agendados.",
     conVencimiento: false,
   },
 ];
@@ -94,6 +96,8 @@ export function CalendarioPage() {
     hoy: false,
     proximas: false,
   });
+  // Modal de alta de un registro del Calendario (alerta / recordatorio / seguimiento).
+  const [crearAbierto, setCrearAbierto] = useState(false);
 
   const alternarGrupo = (clave: ClaveGrupo) =>
     setGruposAbiertos((prev) => ({ ...prev, [clave]: !prev[clave] }));
@@ -146,13 +150,18 @@ export function CalendarioPage() {
     doc.setTextColor(100, 116, 139);
     const subtitulo = `Período: ${rangoLabel}${filtroResponsable ? `  ·  Responsable: ${filtroResponsable}` : ""}`;
     doc.text(pdfSafe(subtitulo), 14, 25);
-    doc.text(`Total de seguimientos: ${filtradas.length}`, 14, 31);
+    doc.text(`Total de registros: ${filtradas.length}`, 14, 31);
 
     const ordenadas = [...filtradas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-    const body = ordenadas.map((t) => [fmtFecha(t.fecha), pdfSafe(t.personaNombre), pdfSafe(t.nota ?? ""), pdfSafe(t.responsableNombre)]);
+    const body = ordenadas.map((t) => [
+      fmtFecha(t.fecha),
+      pdfSafe(t.personaNombre),
+      pdfSafe([t.titulo, t.nota].filter(Boolean).join(" · ")),
+      pdfSafe(t.responsableNombre),
+    ]);
 
     autoTable(doc, {
-      head: [["Fecha", "Contacto", "Seguimiento", "Responsable"]],
+      head: [["Fecha", "Contacto", "Motivo / nota", "Responsable"]],
       body,
       startY: 37,
       styles: { fontSize: 9, cellPadding: 2.5 },
@@ -165,17 +174,25 @@ export function CalendarioPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
         <h1 className="text-xl font-semibold text-neutral-900">Calendario del equipo</h1>
-        <button
-          onClick={exportarPDF}
-          disabled={filtradas.length === 0}
-          className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800 disabled:cursor-not-allowed"
-        >
-          ⬇ Exportar PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCrearAbierto(true)}
+            className="text-sm bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600"
+          >
+            ＋ Nuevo registro
+          </button>
+          <button
+            onClick={exportarPDF}
+            disabled={filtradas.length === 0}
+            className="text-sm border border-neutral-200 text-neutral-600 px-4 py-2 rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ⬇ Exportar PDF
+          </button>
+        </div>
       </div>
-      <p className="text-sm text-neutral-500 mb-4">Todos los seguimientos pendientes, de todo el equipo</p>
+      <p className="text-sm text-neutral-500 mb-4">Alertas, recordatorios y seguimientos pendientes de todo el equipo</p>
 
       {/* Filtros: rango de fechas + responsable */}
       <div className="flex flex-wrap items-end gap-3 mb-4">
@@ -218,7 +235,7 @@ export function CalendarioPage() {
         )}
       </div>
 
-      <p className="text-xs text-neutral-500 mb-4">Mostrando {filtradas.length} seguimiento{filtradas.length !== 1 ? "s" : ""} · {rangoLabel}</p>
+      <p className="text-xs text-neutral-500 mb-4">Mostrando {filtradas.length} registro{filtradas.length !== 1 ? "s" : ""} · {rangoLabel}</p>
 
       {/* Resumen operativo: ATRASADAS · PARA HOY · PRÓXIMAS.
           Cada bloque abre y cierra por separado; al entrar todo queda contraído
@@ -263,7 +280,16 @@ export function CalendarioPage() {
                         className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${def.tarjeta} hover:opacity-80`}
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-neutral-900 truncate">{t.personaNombre}</p>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              aria-label={etiquetaTipoRegistro(t.tipo)}
+                              className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${claseChipTipoRegistro(t.tipo)}`}
+                            >
+                              {etiquetaTipoRegistro(t.tipo)}
+                            </span>
+                            <p className="text-sm font-medium text-neutral-900 truncate">{t.personaNombre}</p>
+                          </div>
+                          {t.titulo ? <p className="text-xs text-neutral-600 truncate">{t.titulo}</p> : null}
                           {t.nota ? <p className="text-xs text-neutral-500 truncate">{t.nota}</p> : null}
                         </div>
                         <div className="text-right shrink-0">
@@ -282,6 +308,16 @@ export function CalendarioPage() {
           );
         })}
       </div>
+
+      {crearAbierto && (
+        <NuevoRegistroCalendarioModal
+          onClose={() => setCrearAbierto(false)}
+          onSaved={() => {
+            setCrearAbierto(false);
+            void cargar();
+          }}
+        />
+      )}
     </div>
   );
 }

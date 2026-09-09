@@ -427,6 +427,8 @@ export async function listarTareasPendientes(responsableId?: string) {
       id: tareasSeguimiento.id,
       fecha: tareasSeguimiento.fecha,
       nota: tareasSeguimiento.nota,
+      tipo: tareasSeguimiento.tipo,
+      titulo: tareasSeguimiento.titulo,
       personaId: personas.id,
       personaNombre: personas.nombre,
       responsableId: personas.responsableId,
