@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { KpiCard } from "../components/KpiCard";
 import { TareaDetalleModal } from "../components/TareaDetalleModal";
 import type { TareaOperativa, Usuario } from "../types";
+import { esActiva, esAtrasada, esCompletada } from "../lib/estados";
 
 // El contenido del tablero se determina automáticamente por el campo
 // `departamento` de cada tarea — no depende de un filtro manual ni de la
@@ -52,9 +53,7 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
       api.listarTareas({ departamento: area }),
       api.listarUsuarios(),
     ]);
-    // Solo se excluyen las canceladas. Las de estado `aprobado` y `publicado`
-    // deben seguir viéndose: caen en la columna "Completadas" (ver
-    // tareasPorColumna) y se cuentan en el KPI de completadas.
+    // El tablero muestra las terminadas (columna "Completadas") y oculta solo las canceladas.
     setTareas(t.filter((x) => x.estado !== "cancelado"));
     setUsuarios(u);
     setCargando(false);
@@ -110,7 +109,8 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
   const tareasPorColumna = (estado: string) => {
     // Mapear estados legacy a scrum
     if (estado === "por_hacer") return tareas.filter((t) => t.estado === "por_hacer" || t.estado === "pendiente");
-    if (estado === "completada") return tareas.filter((t) => t.estado === "completada" || t.estado === "aprobado" || t.estado === "publicado");
+    // El único estado de terminado es "completada" (aprobado/publicado ya no existen).
+    if (estado === "completada") return tareas.filter((t) => t.estado === "completada");
     return tareas.filter((t) => t.estado === estado);
   };
 
@@ -128,11 +128,11 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
 
       {/* KPIs rápidos */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <KpiCard titulo="Total activas" valor={tareas.filter((t) => !["completada", "cancelado"].includes(t.estado)).length} icono="📋" color="neutral" />
+        <KpiCard titulo="Total activas" valor={tareas.filter((t) => esActiva(t.estado)).length} icono="📋" color="neutral" />
         <KpiCard titulo="Bloqueadas" valor={tareas.filter((t) => t.estado === "bloqueada").length} icono="🚫" color="danger" />
         <KpiCard titulo="En revisión" valor={tareas.filter((t) => t.estado === "en_revision").length} icono="👁" color="warning" />
-        <KpiCard titulo="Completadas" valor={tareas.filter((t) => t.estado === "completada" || t.estado === "aprobado" || t.estado === "publicado").length} icono="✅" color="success" />
-        <KpiCard titulo="Atrasadas" valor={tareas.filter((t) => t.fechaLimite && new Date(t.fechaLimite) < new Date() && !["completada", "cancelado"].includes(t.estado)).length} icono="⚠️" color="warning" />
+        <KpiCard titulo="Completadas" valor={tareas.filter((t) => esCompletada(t.estado)).length} icono="✅" color="success" />
+        <KpiCard titulo="Atrasadas" valor={tareas.filter((t) => esAtrasada(t)).length} icono="⚠️" color="warning" />
       </div>
 
       {/* Error al mover tarjeta */}
@@ -184,7 +184,7 @@ export function ScrumBoardPage({ area = "Marketing" }: { area?: string }) {
                           </span>
                         )}
                         {t.fechaLimite && (
-                          <span className={`px-1 py-0.5 rounded ${new Date(t.fechaLimite) < new Date() ? "bg-danger-100 text-danger-600" : "text-neutral-500"}`}>
+                          <span className={`px-1 py-0.5 rounded ${esAtrasada(t) ? "bg-danger-100 text-danger-600" : "text-neutral-500"}`}>
                             📅 {new Date(t.fechaLimite).toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
                           </span>
                         )}

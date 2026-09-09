@@ -113,7 +113,7 @@ export function DashboardPage() {
         <KpiCard titulo="Tasa conversión" valor={`${tasaConversionGlobal}%`} color="neutral" icono="📈" />
         {resumen && (
           <>
-            <KpiCard titulo="Tareas pendientes" valor={resumen.tareasPendientes} color="warning" icono="📋" />
+            <KpiCard titulo="Tareas activas" valor={resumen.tareasPendientes} color="warning" icono="📋" />
             <KpiCard titulo="Tareas vencidas" valor={resumen.tareasVencidas} color={resumen.tareasVencidas > 0 ? "danger" : "neutral"} icono="⚠️" />
           </>
         )}

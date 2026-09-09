@@ -99,3 +99,6 @@ ejecutarMigracion("0024_tareas_tiempos", sqlTareasTiempos);
 
 const sqlCalendarioTipoTitulo = readFileSync(join(__dirname, "migrations", "0025_calendario_tipo_titulo.sql"), "utf-8");
 ejecutarMigracion("0025_calendario_tipo_titulo", sqlCalendarioTipoTitulo);
+
+const sqlEstadoCompletadaUnico = readFileSync(join(__dirname, "migrations", "0026_estado_completada_unico.sql"), "utf-8");
+ejecutarMigracion("0026_estado_completada_unico", sqlEstadoCompletadaUnico);

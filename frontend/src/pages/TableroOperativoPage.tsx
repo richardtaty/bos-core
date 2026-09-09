@@ -5,14 +5,7 @@ import { TareaCard } from "../components/TareaCard";
 import { KpiCard } from "../components/KpiCard";
 import type { TareaOperativa, KpiUsuario, EventoActividad, Usuario } from "../types";
 import { ActividadTimeline } from "../components/ActividadTimeline";
-
-function diasDiferencia(fechaIso: string): number {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const fecha = new Date(fechaIso);
-  fecha.setHours(0, 0, 0, 0);
-  return Math.round((fecha.getTime() - hoy.getTime()) / 86400000);
-}
+import { esActiva, esAtrasada, fechaET } from "../lib/estados";
 
 export function TableroOperativoPage() {
   const { usuario } = useAuth();
@@ -45,11 +38,11 @@ export function TableroOperativoPage() {
 
   if (cargando || !kpi) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
-  const hoy = new Date().toISOString().split("T")[0];
-  const tareasHoy = tareas.filter((t) => t.fechaLimite?.startsWith(hoy));
-  const tareasAtrasadas = tareas.filter(
-    (t) => t.fechaLimite && diasDiferencia(t.fechaLimite) < 0 && !["aprobado", "publicado", "cancelado"].includes(t.estado)
-  );
+  const hoyYmd = fechaET(new Date());
+  // "Hoy" y "atrasadas" usan el día calendario de Florida (ET) y la clasificación canónica:
+  // una tarea terminada o cancelada no aparece ni como entrega de hoy ni como atrasada.
+  const tareasHoy = tareas.filter((t) => t.fechaLimite && esActiva(t.estado) && fechaET(new Date(t.fechaLimite)) === hoyYmd);
+  const tareasAtrasadas = tareas.filter((t) => esAtrasada(t));
 
   let tareasFiltradas = tareas;
   if (filtro === "hoy") tareasFiltradas = tareasHoy;

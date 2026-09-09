@@ -3,6 +3,7 @@ import { db } from "../db/client";
 import { tareasOperativas, tareaChecklist, tareaComentarios, solicitudesExtension, usuarios } from "../db/schema";
 import { registrarAuditoria } from "./auditoria.service";
 import { nombreDepartamentoDe } from "../middleware/auth";
+import { esAtrasada, esCompletada, normalizarEstado } from "../lib/tareas-estado";
 import type { AuthUser, Rol } from "../middleware/auth";
 
 /** Convierte una fecha YYYY-MM-DD en un Date al mediodía UTC, evitando que
@@ -11,10 +12,13 @@ function fechaNoon(ymd: string): Date {
   return new Date(ymd + "T12:00:00");
 }
 
+// El ÚNICO estado de terminado es "completada"; "aprobado"/"publicado" dejaron de
+// existir (migración 0026). normalizarEstado en lib/tareas-estado.ts sigue aceptándolos
+// como defensa si llega un cliente viejo, pero aquí no son valores posibles.
 export type EstadoTarea =
   | "solicitud" | "backlog" | "pendiente" | "por_hacer"
   | "en_proceso" | "bloqueada" | "en_revision" | "requiere_ajustes"
-  | "completada" | "aprobado" | "publicado" | "cancelado";
+  | "completada" | "cancelado";
 
 export type Prioridad = "baja" | "media" | "alta" | "urgente";
 
@@ -476,21 +480,30 @@ export async function actualizarTarea(id: string, input: ActualizarTareaInput, a
   if (input.prioridad !== undefined) data.prioridad = input.prioridad;
   if (input.fechaInicio !== undefined) data.fechaInicio = input.fechaInicio ? fechaNoon(input.fechaInicio) : null;
   if (input.fechaLimite !== undefined) data.fechaLimite = input.fechaLimite ? fechaNoon(input.fechaLimite) : null;
-  if (input.estado !== undefined) data.estado = input.estado;
+  // El estado que llega se normaliza ANTES de guardar: si un cliente viejo envía
+  // "aprobado"/"publicado" (estados que ya no existen, ver migración 0026), se guarda
+  // "completada" — nunca vuelve a entrar un estado obsoleto a la base de datos.
+  const estadoNormalizado = input.estado !== undefined ? normalizarEstado(input.estado) : undefined;
+  if (estadoNormalizado !== undefined) data.estado = estadoNormalizado;
 
-  // ─── DEV: timestamps de cambio de estado ────────────────────────
-  // Cuando una tarea DEV cambia de estado (desde la tarjeta o desde el detalle — ambas
-  // pasan por esta misma función, no hay dos lógicas) se registra el momento real:
-  //  - paso a EN PROCESO  → started_at, solo la PRIMERA vez (si ya tiene valor no se
-  //    reemplaza: es el primer arranque histórico de la tarea).
-  //  - paso a FINALIZADA   → completed_at, momento real de finalización.
-  // Nunca se toca created_at y un cambio hacia atrás (FINALIZADA→EN PROCESO→PENDIENTE)
-  // no borra timestamps ya registrados. Se aplica solo a tareas DEV; el resto del sistema
-  // no cambia su comportamiento.
-  const cambiaEstado = input.estado !== undefined && input.estado !== tarea.estado;
-  if (esTareaDev && cambiaEstado) {
-    if (input.estado === "en_proceso" && !tarea.startedAt) data.startedAt = new Date();
-    if (input.estado === "completada") data.completedAt = new Date();
+  // ─── Timestamps reales de cambio de estado ────────────────────
+  // Ambos cambios de estado (desde la tarjeta o desde el detalle — no hay dos lógicas)
+  // pasan por aquí y registran el momento real:
+  //  - paso a EN PROCESO → started_at, SOLO para tareas DEV y solo la PRIMERA vez (si ya
+  //    tiene valor no se reemplaza: es el primer arranque histórico de la tarea DEV).
+  //  - paso a FINALIZADA  → completed_at se registra para TODA tarea (no solo DEV): es el
+  //    momento real de finalización y la base de "producción del día" en los dashboards.
+  //    Al salir de COMPLETADA (reabrir/cancelar) se limpia, para que una tarea que ya no
+  //    está terminada no conserve una fecha de finalización que ya no corresponde.
+  const estadoAnteriorTerminado = esCompletada(tarea.estado);
+  const cambiaEstado = estadoNormalizado !== undefined && estadoNormalizado !== tarea.estado;
+  if (esTareaDev && cambiaEstado && estadoNormalizado === "en_proceso" && !tarea.startedAt) {
+    data.startedAt = new Date();
+  }
+  if (cambiaEstado && estadoNormalizado === "completada" && !estadoAnteriorTerminado) {
+    data.completedAt = new Date();
+  } else if (cambiaEstado && estadoNormalizado !== "completada" && estadoAnteriorTerminado) {
+    data.completedAt = null;
   }
   if (input.aprobadorId !== undefined) data.aprobadorId = input.aprobadorId;
   if (input.proyectoId !== undefined) data.proyectoId = input.proyectoId;
@@ -513,7 +526,7 @@ export async function actualizarTarea(id: string, input: ActualizarTareaInput, a
   await registrarAuditoria({
     entidad: "TareaOperativa",
     entidadId: id,
-    accion: `Tarea actualizada: "${input.titulo ?? tarea.titulo}" → estado: ${input.estado ?? tarea.estado}${cambios}`,
+    accion: `Tarea actualizada: "${input.titulo ?? tarea.titulo}" → estado: ${estadoNormalizado ?? tarea.estado}${cambios}`,
     autorId,
   });
 
@@ -637,18 +650,23 @@ export async function agregarComentario(tareaId: string, texto: string, autorId:
 // ─── KPIs ─────────────────────────────────────────────────
 
 export async function kpiUsuario(usuarioId: string) {
-  const misTareas = await db.select().from(tareasOperativas).where(eq(tareasOperativas.responsableId, usuarioId));
+  // Igual que el resto de listados generales, las tareas DEV viven solo en su módulo y
+  // no cuentan en los KPIs del módulo Tareas.
+  const misTareas = await db
+    .select()
+    .from(tareasOperativas)
+    .where(and(eq(tareasOperativas.responsableId, usuarioId), ne(tareasOperativas.departamento, AREA_DEV)));
   const total = misTareas.length;
-  const completadas = misTareas.filter((t) => ["aprobado", "publicado", "completada"].includes(t.estado)).length;
+  const completadas = misTareas.filter((t) => esCompletada(t.estado)).length;
   const enProgreso = misTareas.filter((t) => t.estado === "en_proceso").length;
   const enRevision = misTareas.filter((t) => t.estado === "en_revision").length;
-  const atrasadas = misTareas.filter((t) => {
-    if (!t.fechaLimite) return false;
-    return t.fechaLimite < new Date() && !["aprobado", "publicado", "completada", "cancelado"].includes(t.estado);
-  }).length;
+  // Atrasada = fecha límite pasada y NO terminada (una completada nunca es atrasada).
+  const atrasadas = misTareas.filter((t) => esAtrasada(t)).length;
   const bloqueadas = misTareas.filter((t) => t.estado === "bloqueada").length;
   const tiempoTotal = misTareas.reduce((s, t) => s + (t.tiempoInvertido ?? 0), 0);
-  const publicadas = misTareas.filter((t) => t.estado === "publicado").length;
+  // "publicadas" era el conteo de un estado que ya no existe. Se devuelve 0 para no
+  // romper la forma de la respuesta que consume el frontend.
+  const publicadas = 0;
   return { total, completadas, enProgreso, enRevision, atrasadas, bloqueadas, tiempoTotal, publicadas };
 }
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import type { TareaOperativa, ChecklistItem, ComentarioTarea, Usuario } from "../types";
+import { esActiva } from "../lib/estados";
 
 const DEPARTAMENTOS = ["Marketing", "Ventas", "Podcast", "Mentoría", "Código Financiero", "Kappitalia", "Contenido", "Operaciones"];
 const PRIORIDADES = ["baja", "media", "alta", "urgente"] as const;
@@ -23,8 +24,7 @@ const TIPOS_TAREA = [
 const ESTADO_LABEL: Record<string, string> = {
   solicitud: "Solicitud", backlog: "Backlog", pendiente: "Pendiente", por_hacer: "Por hacer",
   en_proceso: "En proceso", bloqueada: "Bloqueada", en_revision: "En revisión",
-  requiere_ajustes: "Requiere ajustes", completada: "Completada", aprobado: "Aprobado",
-  publicado: "Publicado", cancelado: "Cancelado",
+  requiere_ajustes: "Requiere ajustes", completada: "Completada", cancelado: "Cancelado",
 };
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -37,8 +37,6 @@ const ESTADO_COLOR: Record<string, string> = {
   en_revision: "bg-warning-100 text-warning-700",
   requiere_ajustes: "bg-orange-100 text-orange-700",
   completada: "bg-success-200 text-success-800",
-  aprobado: "bg-success-100 text-success-700",
-  publicado: "bg-success-200 text-success-800",
   cancelado: "bg-danger-100 text-danger-700",
 };
 
@@ -56,11 +54,11 @@ const FLUJO_ESTADOS: Record<string, string[]> = {
   por_hacer: ["en_proceso", "cancelado"],
   en_proceso: ["en_revision", "bloqueada", "completada"],
   bloqueada: ["en_proceso", "cancelado"],
-  en_revision: ["requiere_ajustes", "completada", "aprobado"],
+  en_revision: ["requiere_ajustes", "completada"],
   requiere_ajustes: ["en_proceso", "completada"],
-  completada: ["aprobado", "publicado", "en_revision"],
-  aprobado: ["publicado"],
-  publicado: [],
+  // Una terminada no avanza a "aprobado/publicado" (ya no existen): solo se puede
+  // reabrir si fue un error.
+  completada: ["en_revision"],
   cancelado: ["pendiente", "por_hacer"],
 };
 
@@ -372,7 +370,7 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
               <div>
                 <p className="text-xs font-medium text-neutral-600 mb-2">Cambiar estado</p>
                 <div className="flex gap-1.5 flex-wrap">
-                  {!["completada", "aprobado", "publicado", "cancelado"].includes(tarea.estado) && (
+                  {esActiva(tarea.estado) && (
                     <button onClick={completar}
                       className="text-xs px-3 py-1.5 rounded-lg bg-success-500 text-white hover:bg-success-600 font-medium">
                       ✓ Completar

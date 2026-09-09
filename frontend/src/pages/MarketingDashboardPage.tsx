@@ -5,6 +5,7 @@ import { useAuth } from "../api/AuthContext";
 import { usePermisos } from "../hooks/usePermisos";
 import { KpiCard } from "../components/KpiCard";
 import type { Proyecto, TareaOperativa } from "../types";
+import { esActiva, esAtrasada, esCompletada } from "../lib/estados";
 
 export function MarketingDashboardPage() {
   const { usuario } = useAuth();
@@ -31,10 +32,13 @@ export function MarketingDashboardPage() {
 
   if (cargando) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
-  const activas = tareas.filter((t) => !["completada", "aprobado", "publicado", "cancelado"].includes(t.estado));
+  // Clasificación canónica (lib/estados.ts): activa/atrasada/completada significan lo mismo
+  // aquí y en el backend. Antes "completadasHoy" era engañoso: contaba el TOTAL de
+  // completadas del histórico, no las de hoy — el KPI se llama "Completadas".
+  const activas = tareas.filter((t) => esActiva(t.estado));
   const bloqueadas = tareas.filter((t) => t.estado === "bloqueada");
-  const atrasadas = tareas.filter((t) => t.fechaLimite && new Date(t.fechaLimite) < new Date() && !["completada", "aprobado", "publicado", "cancelado"].includes(t.estado));
-  const completadasHoy = tareas.filter((t) => ["completada", "aprobado", "publicado"].includes(t.estado)).length;
+  const atrasadas = tareas.filter((t) => esAtrasada(t));
+  const completadas = tareas.filter((t) => esCompletada(t.estado)).length;
 
   return (
     <div>
@@ -66,7 +70,7 @@ export function MarketingDashboardPage() {
         <KpiCard titulo="Tareas activas" valor={activas.length} icono="📋" color="neutral" />
         <KpiCard titulo="Bloqueadas" valor={bloqueadas.length} icono="🚫" color={bloqueadas.length > 0 ? "danger" : "neutral"} />
         <KpiCard titulo="Atrasadas" valor={atrasadas.length} icono="⚠️" color={atrasadas.length > 0 ? "warning" : "neutral"} />
-        <KpiCard titulo="Completadas" valor={completadasHoy} icono="✅" color="success" />
+        <KpiCard titulo="Completadas" valor={completadas} icono="✅" color="success" />
         <KpiCard titulo="Proyectos activos" valor={proyectos.length} icono="📁" color="primary" />
       </div>
 

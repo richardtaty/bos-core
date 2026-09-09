@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { KpiCard } from "../components/KpiCard";
 import { ActividadTimeline } from "../components/ActividadTimeline";
 import { TareaCard } from "../components/TareaCard";
+import { esActiva, esAtrasada, fechaET } from "../lib/estados";
 import type { Usuario, KpiUsuario, TareaOperativa, EventoActividad } from "../types";
 
 export function CentroControlPage() {
@@ -36,11 +37,12 @@ export function CentroControlPage() {
 
   if (cargando || !usuario || !kpi) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
-  const hoy = new Date().toISOString().split("T")[0];
-  const tareasHoy = tareas.filter((t) => t.fechaLimite?.startsWith(hoy));
-  const tareasAtrasadas = tareas.filter(
-    (t) => t.fechaLimite && new Date(t.fechaLimite) < new Date() && !["aprobado", "publicado", "cancelado"].includes(t.estado)
-  );
+  const hoyYmd = fechaET(new Date());
+  // "Entregas de hoy" = tareas ACTIVAS con fecha límite HOY en Florida (día ET). Una
+  // terminada o cancelada no es una entrega pendiente.
+  const tareasHoy = tareas.filter((t) => t.fechaLimite && esActiva(t.estado) && fechaET(new Date(t.fechaLimite)) === hoyYmd);
+  // Atrasadas: esAtrasada excluye terminadas y canceladas (comparación por día en Florida).
+  const tareasAtrasadas = tareas.filter((t) => esAtrasada(t));
   return (
     <div>
       <div className="flex items-center gap-3 mb-1">

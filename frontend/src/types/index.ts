@@ -302,10 +302,13 @@ export interface Pipeline {
 
 // ─── Tareas Operativas ─────────────────────────────────────
 
+// El ÚNICO estado de trabajo terminado es "completada": "aprobado"/"publicado" dejaron de
+// existir en tareas_operativas (migración 0026 los migró a "completada"). BMF y
+// reportes-diarios usan su propio estado "aprobado" en otras tablas: ese no se toca aquí.
 export type EstadoTarea =
   | "solicitud" | "backlog" | "pendiente" | "por_hacer"
   | "en_proceso" | "bloqueada" | "en_revision" | "requiere_ajustes"
-  | "completada" | "aprobado" | "publicado" | "cancelado";
+  | "completada" | "cancelado";
 
 export type Prioridad = "baja" | "media" | "alta" | "urgente";
 
@@ -581,16 +584,34 @@ export interface DashboardLider {
   proximasPublicaciones: TareaOperativa[];
 }
 
+/** Una tarea real que compone un contador del CEO Dashboard (contador = cantidad de filas). */
+export interface TareaDetalleDashboard {
+  id: string;
+  titulo: string;
+  responsableNombre: string;
+  fechaLimite: string | null;
+  estado: string;
+  completadaEn: string | null;
+}
+
+export interface DepartamentoCEO {
+  id: string;
+  nombre: string;
+  total: number;
+  /** Tareas activas (ni terminadas ni canceladas) — base de totalTareasActivas. */
+  totalActivas: number;
+  completadas: number;
+  atrasadas: number;
+  produccionHoy: number;
+  estado: "saludable" | "advertencia" | "critico";
+  /** Las tareas EXACTAS que forman cada contador: lista y número SIEMPRE coinciden. */
+  completadasDetalle: TareaDetalleDashboard[];
+  atrasadasDetalle: TareaDetalleDashboard[];
+  produccionHoyDetalle: TareaDetalleDashboard[];
+}
+
 export interface DashboardCEO {
-  departamentos: {
-    id: string;
-    nombre: string;
-    total: number;
-    completadas: number;
-    atrasadas: number;
-    produccionHoy: number;
-    estado: "saludable" | "advertencia" | "critico";
-  }[];
+  departamentos: DepartamentoCEO[];
   actividad: EventoActividad[];
   usuariosActivos: string[];
   usuariosSinActividad: string[];

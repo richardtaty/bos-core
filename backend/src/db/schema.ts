@@ -317,11 +317,14 @@ export const tareasOperativas = sqliteTable(
     prioridad: text("prioridad", { enum: ["baja", "media", "alta", "urgente"] }).notNull().default("media"),
     fechaInicio: timestamp("fecha_inicio"),
     fechaLimite: timestamp("fecha_limite"),
+    // El ÚNICO estado de trabajo terminado es "completada". Los estados "aprobado" y
+    // "publicado" dejaron de existir (migración 0026 los migró a "completada"; aquí se
+    // quitan del enum para que el código no pueda volver a escribirlos).
     estado: text("estado", {
       enum: [
         "solicitud", "backlog", "pendiente", "por_hacer",
         "en_proceso", "bloqueada", "en_revision", "requiere_ajustes",
-        "completada", "aprobado", "publicado", "cancelado",
+        "completada", "cancelado",
       ],
     })
       .notNull()
@@ -352,8 +355,11 @@ export const tareasOperativas = sqliteTable(
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
     updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
     // Momento real en que la tarea pasó a EN PROCESO (started_at) y a FINALIZADA
-    // (completed_at). Los registra el módulo DEV (departamento = "DEV"); para el resto
-    // de tareas quedan NULL. Opcionales y aditivos — nunca se calculan retroactivamente.
+    // (completed_at). started_at lo registra el módulo DEV (departamento = "DEV", es el
+    // primer arranque histórico de la tarea). completed_at se registra para TODA tarea
+    // al marcarla completada (ver actualizarTarea) y es la base de "producción del día".
+    // Opcionales y aditivos — nunca se calculan retroactivamente (0026 rellenó los ya
+    // terminados con la fecha de su propio updated_at).
     startedAt: timestamp("started_at"),
     completedAt: timestamp("completed_at"),
   },

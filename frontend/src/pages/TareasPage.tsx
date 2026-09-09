@@ -8,7 +8,7 @@ import { ExportarReporteModal } from "../components/ExportarReporteModal";
 import { RecordatoriosCumpleanos } from "../components/RecordatoriosCumpleanos";
 import { KpiCard } from "../components/KpiCard";
 import type { TareaOperativa, Usuario, Departamento } from "../types";
-import { GRUPOS, grupoDeEstado, ESTADOS_ACTIVOS } from "../lib/estados";
+import { GRUPOS, grupoDeEstado, ESTADOS_ACTIVOS, esAtrasada } from "../lib/estados";
 
 /** Roles que pueden supervisar el trabajo de otros dentro de su ámbito. */
 const ROLES_CON_MANDO: string[] = ["SUPER_ADMIN", "ADMIN", "SUPERVISOR"];
@@ -86,12 +86,10 @@ export function TareasPage() {
   const pendientes = tareas.filter((t) => grupoDeEstado(t.estado) === "pendiente");
   const enRevision = tareas.filter((t) => grupoDeEstado(t.estado) === "en_revision");
   const enProceso = tareas.filter((t) => grupoDeEstado(t.estado) === "en_proceso");
-  const atrasadas = activas.filter((t) => {
-    if (!t.fechaLimite) return false;
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const fecha = new Date(t.fechaLimite); fecha.setHours(0, 0, 0, 0);
-    return fecha < hoy;
-  });
+  // Clasificación canónica (lib/estados.ts): una tarea TERMINADA o cancelada nunca es
+  // atrasada, aunque se haya terminado después de su fecha límite; el día se compara en
+  // Florida (ET), no en UTC ni en la hora local del navegador.
+  const atrasadas = tareas.filter((t) => esAtrasada(t));
 
   // Por defecto se muestran solo las activas; Realizado/Cancelado se ven al elegirlos en el filtro.
   const visibles = tareas.filter((t) => {

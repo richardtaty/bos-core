@@ -85,7 +85,7 @@ export function CalendarioEditorialPage() {
               className="text-xs border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-2 py-1.5"
             >
               <option value="">Todos los estados</option>
-              {["pendiente", "en_proceso", "en_revision", "aprobado", "publicado", "cancelado"].map((e) => (
+              {["pendiente", "en_proceso", "en_revision", "completada", "cancelado"].map((e) => (
                 <option key={e} value={e}>{e.replace("_", " ")}</option>
               ))}
             </select>

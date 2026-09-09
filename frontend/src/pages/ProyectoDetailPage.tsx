@@ -5,6 +5,7 @@ import { TareaCard } from "../components/TareaCard";
 import { TareaForm } from "../components/TareaForm";
 import { KpiCard } from "../components/KpiCard";
 import type { Proyecto, Usuario } from "../types";
+import { esActiva, esCompletada } from "../lib/estados";
 
 export function ProyectoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,8 +28,10 @@ export function ProyectoDetailPage() {
   if (cargando || !proyecto) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
   const tareas = proyecto.tareas ?? [];
-  const pendientes = tareas.filter((t) => ["pendiente", "en_proceso"].includes(t.estado));
-  const completadas = tareas.filter((t) => ["aprobado", "publicado"].includes(t.estado));
+  // Clasificación canónica: "pendientes" aquí son las tareas ACTIVAS del proyecto (ni
+  // terminadas ni canceladas); "completadas" = el único estado de terminado (completada).
+  const pendientes = tareas.filter((t) => esActiva(t.estado));
+  const completadas = tareas.filter((t) => esCompletada(t.estado));
 
   async function agregarComentario() {
     if (!nuevoComentario.trim()) return;
@@ -57,7 +60,7 @@ export function ProyectoDetailPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <KpiCard titulo="Total tareas" valor={tareas.length} icono="📋" color="neutral" />
-        <KpiCard titulo="Pendientes" valor={pendientes.length} icono="⏳" color="warning" />
+        <KpiCard titulo="Activas" valor={pendientes.length} icono="⏳" color="warning" />
         <KpiCard titulo="Completadas" valor={completadas.length} icono="✅" color="success" />
         <KpiCard titulo="Avance" valor={`${Math.round(tareas.reduce((s, t) => s + (t.porcentajeAvance ?? 0), 0) / Math.max(1, tareas.length))}%`} icono="📊" color="primary" />
       </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { ActividadTimeline } from "../components/ActividadTimeline";
 import { KpiCard } from "../components/KpiCard";
-import type { DashboardCEO } from "../types";
+import type { DashboardCEO, DepartamentoCEO, TareaDetalleDashboard } from "../types";
 
 function EstadoBadge({ estado }: { estado: string }) {
   const c: Record<string, string> = {
@@ -13,9 +13,49 @@ function EstadoBadge({ estado }: { estado: string }) {
   return <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${c[estado] ?? ""}`}>{estado}</span>;
 }
 
+function fechaCorta(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", timeZone: "America/New_York" });
+}
+
+function estadoHumano(estado: string): string {
+  const m: Record<string, string> = {
+    solicitud: "Solicitud", backlog: "Backlog", pendiente: "Pendiente", por_hacer: "Por hacer",
+    en_proceso: "En proceso", bloqueada: "Bloqueada", en_revision: "En revisión",
+    requiere_ajustes: "Requiere ajustes", completada: "Completada", cancelado: "Cancelado",
+  };
+  return m[estado] ?? estado;
+}
+
+/** Cifra del tablero que abre el detalle: contador y lista salen de la MISMA respuesta. */
+function Cifra({ label, valor, color, alAbrir }: { label: string; valor: number; color: string; alAbrir: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={alAbrir}
+      disabled={valor === 0}
+      className={`group rounded-lg px-1 py-1.5 transition-colors text-center ${
+        valor > 0 ? "hover:bg-black/5 cursor-pointer" : "cursor-default"
+      }`}
+      title={valor > 0 ? `Ver las ${valor} tareas` : "Sin tareas en esta vista"}
+    >
+      <p className="text-neutral-500">{label}</p>
+      <p className={`font-semibold ${color}`}>
+        {valor}
+        {valor > 0 && <span className="text-[9px] align-top text-neutral-400 group-hover:text-primary-500 ml-0.5"> ▸</span>}
+      </p>
+    </button>
+  );
+}
+
+type DetalleVista = { tipo: "Completadas" | "Atrasadas" | "Prod. hoy"; depto: DepartamentoCEO };
+
 export function DashboardCEOPage() {
   const [data, setData] = useState<DashboardCEO | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [detalle, setDetalle] = useState<DetalleVista | null>(null);
 
   useEffect(() => {
     api.dashboardCEO().then((d) => {
@@ -26,10 +66,15 @@ export function DashboardCEOPage() {
 
   if (cargando || !data) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
+  const itemsDe = (v: DetalleVista): TareaDetalleDashboard[] =>
+    v.tipo === "Completadas" ? v.depto.completadasDetalle
+      : v.tipo === "Atrasadas" ? v.depto.atrasadasDetalle
+        : v.depto.produccionHoyDetalle;
+
   return (
     <div>
       <h1 className="text-xl font-semibold text-neutral-900 mb-1">Dashboard CEO</h1>
-      <p className="text-sm text-neutral-500 mb-6">Visión global de todos los departamentos</p>
+      <p className="text-sm text-neutral-500 mb-6">Visión global de todos los departamentos — toca una cifra para ver las tareas</p>
 
       {/* KPIs globales */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -67,23 +112,29 @@ export function DashboardCEOPage() {
                 <h4 className="font-medium text-sm text-neutral-900">{d.nombre}</h4>
                 <EstadoBadge estado={d.estado} />
               </div>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="grid grid-cols-4 gap-1 text-center text-xs">
                 <div>
                   <p className="text-neutral-500">Total</p>
                   <p className="font-semibold text-neutral-700">{d.total}</p>
                 </div>
-                <div>
-                  <p className="text-neutral-500">Completadas</p>
-                  <p className="font-semibold text-success-600">{d.completadas}</p>
-                </div>
-                <div>
-                  <p className="text-neutral-500">Atrasadas</p>
-                  <p className={`font-semibold ${d.atrasadas > 0 ? "text-danger-600" : "text-neutral-600"}`}>{d.atrasadas}</p>
-                </div>
-                <div>
-                  <p className="text-neutral-500">Prod. hoy</p>
-                  <p className="font-semibold text-primary-600">{d.produccionHoy}</p>
-                </div>
+                <Cifra
+                  label="Completadas"
+                  valor={d.completadas}
+                  color="text-success-600"
+                  alAbrir={() => setDetalle({ tipo: "Completadas", depto: d })}
+                />
+                <Cifra
+                  label="Atrasadas"
+                  valor={d.atrasadas}
+                  color={d.atrasadas > 0 ? "text-danger-600" : "text-neutral-600"}
+                  alAbrir={() => setDetalle({ tipo: "Atrasadas", depto: d })}
+                />
+                <Cifra
+                  label="Prod. hoy"
+                  valor={d.produccionHoy}
+                  color="text-primary-600"
+                  alAbrir={() => setDetalle({ tipo: "Prod. hoy", depto: d })}
+                />
               </div>
             </div>
           ))}
@@ -117,6 +168,57 @@ export function DashboardCEOPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de detalle — lista EXACTAMENTE las tareas que forman la cifra tocada */}
+      {detalle && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setDetalle(null)}
+        >
+          <div
+            className="bg-neutral-50 rounded-xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto border border-neutral-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-semibold text-neutral-900">
+                {detalle.depto.nombre} · {detalle.tipo}
+              </h2>
+              <button
+                onClick={() => setDetalle(null)}
+                className="text-neutral-400 hover:text-neutral-600 text-xl leading-none"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-neutral-500 mb-4">
+              {itemsDe(detalle).length} {detalle.tipo === "Completadas" ? "tareas completadas" : detalle.tipo === "Atrasadas" ? "tareas atrasadas" : "tareas producidas hoy"}
+            </p>
+
+            {itemsDe(detalle).length === 0 ? (
+              <p className="text-sm text-neutral-500 text-center py-6">Sin tareas en esta vista.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {itemsDe(detalle).map((t) => (
+                  <div key={t.id} className="bg-white border border-neutral-200 rounded-lg p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium text-neutral-900">{t.titulo}</p>
+                      <span className="text-[10px] shrink-0 bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded">
+                        {estadoHumano(t.estado)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-neutral-500">
+                      <span>👤 {t.responsableNombre}</span>
+                      <span>Límite: {fechaCorta(t.fechaLimite)}</span>
+                      {t.completadaEn && <span>Completada: {fechaCorta(t.completadaEn)}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

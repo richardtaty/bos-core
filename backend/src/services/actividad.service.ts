@@ -1,6 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "../db/client";
 import { bitacoraAuditoria, usuarios, tareasOperativas } from "../db/schema";
+import { esActiva, esAtrasada } from "../lib/tareas-estado";
+import { AREA_DEV } from "./tareas.service";
 
 // Timeline global: toda la actividad de la empresa en orden cronológico inverso.
 // Si se pasa departamentoId, filtra solo eventos donde el autor pertenece a ese depto.
@@ -59,23 +61,20 @@ export async function actividadPorUsuario(usuarioId: string, limite = 50) {
   }));
 }
 
-// Dashboard ejecutivo: resumen rápido de todo
+// Dashboard ejecutivo: resumen rápido de todo.
+// La clasificación pasa por el módulo canónico (lib/tareas-estado.ts): "pendientes" aquí
+// son las tareas ACTIVAS (ni terminadas ni canceladas) y "vencidas" son las de fecha
+// límite pasada y NO terminadas — una tarea ya completada nunca cuenta como vencida.
+// Antes solo se contaba el estado literal "pendiente" y se metían tareas del módulo DEV.
 export async function resumenEjecutivo() {
-  const [tareasPendientes, tareasVencidas] = await Promise.all([
-    db.select().from(tareasOperativas).where(
-      eq(tareasOperativas.estado, "pendiente")
-    ),
-    (async () => {
-      const todas = await db.select().from(tareasOperativas).where(
-        eq(tareasOperativas.estado, "pendiente")
-      );
-      return todas.filter((t) => t.fechaLimite && t.fechaLimite < new Date());
-    })(),
-  ]);
+  const todas = await db
+    .select()
+    .from(tareasOperativas)
+    .where(ne(tareasOperativas.departamento, AREA_DEV));
 
   return {
-    tareasPendientes: tareasPendientes.length,
-    tareasVencidas: tareasVencidas.length,
+    tareasPendientes: todas.filter((t) => esActiva(t.estado)).length,
+    tareasVencidas: todas.filter((t) => esAtrasada(t)).length,
   };
 }
 

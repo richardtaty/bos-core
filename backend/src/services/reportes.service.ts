@@ -1,7 +1,9 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db } from "../db/client";
-import { pagos, personas, interacciones, historialEtapas, etapas, usuarios, registros, pipelines, tareasOperativas, departamentos, equipoMiembros, equipos, bitacoraAuditoria, tareasSeguimiento } from "../db/schema";
+import { pagos, personas, interacciones, historialEtapas, etapas, usuarios, registros, pipelines, tareasOperativas, departamentos, bitacoraAuditoria, tareasSeguimiento } from "../db/schema";
+import { esActiva, esAtrasada, esCancelada, esCompletada, esTerminadaHoy, momentoTerminacion } from "../lib/tareas-estado";
+import { nombreDepartamentoDe } from "../middleware/auth";
 
 const ZONA_NEGOCIO = "America/New_York";
 
@@ -53,6 +55,19 @@ export function limitesDeRangoET(ymd: string, finDelDia: boolean): Date {
   const offsetMin = offsetETMinutos(new Date(`${ymd}T12:00:00Z`));
   const inicio = inicioDelDiaET(ymd, offsetMin);
   return finDelDia ? new Date(inicio.getTime() + 24 * 60 * 60 * 1000 - 1) : inicio;
+}
+
+/** "YYYY-MM-DD" → Date al MEDIODÍA UTC (mismo día calendario en Florida). */
+function mediodiaDeYmdET(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12));
+}
+
+/** "YYYY-MM-DD" del LUNES que inicia la semana actual en Florida (base de "producción semanal"). */
+function inicioSemanaET(): string {
+  const mediodiaHoy = mediodiaDeYmdET(fechaET(new Date()));
+  const diasDesdeLunes = (mediodiaHoy.getUTCDay() + 6) % 7; // getUTCDay: 0=domingo → 6=sábado
+  return fechaET(new Date(mediodiaHoy.getTime() - diasDesdeLunes * 86400000));
 }
 
 interface ActividadUsuario {
@@ -228,87 +243,92 @@ export async function ventasPorDiaYUsuario(filtro: FiltroPagos) {
 // ─── Dashboard del Líder ──────────────────────────────────
 
 export async function dashboardLider(usuarioId: string) {
-  // Determinar el departamento del líder
+  // El departamento del líder se resuelve por su NOMBRE real (tareas_operativas.departamento
+  // guarda el nombre, igual que el resto de la app). Antes estaba "Marketing" fijo, así que
+  // un líder de otro departamento consultaba y veía las tareas equivocadas.
   const [lider] = await db.select().from(usuarios).where(eq(usuarios.id, usuarioId));
   if (!lider?.departamentoId) {
     return { error: "El usuario no pertenece a un departamento" };
   }
+  const nombreDepto = await nombreDepartamentoDe(lider.departamentoId);
+  if (!nombreDepto) {
+    return { error: "El departamento del líder no existe" };
+  }
 
-  const deptoId = lider.departamentoId;
   const hoy = new Date();
-  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-  const inicioSemana = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - hoy.getDay());
+  const hace5Dias = new Date(hoy.getTime() - 5 * 86400000);
   const en7Dias = new Date(hoy.getTime() + 7 * 86400000);
+  const semanaInicioYmd = inicioSemanaET(); // "YYYY-MM-DD" del lunes en hora de Florida
 
-  // Miembros del equipo
+  // Equipo real del líder: las personas cuyo supervisor_id es él — la misma relación que usa
+  // listarTareasVisibles. La tabla equipos/equipo_miembros está incompleta en los datos reales.
   const miembros = await db
-    .select({
-      usuarioId: equipoMiembros.usuarioId,
-      nombre: usuarios.nombre,
-      cargo: equipoMiembros.cargo,
-    })
-    .from(equipoMiembros)
-    .innerJoin(equipos, eq(equipoMiembros.equipoId, equipos.id))
-    .innerJoin(usuarios, eq(equipoMiembros.usuarioId, usuarios.id))
-    .where(eq(equipos.departamentoId, deptoId));
+    .select({ usuarioId: usuarios.id, nombre: usuarios.nombre, cargo: usuarios.cargo })
+    .from(usuarios)
+    .where(eq(usuarios.supervisorId, lider.id));
 
-  // Tareas del departamento
+  // Tareas del departamento, consultadas por su nombre.
   const tareasDepto = await db
     .select()
     .from(tareasOperativas)
-    .where(eq(tareasOperativas.departamento, "Marketing"));
+    .where(eq(tareasOperativas.departamento, nombreDepto));
 
-  // Producción del día (tareas completadas hoy)
-  const produccionHoy = tareasDepto.filter(
-    (t) => ["aprobado", "publicado"].includes(t.estado) && t.updatedAt && t.updatedAt >= inicioHoy
-  ).length;
+  // Nombres de responsables para que los listados sean legibles (la tabla guarda solo el id).
+  const responsables = await db.select({ id: usuarios.id, nombre: usuarios.nombre }).from(usuarios);
+  const nombreDe = new Map(responsables.map((u) => [u.id, u.nombre]));
+  const legible = (t: (typeof tareasDepto)[number]) => ({
+    ...t,
+    responsableNombre: nombreDe.get(t.responsableId) ?? "",
+  });
 
-  // Producción semanal
-  const produccionSemana = tareasDepto.filter(
-    (t) => ["aprobado", "publicado"].includes(t.estado) && t.updatedAt && t.updatedAt >= inicioSemana
-  ).length;
+  // "Producción": tareas terminadas (completada). El momento real de terminación es
+  // completed_at (rellenado para toda tarea) con fallback a updated_at.
+  const terminadas = tareasDepto.filter((t) => esCompletada(t.estado));
+  const produccionHoy = terminadas.filter((t) => esTerminadaHoy(t)).length;
+  const produccionSemana = terminadas.filter((t) => {
+    const m = momentoTerminacion(t);
+    return !!m && fechaET(m) >= semanaInicioYmd;
+  }).length;
 
-  // KPIs individuales
-  const kpisIndividuales = await Promise.all(
-    miembros.map(async (m) => {
-      const tareasUsuario = tareasDepto.filter((t) => t.responsableId === m.usuarioId);
-      return {
-        usuarioId: m.usuarioId,
-        nombre: m.nombre,
-        cargo: m.cargo,
-        total: tareasUsuario.length,
-        completadas: tareasUsuario.filter((t) => ["aprobado", "publicado"].includes(t.estado)).length,
-        enProgreso: tareasUsuario.filter((t) => t.estado === "en_proceso").length,
-        atrasadas: tareasUsuario.filter(
-          (t) => t.fechaLimite && t.fechaLimite < hoy && !["aprobado", "publicado", "cancelado"].includes(t.estado)
-        ).length,
-      };
-    })
-  );
+  // KPIs individuales por integrante — clasificación canónica (esCompletada / esAtrasada).
+  const kpisIndividuales = miembros.map((m) => {
+    const tareasUsuario = tareasDepto.filter((t) => t.responsableId === m.usuarioId);
+    return {
+      usuarioId: m.usuarioId,
+      nombre: m.nombre,
+      cargo: m.cargo,
+      total: tareasUsuario.length,
+      completadas: tareasUsuario.filter((t) => esCompletada(t.estado)).length,
+      enProgreso: tareasUsuario.filter((t) => t.estado === "en_proceso").length,
+      atrasadas: tareasUsuario.filter((t) => esAtrasada(t)).length,
+    };
+  });
 
-  // Cuellos de botella (tareas en mismo estado > 5 días)
-  const hace5Dias = new Date(hoy.getTime() - 5 * 86400000);
-  const cuellos = tareasDepto.filter(
-    (t) => !["aprobado", "publicado", "cancelado"].includes(t.estado) && t.updatedAt && t.updatedAt < hace5Dias
-  );
+  // Cuellos de botella: tareas ACTIVAS sin moverse hace 5+ días. Una terminada o cancelada
+  // jamás es un cuello de botella (antes también se colaban aprobado/publicado).
+  const cuellos = tareasDepto
+    .filter((t) => esActiva(t.estado) && !!t.updatedAt && t.updatedAt < hace5Dias)
+    .map(legible);
 
-  // Tareas vencidas
-  const vencidas = tareasDepto.filter(
-    (t) => t.fechaLimite && t.fechaLimite < hoy && !["aprobado", "publicado", "cancelado"].includes(t.estado)
-  );
+  // Vencidas: esAtrasada ya excluye las terminadas aunque se hayan terminado después de vencer.
+  const vencidas = tareasDepto.filter((t) => esAtrasada(t)).length;
 
-  // Próximas entregas (7 días)
-  const proximasEntregas = tareasDepto.filter(
-    (t) => t.fechaLimite && t.fechaLimite >= hoy && t.fechaLimite <= en7Dias && !["cancelado"].includes(t.estado)
-  ).sort((a, b) => (a.fechaLimite?.getTime() ?? 0) - (b.fechaLimite?.getTime() ?? 0));
+  // Próximas entregas: tareas ACTIVAS con fecha límite dentro de los próximos 7 días.
+  const proximasEntregas = tareasDepto
+    .filter((t) => esActiva(t.estado) && !!t.fechaLimite && t.fechaLimite >= hoy && t.fechaLimite <= en7Dias)
+    .sort((a, b) => (a.fechaLimite?.getTime() ?? 0) - (b.fechaLimite?.getTime() ?? 0))
+    .map(legible);
 
-  // Próximas publicaciones
-  const proximasPublicaciones = tareasDepto.filter(
-    (t) => t.fechaPublicacion && t.fechaPublicacion >= hoy && t.fechaPublicacion <= en7Dias
-  ).sort((a, b) => (a.fechaPublicacion?.getTime() ?? 0) - (b.fechaPublicacion?.getTime() ?? 0));
+  // Próximas publicaciones: tareas con fecha de publicación dentro de los próximos 7 días.
+  const proximasPublicaciones = tareasDepto
+    .filter(
+      (t) => !!t.fechaPublicacion && t.fechaPublicacion >= hoy && t.fechaPublicacion <= en7Dias && !esCancelada(t.estado)
+    )
+    .sort((a, b) => (a.fechaPublicacion?.getTime() ?? 0) - (b.fechaPublicacion?.getTime() ?? 0))
+    .map(legible);
 
   return {
-    departamento: "Marketing",
+    departamento: nombreDepto,
     miembros,
     produccionHoy,
     produccionSemana,
@@ -316,7 +336,7 @@ export async function dashboardLider(usuarioId: string) {
     kpisIndividuales,
     cuellosDeBotella: cuellos.length,
     cuellos,
-    vencidas: vencidas.length,
+    vencidas,
     proximasEntregas,
     proximasPublicaciones,
   };
@@ -326,13 +346,18 @@ export async function dashboardLider(usuarioId: string) {
 
 export async function dashboardCEO() {
   const hoy = new Date();
-  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   const hace7d = new Date(hoy.getTime() - 7 * 86400000);
 
   // Todos los departamentos
   const deptos = await db.select().from(departamentos).where(eq(departamentos.activo, true));
 
-  // Estado por departamento
+  // Nombres de responsables para el detalle auditable (la tabla guarda solo el id).
+  const responsables = await db.select({ id: usuarios.id, nombre: usuarios.nombre }).from(usuarios);
+  const nombreDe = new Map(responsables.map((u) => [u.id, u.nombre]));
+
+  // Estado por departamento — clasificación canónica (esCompletada / esAtrasada /
+  // esTerminadaHoy). Cada contador lleva SU detalle, construido con el mismo arreglo que
+  // cuenta: el número del tablero y la lista que abre el modal SIEMPRE coinciden.
   const estadoDeptos = await Promise.all(
     deptos.map(async (d) => {
       const tareas = await db
@@ -340,28 +365,40 @@ export async function dashboardCEO() {
         .from(tareasOperativas)
         .where(eq(tareasOperativas.departamento, d.nombre));
 
-      const total = tareas.length;
-      const completadas = tareas.filter((t) => ["aprobado", "publicado"].includes(t.estado)).length;
-      const atrasadas = tareas.filter(
-        (t) => t.fechaLimite && t.fechaLimite < hoy && !["aprobado", "publicado", "cancelado"].includes(t.estado)
-      ).length;
-      const produccionHoy = tareas.filter(
-        (t) => ["aprobado", "publicado"].includes(t.estado) && t.updatedAt && t.updatedAt >= inicioHoy
-      ).length;
+      const completadas = tareas.filter((t) => esCompletada(t.estado));
+      const atrasadas = tareas.filter((t) => esAtrasada(t));
+      const produccionHoy = completadas.filter((t) => esTerminadaHoy(t));
+      const activas = tareas.filter((t) => esActiva(t.estado));
 
-      // Estado: saludable, advertencia, crítico
+      const aDetalle = (t: (typeof tareas)[number]) => ({
+        id: t.id,
+        titulo: t.titulo,
+        responsableNombre: nombreDe.get(t.responsableId) ?? "",
+        fechaLimite: t.fechaLimite ? t.fechaLimite.toISOString() : null,
+        estado: t.estado,
+        completadaEn: momentoTerminacion(t)?.toISOString() ?? null,
+      });
+
+      // Estado: saludable, advertencia, crítico. La proporción se mide sobre las tareas
+      // ACTIVAS (no sobre el total que incluye terminadas). Un departamento sin tareas o
+      // sin atrasos nunca es "crítico": antes produccionHoy===0 lo marcaba aunque tuviera
+      // 0 tareas, y generaba alertas absurdas del tipo "(0 tareas atrasadas)".
       let estado: "saludable" | "advertencia" | "critico" = "saludable";
-      if (atrasadas > total * 0.3 || produccionHoy === 0) estado = "critico";
-      else if (atrasadas > 0) estado = "advertencia";
+      if (activas.length > 0 && atrasadas.length > activas.length * 0.3) estado = "critico";
+      else if (atrasadas.length > 0) estado = "advertencia";
 
       return {
         id: d.id,
         nombre: d.nombre,
-        total,
-        completadas,
-        atrasadas,
-        produccionHoy,
+        total: tareas.length,
+        totalActivas: activas.length,
+        completadas: completadas.length,
+        atrasadas: atrasadas.length,
+        produccionHoy: produccionHoy.length,
         estado,
+        completadasDetalle: completadas.map(aDetalle),
+        atrasadasDetalle: atrasadas.map(aDetalle),
+        produccionHoyDetalle: produccionHoy.map(aDetalle),
       };
     })
   );
@@ -389,7 +426,7 @@ export async function dashboardCEO() {
     })
     .from(bitacoraAuditoria)
     .innerJoin(usuarios, eq(bitacoraAuditoria.autorId, usuarios.id))
-    .where(gte(bitacoraAuditoria.fecha, inicioHoy))
+    .where(gte(bitacoraAuditoria.fecha, inicioYFinDeHoy().inicio))
     .groupBy(bitacoraAuditoria.autorId);
 
   // Usuarios sin actividad > 7 días
@@ -407,10 +444,11 @@ export async function dashboardCEO() {
     }
   }
 
-  // Alertas
+  // Alertas — solo departamentos realmente en estado crítico (con atrasos reales > 30% de
+  // sus tareas activas). El detalle apunta al arreglo de atrasadas del mismo departamento.
   const alertas: string[] = [];
   estadoDeptos.filter((d) => d.estado === "critico").forEach((d) => {
-    alertas.push(`⚠ ${d.nombre}: estado crítico (${d.atrasadas} tareas atrasadas)`);
+    alertas.push(`⚠ ${d.nombre}: ${d.atrasadas} tareas atrasadas`);
   });
 
   // Riesgos
@@ -427,7 +465,9 @@ export async function dashboardCEO() {
     usuariosSinActividad: usuariosSinActividad.map((u) => u.nombre),
     alertas,
     riesgos,
-    totalTareasActivas: estadoDeptos.reduce((s, d) => s + d.total - d.completadas, 0),
+    // Solo cuentan las tareas activas (ni terminadas ni canceladas) — antes el total menos
+    // las completadas seguía contando las canceladas como "activas".
+    totalTareasActivas: estadoDeptos.reduce((s, d) => s + d.totalActivas, 0),
     produccionTotalHoy: estadoDeptos.reduce((s, d) => s + d.produccionHoy, 0),
   };
 }

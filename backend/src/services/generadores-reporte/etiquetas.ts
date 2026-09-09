@@ -14,11 +14,15 @@ export const GRUPO_LABEL: Record<GrupoEstado, string> = {
   cancelado: "Cancelado",
 };
 
-/** Los 12 estados internos de tareas_operativas, agrupados como los ve el tablero. */
+/** Los estados internos de tareas_operativas, agrupados como los ve el tablero.
+ *  El único estado de trabajo terminado es "completada": "aprobado"/"publicado" dejaron
+ *  de existir (migración 0026). Se dejan fuera de la lista para que el filtro "Realizado"
+ *  solo consulte "completada"; grupoDeEstado y esCompletada (lib/tareas-estado.ts) siguen
+ *  reconociéndolos por defensa ante una fila vieja, sin mostrarlos como estados propios. */
 export const ESTADOS_POR_GRUPO: Record<GrupoEstado, string[]> = {
   en_proceso: ["en_proceso", "bloqueada"],
   en_revision: ["en_revision", "requiere_ajustes"],
-  realizado: ["completada", "aprobado", "publicado"],
+  realizado: ["completada"],
   cancelado: ["cancelado"],
   // solicitud, backlog, pendiente, por_hacer y cualquier valor desconocido
   pendiente: ["solicitud", "backlog", "pendiente", "por_hacer"],
@@ -34,6 +38,7 @@ export function grupoDeEstado(estado: string): GrupoEstado {
     case "requiere_ajustes":
       return "en_revision";
     case "completada":
+    // Estados ya retirados (migración 0026): si aparece uno, era trabajo terminado.
     case "aprobado":
     case "publicado":
       return "realizado";
@@ -54,8 +59,6 @@ export const ESTADO_LABEL: Record<string, string> = {
   en_revision: "En revisión",
   requiere_ajustes: "Requiere ajustes",
   completada: "Completada",
-  aprobado: "Aprobado",
-  publicado: "Publicado",
   cancelado: "Cancelado",
 };
 

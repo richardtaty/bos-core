@@ -2,7 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import type { TareaOperativa, Usuario } from "../types";
 import { TareaDetalleModal } from "./TareaDetalleModal";
-import { GRUPO_COLOR, GRUPO_LABEL, grupoDeEstado, ESTADOS_ACTIVOS } from "../lib/estados";
+import { GRUPO_COLOR, GRUPO_LABEL, grupoDeEstado, esActiva } from "../lib/estados";
 
 const TIPO_LABEL: Record<string, string> = {
   diseno_grafico: "🎨 Diseño", video: "🎬 Video", pagina_web: "🌐 Web",
@@ -13,8 +13,7 @@ const TIPO_LABEL: Record<string, string> = {
 const ESTADO_LABEL: Record<string, string> = {
   solicitud: "Solicitud", backlog: "Backlog", pendiente: "Pendiente", por_hacer: "Por hacer",
   en_proceso: "En proceso", bloqueada: "Bloqueada", en_revision: "En revisión",
-  requiere_ajustes: "Requiere ajustes", completada: "Completada", aprobado: "Aprobado",
-  publicado: "Publicado", cancelado: "Cancelado",
+  requiere_ajustes: "Requiere ajustes", completada: "Completada", cancelado: "Cancelado",
 };
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -27,8 +26,6 @@ const ESTADO_COLOR: Record<string, string> = {
   en_revision: "bg-warning-100 text-warning-700",
   requiere_ajustes: "bg-orange-100 text-orange-700",
   completada: "bg-success-200 text-success-800",
-  aprobado: "bg-success-100 text-success-700",
-  publicado: "bg-success-200 text-success-800",
   cancelado: "bg-danger-100 text-danger-700",
 };
 
@@ -46,11 +43,11 @@ const FLUJO_ESTADOS: Record<string, string[]> = {
   por_hacer: ["en_proceso", "cancelado"],
   en_proceso: ["en_revision", "bloqueada", "completada"],
   bloqueada: ["en_proceso", "cancelado"],
-  en_revision: ["requiere_ajustes", "completada", "aprobado"],
+  en_revision: ["requiere_ajustes", "completada"],
   requiere_ajustes: ["en_proceso", "completada"],
-  completada: ["aprobado", "publicado", "en_revision"],
-  aprobado: ["publicado"],
-  publicado: [],
+  // Una terminada no avanza a "aprobado/publicado" (ya no existen): solo se puede
+  // reabrir si fue un error.
+  completada: ["en_revision"],
   cancelado: ["pendiente", "por_hacer"],
 };
 
@@ -60,7 +57,6 @@ export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }:
   const checklist = tarea.checklist ?? [];
   const completados = checklist.filter((c) => c.completado).length;
   const grupo = grupoDeEstado(tarea.estado);
-  const esActiva = ESTADOS_ACTIVOS.includes(grupo);
 
   async function cambiarEstado(estado: string) {
     await api.actualizarTarea(tarea.id, { estado });
@@ -122,7 +118,7 @@ export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }:
 
         {/* Acciones rápidas: en el módulo de Tareas se muestran solo los 5 estados */}
         {agruparEstados ? (
-          esActiva && (
+          esActiva(tarea.estado) && (
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {grupo === "pendiente" && (
                 <button
@@ -156,7 +152,7 @@ export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }:
           )
         ) : (
           <div className="flex gap-1.5 mt-2 flex-wrap">
-            {!["completada", "aprobado", "publicado", "cancelado"].includes(tarea.estado) && (
+            {esActiva(tarea.estado) && (
               <button
                 onClick={completar}
                 className="text-[10px] px-2 py-1 rounded border border-success-300 bg-success-50 text-success-700 hover:bg-success-100 font-medium"
