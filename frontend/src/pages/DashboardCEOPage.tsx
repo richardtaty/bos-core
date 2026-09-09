@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { ActividadTimeline } from "../components/ActividadTimeline";
 import { KpiCard } from "../components/KpiCard";
-import type { DashboardCEO, DepartamentoCEO, TareaDetalleDashboard } from "../types";
+import { TareaDetalleModal } from "../components/TareaDetalleModal";
+import { esActiva } from "../lib/estados";
+import type { DashboardCEO, DepartamentoCEO, TareaDetalleDashboard, TareaOperativa, Usuario } from "../types";
 
 function EstadoBadge({ estado }: { estado: string }) {
   const c: Record<string, string> = {
@@ -57,6 +59,12 @@ export function DashboardCEOPage() {
   const [cargando, setCargando] = useState(true);
   const [detalle, setDetalle] = useState<DetalleVista | null>(null);
 
+  // Acciones por tarea dentro del detalle (trabajan sobre el registro real, no copias).
+  const [usuariosCrm, setUsuariosCrm] = useState<Usuario[] | null>(null);
+  const [tareaVer, setTareaVer] = useState<TareaOperativa | null>(null);
+  const [abriendoTareaId, setAbriendoTareaId] = useState<string | null>(null);
+  const [completandoId, setCompletandoId] = useState<string | null>(null);
+
   useEffect(() => {
     api.dashboardCEO().then((d) => {
       setData(d);
@@ -70,6 +78,67 @@ export function DashboardCEOPage() {
     v.tipo === "Completadas" ? v.depto.completadasDetalle
       : v.tipo === "Atrasadas" ? v.depto.atrasadasDetalle
         : v.depto.produccionHoyDetalle;
+
+  // Recargar el dashboard desde el servidor y reconciliar el modal abierto con el
+  // departamento fresco. Contadores, alertas y Producción hoy SIEMPRE se vuelven a
+  // derivar de los registros reales (nunca se editan a mano en el frontend).
+  async function refrescarDashboard() {
+    const d = await api.dashboardCEO();
+    setData(d);
+    setDetalle((prev) => {
+      if (!prev) return prev;
+      const fresco = d.departamentos.find((x) => x.id === prev.depto.id);
+      return fresco ? { tipo: prev.tipo, depto: fresco } : prev;
+    });
+  }
+
+  // "✓ Completar": completa la tarea REAL desde el detalle. Reutiliza el MISMO endpoint
+  // y estado que el resto del CRM (PATCH /api/tareas/:id con estado "completada"): el
+  // backend guarda completed_at, la saca de Atrasadas y la suma a Producción hoy cuando
+  // corresponde. Nunca crea copias ni estados nuevos.
+  async function completarDesdeDetalle(t: TareaDetalleDashboard) {
+    setCompletandoId(t.id);
+    try {
+      await api.actualizarTarea(t.id, { estado: "completada", porcentajeAvance: 100 });
+    } catch {
+      // Si ya fue completada desde otra vista (o no hay permiso), el backend lo reporta;
+      // igual se reconcilia contra la verdad del servidor — no se duplica ni se fuerza.
+    } finally {
+      setCompletandoId(null);
+      await refrescarDashboard();
+    }
+  }
+
+  // "Ver tarea": abre el registro REAL por su ID reutilizando el detalle/editor que ya
+  // usan Tareas y Scrum (TareaDetalleModal), cargado desde GET /api/tareas/:id.
+  async function abrirTareaReal(id: string) {
+    setAbriendoTareaId(id);
+    try {
+      const [tarea, usuarios] = await Promise.all([
+        api.obtenerTarea(id),
+        usuariosCrm ? Promise.resolve(usuariosCrm) : api.listarUsuarios(),
+      ]);
+      if (!usuariosCrm) setUsuariosCrm(usuarios);
+      setTareaVer(tarea);
+    } catch {
+      setTareaVer(null);
+    } finally {
+      setAbriendoTareaId(null);
+    }
+  }
+
+  // Después de editar/completar dentro del detalle real, se refresca la tarea mostrada y
+  // el dashboard, para que el modal del CEO deje de mostrar la tarea en Atrasadas.
+  async function trasCambioTarea() {
+    if (tareaVer) {
+      try {
+        setTareaVer(await api.obtenerTarea(tareaVer.id));
+      } catch {
+        setTareaVer(null);
+      }
+    }
+    await refrescarDashboard();
+  }
 
   return (
     <div>
@@ -212,12 +281,47 @@ export function DashboardCEOPage() {
                       <span>Límite: {fechaCorta(t.fechaLimite)}</span>
                       {t.completadaEn && <span>Completada: {fechaCorta(t.completadaEn)}</span>}
                     </div>
+
+                    {/* Acciones sobre el registro real — completar reusa la misma lógica
+                        del CRM; ver tarea abre su detalle real por ID. */}
+                    <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-neutral-100">
+                      <button
+                        type="button"
+                        onClick={() => void abrirTareaReal(t.id)}
+                        disabled={abriendoTareaId === t.id}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-100 disabled:opacity-60"
+                      >
+                        {abriendoTareaId === t.id ? "Abriendo..." : "👁 Ver tarea"}
+                      </button>
+                      {esActiva(t.estado) && (
+                        <button
+                          type="button"
+                          onClick={() => void completarDesdeDetalle(t)}
+                          disabled={!!completandoId}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-success-500 text-white hover:bg-success-600 font-medium disabled:opacity-60"
+                        >
+                          {completandoId === t.id ? "Completando..." : "✓ Completar"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* "Ver tarea": detalle/editor real del registro (por su ID), encima del modal del
+          dashboard — igual que en Tareas/Scrum. Al completar o editar ahí, se refresca
+          el dashboard para que Atrasadas/Contadores/Producción hoy queden al día. */}
+      {tareaVer && (
+        <TareaDetalleModal
+          tarea={tareaVer}
+          usuarios={usuariosCrm ?? []}
+          onClose={() => setTareaVer(null)}
+          onUpdate={() => void trasCambioTarea()}
+        />
       )}
     </div>
   );
