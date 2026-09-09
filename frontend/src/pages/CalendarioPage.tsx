@@ -17,6 +17,14 @@ function fmtFecha(iso: string) {
   return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", timeZone: "America/New_York" });
 }
 
+/** Para ATRASADAS: cuánto lleva vencido el seguimiento (solo tiene sentido en fechas pasadas). */
+function etiquetaVencimiento(iso: string): string {
+  const dias = diasDiferencia(iso);
+  if (dias === -1) return "Vencido ayer";
+  if (dias < -1) return `Vencido hace ${Math.abs(dias)} días`;
+  return "";
+}
+
 function soloFecha(iso: string): string {
   return iso ? iso.slice(0, 10) : "";
 }
@@ -31,12 +39,64 @@ function pdfSafe(s: string): string {
   return s.replace(/[^\x20-\x7E\xA0-\xFF]/g, "");
 }
 
+type ClaveGrupo = "atrasadas" | "hoy" | "proximas";
+
+// Los tres bloques del resumen operativo. Cada uno define su color, pero los contadores
+// y el contenido salen SIEMPRE de los registros reales (nunca hardcodeados).
+const GRUPOS_DEF: {
+  clave: ClaveGrupo;
+  etiqueta: string;
+  dot: string; // punto de color del encabezado
+  pill: string; // contador del grupo
+  tarjeta: string; // contenedor de cada registro al desplegar
+  vacio: string;
+  conVencimiento: boolean; // solo ATRASADAS muestra cuánto lleva vencido
+}[] = [
+  {
+    clave: "atrasadas",
+    etiqueta: "ATRASADAS",
+    dot: "bg-danger-500",
+    pill: "bg-danger-500 text-white",
+    tarjeta: "bg-danger-50 border-danger-100",
+    vacio: "Nada vencido. ¡Todo al día!",
+    conVencimiento: true,
+  },
+  {
+    clave: "hoy",
+    etiqueta: "PARA HOY",
+    dot: "bg-success-500",
+    pill: "bg-success-500 text-white",
+    tarjeta: "bg-success-50 border-success-100",
+    vacio: "Sin seguimientos pendientes para hoy.",
+    conVencimiento: false,
+  },
+  {
+    clave: "proximas",
+    etiqueta: "PRÓXIMAS",
+    dot: "bg-warning-500",
+    pill: "bg-warning-500 text-neutral-900",
+    tarjeta: "bg-warning-50 border-warning-100",
+    vacio: "Sin próximos seguimientos agendados.",
+    conVencimiento: false,
+  },
+];
+
 export function CalendarioPage() {
   const [tareas, setTareas] = useState<TareaPendiente[]>([]);
   const [cargando, setCargando] = useState(true);
   const [filtroResponsable, setFiltroResponsable] = useState("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  // Resumen colapsable: cada bloque abre/cierra por separado (no es un acordeón exclusivo).
+  // Por defecto todo contraído: al entrar se ve el resumen con los contadores.
+  const [gruposAbiertos, setGruposAbiertos] = useState<Record<ClaveGrupo, boolean>>({
+    atrasadas: false,
+    hoy: false,
+    proximas: false,
+  });
+
+  const alternarGrupo = (clave: ClaveGrupo) =>
+    setGruposAbiertos((prev) => ({ ...prev, [clave]: !prev[clave] }));
 
   const cargar = useCallback(async () => {
     const data = await api.listarTareasPendientes(false);
@@ -61,9 +121,14 @@ export function CalendarioPage() {
   });
   const filtradas = filtroResponsable ? enRango.filter((t) => t.responsableNombre === filtroResponsable) : enRango;
 
+  // Clasificación mutuamente excluyente según fecha real y estado (solo llegan pendientes).
+  // Como `filtradas` conserva el orden asc por fecha: ATRASADAS queda de la más vencida
+  // a la menos vencida, y PRÓXIMAS de la más cercana hacia las posteriores.
   const atrasadas = filtradas.filter((t) => diasDiferencia(t.fecha) < 0);
   const hoy = filtradas.filter((t) => diasDiferencia(t.fecha) === 0);
   const proximas = filtradas.filter((t) => diasDiferencia(t.fecha) > 0);
+
+  const itemsPorClave: Record<ClaveGrupo, TareaPendiente[]> = { atrasadas, hoy, proximas };
 
   const rangoLabel =
     desde || hasta
@@ -98,36 +163,6 @@ export function CalendarioPage() {
     doc.save("calendario-seguimientos.pdf");
   }
 
-  const Grupo = ({ titulo, items, colorClase }: { titulo: string; items: TareaPendiente[]; colorClase: string }) => (
-    <div className="mb-6">
-      <h3 className="text-sm font-medium text-neutral-700 mb-2">
-        {titulo} <span className="text-neutral-500 font-normal">({items.length})</span>
-      </h3>
-      {items.length === 0 ? (
-        <p className="text-xs text-neutral-500">Nada aquí.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {items.map((t) => (
-            <Link
-              key={t.id}
-              to={`/personas/${t.personaId}`}
-              className={`flex items-center justify-between p-3 rounded-lg border ${colorClase} hover:opacity-80`}
-            >
-              <div>
-                <p className="text-sm font-medium text-neutral-900">{t.personaNombre}</p>
-                <p className="text-xs text-neutral-500">{t.nota}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs text-neutral-500 block">{fmtFecha(t.fecha)}</span>
-                <span className="text-[10px] text-neutral-500">{t.responsableNombre}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
@@ -143,7 +178,7 @@ export function CalendarioPage() {
       <p className="text-sm text-neutral-500 mb-4">Todos los seguimientos pendientes, de todo el equipo</p>
 
       {/* Filtros: rango de fechas + responsable */}
-      <div className="flex flex-wrap items-end gap-3 mb-6">
+      <div className="flex flex-wrap items-end gap-3 mb-4">
         <div>
           <span className="text-xs text-neutral-500 block mb-1">Desde</span>
           <input
@@ -185,9 +220,68 @@ export function CalendarioPage() {
 
       <p className="text-xs text-neutral-500 mb-4">Mostrando {filtradas.length} seguimiento{filtradas.length !== 1 ? "s" : ""} · {rangoLabel}</p>
 
-      <Grupo titulo="Atrasadas" items={atrasadas} colorClase="bg-danger-50 border-danger-100" />
-      <Grupo titulo="Para hoy" items={hoy} colorClase="bg-warning-50 border-warning-100" />
-      <Grupo titulo="Próximas" items={proximas} colorClase="bg-neutral-50 border-neutral-200" />
+      {/* Resumen operativo: ATRASADAS · PARA HOY · PRÓXIMAS.
+          Cada bloque abre y cierra por separado; al entrar todo queda contraído
+          para ver de un vistazo los contadores sin llenar la pantalla de listas. */}
+      <div className="flex flex-col gap-3">
+        {GRUPOS_DEF.map((def) => {
+          const items = itemsPorClave[def.clave];
+          const abierto = gruposAbiertos[def.clave];
+          return (
+            <div key={def.clave}>
+              <button
+                type="button"
+                onClick={() => alternarGrupo(def.clave)}
+                aria-expanded={abierto}
+                title={abierto ? "Contraer" : "Desplegar"}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-neutral-200 bg-white text-left transition-colors hover:bg-neutral-50"
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <span aria-hidden className={`w-2.5 h-2.5 rounded-full shrink-0 ${def.dot}`} />
+                  <span className="text-sm font-semibold tracking-wide text-neutral-800">{def.etiqueta}</span>
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span
+                    aria-label={`${items.length} ${items.length === 1 ? "registro" : "registros"}`}
+                    className={`text-[11px] font-bold min-w-[22px] h-5 px-1.5 inline-flex items-center justify-center rounded-full ${def.pill}`}
+                  >
+                    {items.length}
+                  </span>
+                  <span aria-hidden className="text-[10px] text-neutral-400">{abierto ? "▼" : "▶"}</span>
+                </span>
+              </button>
+
+              {abierto && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {items.length === 0 ? (
+                    <p className="text-xs text-neutral-500 px-2 py-1">{def.vacio}</p>
+                  ) : (
+                    items.map((t) => (
+                      <Link
+                        key={t.id}
+                        to={`/personas/${t.personaId}`}
+                        className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${def.tarjeta} hover:opacity-80`}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-neutral-900 truncate">{t.personaNombre}</p>
+                          {t.nota ? <p className="text-xs text-neutral-500 truncate">{t.nota}</p> : null}
+                        </div>
+                        <div className="text-right shrink-0">
+                          {def.conVencimiento && etiquetaVencimiento(t.fecha) && (
+                            <span className="text-[10px] font-semibold text-danger-600 block">{etiquetaVencimiento(t.fecha)}</span>
+                          )}
+                          <span className="text-xs text-neutral-600 block">{fmtFecha(t.fecha)}</span>
+                          <span className="text-[10px] text-neutral-500 block">{t.responsableNombre}</span>
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
