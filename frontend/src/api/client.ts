@@ -399,6 +399,14 @@ export const api = {
   completarTarea: (tareaId: string) =>
     request<unknown>(`/personas/tareas/${tareaId}/completar`, { method: "PATCH" }),
 
+  // Reagendar un seguimiento/registro del Calendario: cambia la fecha/hora de la MISMA fila
+  // real (id intacto). Nunca crea una cita nueva.
+  reagendarTarea: (tareaId: string, fecha: string) =>
+    request<unknown>(`/personas/tareas/${tareaId}/reagendar`, {
+      method: "PATCH",
+      body: JSON.stringify({ fecha }),
+    }),
+
   listarPipelines: () => request<import("../types").Pipeline[]>("/pipelines"),
 
   resumenVentas: (limite?: number) =>

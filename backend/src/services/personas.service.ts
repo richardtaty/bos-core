@@ -283,6 +283,35 @@ export async function completarTarea(tareaId: string, autorId: string) {
   return { ...tarea, completado: true };
 }
 
+// Reagendar un seguimiento/registro del Calendario: cambia SOLO la fecha/hora de la MISMA
+// fila real (id intacto). Nunca crea una cita nueva ni un seguimiento paralelo: persona,
+// tipo, título, nota, estado y su historial se conservan. El resto del CRM refleja el
+// cambio porque todos leen la misma fila de `tareas_seguimiento`.
+export async function reagendarTareaSeguimiento(tareaId: string, fechaISO: string, autorId: string) {
+  const [tarea] = await db.select().from(tareasSeguimiento).where(eq(tareasSeguimiento.id, tareaId));
+  if (!tarea) throw new Error("Tarea no encontrada");
+
+  const fechaNueva = new Date(fechaISO);
+  if (Number.isNaN(fechaNueva.getTime())) throw new Error("Fecha inválida");
+
+  const fechaAnterior = tarea.fecha;
+
+  await db
+    .update(tareasSeguimiento)
+    .set({ fecha: fechaNueva })
+    .where(eq(tareasSeguimiento.id, tareaId));
+
+  await registrarAuditoria({
+    entidad: "TareaSeguimiento",
+    entidadId: tareaId,
+    accion: `Seguimiento reagendado de ${fechaAnterior.toISOString()} a ${fechaNueva.toISOString()}`,
+    autorId,
+    personaId: tarea.personaId,
+  });
+
+  return { ...tarea, fecha: fechaNueva };
+}
+
 // Reemplaza por completo el conjunto de negocios de interés de un contacto — mismo patrón
 // de "borrar todo y volver a insertar" que es seguro porque la tabla de unión es pequeña.
 export async function actualizarNegocios(personaId: string, nombresNegocios: string[], autorId: string) {

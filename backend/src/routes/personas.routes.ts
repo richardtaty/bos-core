@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { crearPersonaSchema, crearInteraccionSchema, actualizarComentariosSchema, actualizarNegociosSchema, actualizarPersonaSchema, activoDigitalSchema } from "../lib/validation";
+import { crearPersonaSchema, crearInteraccionSchema, actualizarComentariosSchema, actualizarNegociosSchema, actualizarPersonaSchema, activoDigitalSchema, reagendarTareaSeguimientoSchema } from "../lib/validation";
 import {
   listarActivosDigitales,
   crearActivoDigital,
@@ -14,6 +14,7 @@ import {
   crearPersona,
   registrarInteraccion,
   completarTarea,
+  reagendarTareaSeguimiento,
   actualizarComentarios,
   actualizarNegocios,
   actualizarDatosPersona,
@@ -186,6 +187,24 @@ personasRouter.patch("/:id/negocios", async (req, res) => {
 personasRouter.patch("/tareas/:tareaId/completar", requireRole("USUARIO"), async (req, res) => {
   try {
     const tarea = await completarTarea(req.params.tareaId, req.user!.id);
+    res.json(tarea);
+  } catch (err) {
+    res.status(404).json({ error: (err as Error).message });
+  }
+});
+
+// Reagendar (cambiar fecha/hora) del MISMO seguimiento/registro del Calendario. Actualiza
+// una sola fila en `tareas_seguimiento` (mismo id): nada de citas duplicadas ni paralelas.
+// Misma protección que "completar" (rol USUARIO en el middleware). Va antes de cualquier
+// ruta "/:id" de un solo segmento para que "tareas" no se lea como un id de persona.
+personasRouter.patch("/tareas/:tareaId/reagendar", requireRole("USUARIO"), async (req, res) => {
+  const parsed = reagendarTareaSeguimientoSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const tarea = await reagendarTareaSeguimiento(req.params.tareaId, parsed.data.fecha, req.user!.id);
     res.json(tarea);
   } catch (err) {
     res.status(404).json({ error: (err as Error).message });

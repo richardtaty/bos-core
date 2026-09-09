@@ -78,6 +78,14 @@ export const crearRegistroCalendarioSchema = z.object({
   nota: z.string().optional(),
 });
 
+// Reagendar (cambiar de fecha/hora) un registro existente del Calendario / seguimiento.
+// La fecha es ISO con hora (la hora es opcional en el formulario; sin hora se conserva el
+// comportamiento del Calendario de guardar al mediodía). Nunca se cambia el id: es la MISMA
+// fila real de `tareas_seguimiento`, no una cita nueva.
+export const reagendarTareaSeguimientoSchema = z.object({
+  fecha: z.string().datetime({ message: "Fecha inválida" }),
+});
+
 export const moverEtapaSchema = z.object({
   etapaId: z.string().min(1),
   motivoPerdida: z.string().optional(),
