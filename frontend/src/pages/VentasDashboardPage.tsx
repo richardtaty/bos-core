@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, type VentaResumen } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import { KpiCard } from "../components/KpiCard";
+import { VentaDetalleModal } from "../components/VentaDetalleModal";
 
 // Formatea montos como el resto del sistema: enteros, sin decimales ($12,500).
 function fmtMonto(n: number): string {
@@ -21,6 +22,9 @@ export function VentasDashboardPage() {
   const [ventas, setVentas] = useState<VentaResumen[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Venta abierta en el detalle de consulta. Se guarda el registro COMPLETO (no solo el id)
+  // para que el modal muestre de inmediato lo que ya trae la fila, por su id real.
+  const [ventaAbierta, setVentaAbierta] = useState<VentaResumen | null>(null);
 
   useEffect(() => {
     const cargar = async () => {
@@ -92,7 +96,20 @@ export function VentasDashboardPage() {
             </thead>
             <tbody>
               {ventas.map((v) => (
-                <tr key={v.id} className="border-t border-neutral-200">
+                <tr
+                  key={v.id}
+                  onClick={() => setVentaAbierta(v)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setVentaAbierta(v);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title="Ver el detalle de esta operación"
+                  className="border-t border-neutral-200 cursor-pointer hover:bg-neutral-100 focus:bg-neutral-100 focus:outline-none"
+                >
                   <td className="px-4 py-2.5 font-medium text-neutral-900 whitespace-nowrap">{v.personaNombre ?? "—"}</td>
                   <td className="px-4 py-2.5 text-neutral-700">{v.pipelineNombre ?? "—"}</td>
                   <td className="px-4 py-2.5 text-neutral-600 whitespace-nowrap">{v.responsableNombre ?? "—"}</td>
@@ -114,9 +131,14 @@ export function VentasDashboardPage() {
           </table>
           <p className="text-xs text-neutral-400 px-4 py-2.5 border-t border-neutral-200">
             Se muestran las últimas {ventas.length} ventas ganadas. "Pagado" y "Saldo" se calculan
-            siempre de los cobros reales, nunca se guardan.
+            siempre de los cobros reales, nunca se guardan. Haz clic en una venta para consultar el
+            detalle de esa operación.
           </p>
         </div>
+      )}
+
+      {ventaAbierta && (
+        <VentaDetalleModal venta={ventaAbierta} onClose={() => setVentaAbierta(null)} />
       )}
     </div>
   );
