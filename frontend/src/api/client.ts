@@ -709,20 +709,33 @@ export const api = {
   // (POST /api/tickets). Consultar la bandeja (/dev/tickets) responde 403 a quien no
   // tenga acceso a DEV, igual que DEV → Tareas.
 
-  crearTicket: (data: { description: string; prioridad?: string; idempotencyKey?: string }) =>
-    request<import("../types").Ticket>("/tickets", { method: "POST", body: JSON.stringify(data) }),
+  // Crea el ticket CON sus archivos en una sola petición (sobre binario: 4 bytes "BOST"
+  // + largo de la meta + meta JSON + los bytes de cada archivo). El backend rechaza la
+  // petición si no hay al menos un archivo válido — nunca queda un ticket incompleto.
+  crearTicket: async (data: {
+    description: string;
+    prioridad?: string;
+    idempotencyKey?: string;
+    archivos: File[];
+  }): Promise<import("../types").Ticket> => {
+    const { archivos, ...resto } = data;
+    const meta = {
+      ...resto,
+      archivos: archivos.map((f) => ({ nombre: f.name, tamano: f.size })),
+    };
+    const metaBytes = new TextEncoder().encode(JSON.stringify(meta));
+    const cabecera = new Uint8Array(8);
+    cabecera.set([0x42, 0x4f, 0x53, 0x54], 0); // "BOST"
+    new DataView(cabecera.buffer).setUint32(4, metaBytes.length, false);
 
-  // Adjunta UN archivo real (body binario, sin base64). El backend valida tipo y tamaño.
-  subirAdjuntoTicket: async (ticketId: string, file: File): Promise<import("../types").TicketAdjunto> => {
     const token = getToken();
-    const res = await fetch(`${BASE_URL}/tickets/${ticketId}/adjuntos`, {
+    const res = await fetch(`${BASE_URL}/tickets`, {
       method: "POST",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        "Content-Type": file.type || "application/octet-stream",
-        "x-nombre-archivo": encodeURIComponent(file.name),
+        "Content-Type": "application/octet-stream",
       },
-      body: file,
+      body: new Blob([cabecera, metaBytes, ...archivos]),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -734,6 +747,17 @@ export const api = {
   listarTicketsDev: () => request<import("../types").Ticket[]>("/dev/tickets"),
 
   obtenerTicketDev: (id: string) => request<import("../types").Ticket>(`/dev/tickets/${id}`),
+
+  // Los tres contadores del panel (recibidos / completados / cancelados), en vivo.
+  listarEstadisticasTicketsDev: () =>
+    request<import("../types").TicketEstadisticas>("/dev/tickets/estadisticas"),
+
+  // Resuelve el MISMO ticket (COMPLETADO o CANCELADO); no crea otro ni lo borra.
+  actualizarEstadoTicketDev: (id: string, status: import("../types").EstadoResolucionTicket) =>
+    request<import("../types").Ticket>(`/dev/tickets/${id}/estado`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
 
   // Descarga protegida de un adjunto (binario). Se usa para vista previa de imágenes
   // y para descargar; requiere acceso a DEV (403 en backend para quien no lo tenga).

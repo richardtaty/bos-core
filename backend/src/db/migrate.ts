@@ -105,3 +105,6 @@ ejecutarMigracion("0026_estado_completada_unico", sqlEstadoCompletadaUnico);
 
 const sqlTickets = readFileSync(join(__dirname, "migrations", "0027_tickets.sql"), "utf-8");
 ejecutarMigracion("0027_tickets", sqlTickets);
+
+const sqlTicketsEstado = readFileSync(join(__dirname, "migrations", "0028_tickets_estado.sql"), "utf-8");
+ejecutarMigracion("0028_tickets_estado", sqlTicketsEstado);

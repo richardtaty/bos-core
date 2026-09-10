@@ -1015,7 +1015,8 @@ export const cumpleanosRecordatorios = sqliteTable(
 // cualquier usuario autenticado puede crear desde el botón global "Crear ticket".
 // CREAR está abierto a todos; VER queda restringido a SUPER_ADMIN vía el router /api/dev
 // (mismas reglas que DEV → Tareas). NO son tareas DEV: ticket y tarea son conceptos
-// distintos y no se convierten entre sí (sin estados ni responsables en esta versión).
+// distintos y no se convierten entre sí. Estados reales: PENDIENTE / COMPLETADO /
+// CANCELADO (sin responsables ni workflow adicional); el ticket nunca se borra.
 
 export const tickets = sqliteTable(
   "tickets",
@@ -1025,12 +1026,24 @@ export const tickets = sqliteTable(
     requestedByUserId: text("requested_by_user_id").notNull().references(() => usuarios.id),
     description: text("description").notNull(),
     prioridad: text("prioridad", { enum: ["Baja", "Normal", "Alta"] }).notNull().default("Normal"),
+    // Estado estructurado del ticket (columna real, nunca inferido de texto/color).
+    // Un ticket nuevo SIEMPRE nace PENDIENTE y el solicitante no lo elige.
+    status: text("status", { enum: ["PENDIENTE", "COMPLETADO", "CANCELADO"] })
+      .notNull()
+      .default("PENDIENTE"),
+    // Fechas de resolución (nullable): se llenan al pasar a COMPLETADO / CANCELADO.
+    // created_at NUNCA se toca: el ticket conserva su fecha original de creación.
+    completedAt: timestamp("completed_at"),
+    cancelledAt: timestamp("cancelled_at"),
     // Clave de idempotencia anti doble-clic: un reintento con la misma clave no crea
     // un segundo ticket (misma mecánica que pagos.idempotencyKey).
     idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
   },
-  (t) => ({ createdIdx: index("tickets_created_idx").on(t.createdAt) })
+  (t) => ({
+    createdIdx: index("tickets_created_idx").on(t.createdAt),
+    statusIdx: index("tickets_status_idx").on(t.status),
+  })
 );
 
 // Adjuntos de un ticket: el binario vive aquí como BLOB (nunca base64 en `tickets`).

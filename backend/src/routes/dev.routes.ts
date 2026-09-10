@@ -7,7 +7,13 @@ import {
   listarTareasDev,
   SinPermisoTareaError,
 } from "../services/tareas.service";
-import { listarTicketsDev, obtenerTicket, obtenerAdjunto } from "../services/tickets.service";
+import {
+  actualizarEstadoTicket,
+  contarTickets,
+  listarTicketsDev,
+  obtenerTicket,
+  obtenerAdjunto,
+} from "../services/tickets.service";
 
 // ─── Módulo DEV: tareas de desarrollo ───────────────────────────
 // Apartado exclusivo del SUPER ADMIN (matriz: ADMIN, SUPERVISOR y USUARIO quedan fuera
@@ -66,6 +72,27 @@ function statusDe(e: unknown): number {
 // GET /api/dev/tickets — más recientes primero (created_at real de la BD).
 devRouter.get("/tickets", async (_req, res) => {
   res.json(await listarTicketsDev());
+});
+
+// GET /api/dev/tickets/estadisticas — tres contadores reales (conteos SQL en vivo):
+// recibidos (todos), completados y cancelados. Va ANTES de /tickets/:id porque si no
+// Express tomaría "estadisticas" como el :id del detalle.
+devRouter.get("/tickets/estadisticas", async (_req, res) => {
+  res.json(await contarTickets());
+});
+
+// PATCH /api/dev/tickets/:id/estado — marca el ticket COMPLETADO o CANCELADO.
+// Actualiza el mismo registro (no crea otro, no borra): el ticket sigue en el
+// historial con su estado y su created_at intacto.
+devRouter.patch("/tickets/:id/estado", async (req, res) => {
+  try {
+    const estado = (req.body ?? {}) as { status?: unknown };
+    res.json(await actualizarEstadoTicket(req.params.id, estado.status));
+  } catch (e) {
+    const status = statusDe(e);
+    if (status === 404) { res.status(404).json({ error: "Ticket no encontrado" }); return; }
+    res.status(status).json({ error: e instanceof Error ? e.message : "Error inesperado" });
+  }
 });
 
 // GET /api/dev/tickets/:id — detalle completo + adjuntos (sin binario).

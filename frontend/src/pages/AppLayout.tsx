@@ -148,8 +148,9 @@ export function AppLayout() {
   const { usuario, logout } = useAuth();
   const permisos = usePermisos();
   const [modalPassword, setModalPassword] = useState(false);
-  // Botón flotante global "Crear ticket": cualquier usuario autenticado puede abrirlo
-  // desde cualquier página (AppLayout solo existe bajo RutaProtegida). No aparece en /login.
+  // Botón global "Crear ticket" (dentro del sidebar): cualquier usuario autenticado
+  // puede abrirlo desde cualquier página (AppLayout solo existe bajo RutaProtegida).
+  // No aparece en /login y no otorga acceso a DEV.
   const [mostrarTicket, setMostrarTicket] = useState(false);
   const [conteoPropias, setConteoPropias] = useState(0);
   const [conteoEquipo, setConteoEquipo] = useState(0);
@@ -316,7 +317,20 @@ export function AppLayout() {
           })()}
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-neutral-200">
+        {/* Crear ticket: vive DENTRO del sidebar, justo encima del bloque «Sesión».
+            No es fixed/absolute ni lleva contenedor propio: ocupa su lugar en la
+            columna y nunca tapa el nombre, el rol, «Cambiar contraseña» ni «Cerrar
+            sesión». Sigue disponible para cualquier usuario autenticado, en todo el CRM. */}
+        <button
+          type="button"
+          onClick={() => setMostrarTicket(true)}
+          title="Enviar una solicitud de ajuste, error o mejora a DEV"
+          className="w-full mt-4 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium px-3 py-2 shadow-sm shadow-primary-500/20 transition-colors"
+        >
+          🎫 Crear ticket
+        </button>
+
+        <div className="mt-4 pt-4 border-t border-neutral-200">
           <p className="text-xs text-neutral-500 mb-1">Sesión</p>
           <p className="text-sm font-medium text-neutral-900">{usuario?.nombre}</p>
           <p className="text-[11px] text-neutral-500 mb-3">{usuario?.rol}</p>
@@ -337,23 +351,6 @@ export function AppLayout() {
       </div>
 
       {modalPassword && <CambiarPasswordModal onClose={() => setModalPassword(false)} />}
-
-      {/* Botón flotante global para crear tickets (esquina inferior izquierda; el chat
-          de BMF ya ocupa la derecha). No altera el layout de ninguna página: es un
-          overlay fixed. Al enviar el ticket se cierra el modal sin redirigir a DEV. */}
-      {!mostrarTicket && (
-        <button
-          type="button"
-          onClick={() => setMostrarTicket(true)}
-          title="Enviar una solicitud de ajuste, error o mejora a DEV"
-          className="shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-shadow"
-          style={{ position: "fixed", bottom: 24, left: 24, zIndex: 9990 }}
-        >
-          <span className="flex items-center gap-2 rounded-full bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium px-4 py-2.5">
-            🎫 Crear ticket
-          </span>
-        </button>
-      )}
 
       {mostrarTicket && <NuevoTicketModal onClose={() => setMostrarTicket(false)} />}
     </div>

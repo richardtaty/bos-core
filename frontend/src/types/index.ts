@@ -485,6 +485,19 @@ export interface Archivo {
 
 export type PrioridadTicket = "Baja" | "Normal" | "Alta";
 
+/** Estados reales del ticket. Nace PENDIENTE; el solicitante no elige estado. */
+export type EstadoTicket = "PENDIENTE" | "COMPLETADO" | "CANCELADO";
+
+/** Las dos únicas acciones para resolver un ticket pendiente. */
+export type EstadoResolucionTicket = "COMPLETADO" | "CANCELADO";
+
+/** Los tres contadores del panel de DEV → Tickets (conteos reales, no fijos). */
+export interface TicketEstadisticas {
+  recibidos: number;
+  completados: number;
+  cancelados: number;
+}
+
 export interface TicketAdjunto {
   id: string;
   nombreOriginal: string;
@@ -501,6 +514,9 @@ export interface Ticket {
   solicitudCargo: string | null;
   description: string;
   prioridad: PrioridadTicket;
+  status: EstadoTicket;
+  completedAt: string | null;
+  cancelledAt: string | null;
   createdAt: string;
   adjuntosCount: number;
   adjuntos?: TicketAdjunto[];
