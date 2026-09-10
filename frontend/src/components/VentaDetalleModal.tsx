@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type VentaResumen } from "../api/client";
+import { api, ApiError, type VentaResumen } from "../api/client";
+import { useAuth } from "../api/AuthContext";
 import type { Pago } from "../types";
 
 // Formato de montos y fechas: idéntico al de Resumen de Ventas, para que la fila de la tabla
@@ -29,6 +30,10 @@ interface DetallePipeline {
 interface Props {
   venta: VentaResumen;
   onClose: () => void;
+  /** Lleva al registro REAL dentro del Pipeline, enfocando esa operación concreta. */
+  onVerEnOrigen: () => void;
+  /** Avisa al padre que el registro cambió, para que refresque la tabla y este mismo modal. */
+  onEditado: () => void;
 }
 
 /**
@@ -40,11 +45,56 @@ interface Props {
  * tablero real del Pipeline (`tableroKanban`, que ya trae pagado/saldo/vencido calculados por
  * la lógica financiera existente) y los pagos reales (`listarPagos`).
  *
- * No crea ni modifica NADA: solo hace GET. No registra pagos, no mueve etapas, no cambia el
- * monto ni el estado. Si la operación ya no está en el Pipeline, se avisa y se sigue mostrando
- * la información que sí se tiene — la página nunca se rompe.
+ * Abrir el modal (y "Ver en origen") solo consulta: ningún GET cambia nada. La única escritura
+ * posible es "Editar", que reutiliza el endpoint que YA existe para eso (`actualizarValorRegistro`,
+ * el mismo de "ajustar total" en la tarjeta del Pipeline) y respeta su regla actual: con pagos
+ * registrados, solo un SUPER ADMIN. No se registran pagos, no se mueven etapas y no se toca el
+ * estado. Si la operación ya no está en el Pipeline, se avisa y se sigue mostrando la información
+ * que sí se tiene — la página nunca se rompe.
+ *
+ * NO existe acción de Eliminar a propósito: el CRM no tiene ninguna forma (ni destructiva ni de
+ * borrado lógico) de eliminar un registro de pipeline, y este modal no va a inventarla.
  */
-export function VentaDetalleModal({ venta, onClose }: Props) {
+export function VentaDetalleModal({ venta, onClose, onVerEnOrigen, onEditado }: Props) {
+  const { usuario } = useAuth();
+  const esSuperAdmin = usuario?.rol === "SUPER_ADMIN";
+
+  // Mismo permiso REAL que la tarjeta del Pipeline para "ajustar total"
+  // (actualizarValorRegistro en el backend): con pagos registrados, solo un SUPER ADMIN.
+  // El backend lo valida igual — esto solo decide si se muestra el atajo.
+  const puedeEditarMonto = venta.totalPagado === 0 || esSuperAdmin;
+
+  const [editando, setEditando] = useState(false);
+  const [montoInput, setMontoInput] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorEdicion, setErrorEdicion] = useState<string | null>(null);
+
+  const abrirEdicion = () => {
+    setMontoInput(venta.valor != null ? String(venta.valor) : "");
+    setErrorEdicion(null);
+    setEditando(true);
+  };
+
+  // Reutiliza el endpoint existente de "ajustar total": no hay lógica financiera nueva aquí.
+  const guardarMonto = async () => {
+    const nuevo = Number(montoInput);
+    if (!nuevo || nuevo <= 0) {
+      setErrorEdicion("Ingresa un monto total válido.");
+      return;
+    }
+    setGuardando(true);
+    setErrorEdicion(null);
+    try {
+      await api.actualizarValorRegistro(venta.id, nuevo);
+      setEditando(false);
+      onEditado();
+    } catch (err) {
+      setErrorEdicion(err instanceof ApiError ? String(err.payload) : "No se pudo actualizar el monto total.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const [pagos, setPagos] = useState<Pago[] | null>(null);
   const [errorPagos, setErrorPagos] = useState(false);
   const [detallePipeline, setDetallePipeline] = useState<DetallePipeline | null>(null);
@@ -153,6 +203,45 @@ export function VentaDetalleModal({ venta, onClose }: Props) {
             </div>
           </div>
 
+          {/* Edición del monto total — mismo campo y misma regla que la tarjeta del Pipeline */}
+          {editando && (
+            <div className="bg-primary-500/5 border border-primary-500/20 rounded-lg p-3">
+              <label className="block text-xs text-neutral-600 mb-1">Monto total del negocio (USD)</label>
+              <input
+                type="number"
+                value={montoInput}
+                onChange={(e) => setMontoInput(e.target.value)}
+                min="0"
+                step="0.01"
+                autoFocus
+                className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm font-mono"
+                placeholder="0"
+              />
+              {venta.totalPagado > 0 && (
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Ya hay ${Math.round(venta.totalPagado).toLocaleString()} cobrados: el nuevo total no
+                  puede quedar por debajo de eso.
+                </p>
+              )}
+              {errorEdicion && <p className="text-xs text-danger-600 mt-2">{errorEdicion}</p>}
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => void guardarMonto()}
+                  disabled={guardando}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800"
+                >
+                  {guardando ? "Guardando..." : "Guardar"}
+                </button>
+                <button
+                  onClick={() => setEditando(false)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Plan de cobro vigente (solo si el registro sigue en el Pipeline y tiene datos) */}
           {detallePipeline && (detallePipeline.fechaProximoPago || detallePipeline.metodoPago || detallePipeline.montoVencido > 0) && (
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -201,15 +290,36 @@ export function VentaDetalleModal({ venta, onClose }: Props) {
           </div>
         </div>
 
-        {/* ─── Footer ──────────────────────────────── */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-neutral-200 bg-neutral-100 rounded-b-xl">
-          <span className="text-[10px] text-neutral-500">Solo consulta — no modifica la operación.</span>
-          <button
-            onClick={onClose}
-            className="text-xs px-4 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
-          >
-            Cerrar
-          </button>
+        {/* ─── Footer: acciones sobre el MISMO registro real ──────────────── */}
+        <div className="flex items-center justify-between gap-2 flex-wrap px-5 py-3 border-t border-neutral-200 bg-neutral-100 rounded-b-xl">
+          {/* El origen es una relación real del sistema, no una etiqueta escrita a mano:
+              toda venta del Resumen vive en un registro de pipeline. */}
+          <span className="text-[10px] text-neutral-500">
+            Origen: Pipeline{venta.pipelineNombre ? ` — ${venta.pipelineNombre}` : ""}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={onVerEnOrigen}
+              title="Abrir esta operación dentro del Pipeline"
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600"
+            >
+              ↗ Ver en origen
+            </button>
+            {puedeEditarMonto && !editando && (
+              <button
+                onClick={abrirEdicion}
+                className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+              >
+                ✏️ Editar
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-xs px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>

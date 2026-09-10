@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api, type VentaResumen } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import { KpiCard } from "../components/KpiCard";
@@ -19,6 +19,7 @@ function fmtFecha(iso: string | null): string {
 
 export function VentasDashboardPage() {
   const { usuario } = useAuth();
+  const navigate = useNavigate();
   const [ventas, setVentas] = useState<VentaResumen[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,19 +27,23 @@ export function VentasDashboardPage() {
   // para que el modal muestre de inmediato lo que ya trae la fila, por su id real.
   const [ventaAbierta, setVentaAbierta] = useState<VentaResumen | null>(null);
 
-  useEffect(() => {
-    const cargar = async () => {
-      try {
-        const datos = await api.resumenVentas(50);
-        setVentas(datos);
-      } catch {
-        setError("No se pudo cargar el resumen de ventas. Inténtalo de nuevo.");
-      } finally {
-        setCargando(false);
-      }
-    };
-    void cargar();
+  const cargar = useCallback(async () => {
+    try {
+      const datos = await api.resumenVentas(50);
+      setVentas(datos);
+      // La venta abierta se reemplaza por la fila FRESCA del mismo id: así el modal nunca
+      // conserva una copia vieja después de editar el registro real.
+      setVentaAbierta((actual) => (actual ? (datos.find((d) => d.id === actual.id) ?? null) : null));
+    } catch {
+      setError("No se pudo cargar el resumen de ventas. Inténtalo de nuevo.");
+    } finally {
+      setCargando(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
 
   const totalVendido = ventas.reduce((s, v) => s + (v.valor ?? 0), 0);
   const totalCobrado = ventas.reduce((s, v) => s + v.totalPagado, 0);
@@ -138,7 +143,18 @@ export function VentasDashboardPage() {
       )}
 
       {ventaAbierta && (
-        <VentaDetalleModal venta={ventaAbierta} onClose={() => setVentaAbierta(null)} />
+        <VentaDetalleModal
+          venta={ventaAbierta}
+          onClose={() => setVentaAbierta(null)}
+          // Se navega con el ID REAL del registro (y su pipeline) para abrir ESA operación
+          // concreta dentro del Pipeline, no el listado general.
+          onVerEnOrigen={() =>
+            navigate(
+              `/pipelines?pipelineId=${encodeURIComponent(ventaAbierta.pipelineId)}&registroId=${encodeURIComponent(ventaAbierta.id)}`
+            )
+          }
+          onEditado={() => void cargar()}
+        />
       )}
     </div>
   );

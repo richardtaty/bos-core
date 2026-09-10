@@ -14,7 +14,10 @@ function nuevaClavePago(): string {
   }
 }
 
-export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
+// `registroIdDestacado` llega desde "Ver en origen" (Resumen de Ventas): es el id REAL del
+// registro que hay que mostrar. Este componente solo lo enfoca y lo resalta — no cambia etapas,
+// columnas, pagos ni el arrastre. Es opcional: el resto de usos (Podcast) sigue igual.
+export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: string; registroIdDestacado?: string | null }) {
   const { usuario } = useAuth();
   const esSuperAdmin = usuario?.rol === "SUPER_ADMIN";
 
@@ -50,6 +53,13 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
   // permite que cada columna tenga su propio scroll vertical sin agrandar la página.
   const tableroRef = useRef<HTMLDivElement>(null);
   const [altoColumna, setAltoColumna] = useState(560);
+
+  // Tarjeta que hay que enfocar al llegar desde "Ver en origen".
+  const cardDestacadaRef = useRef<HTMLDivElement>(null);
+  // ¿El registro pedido está realmente en este tablero? null = no se pidió ninguno.
+  const destacadoEncontrado = registroIdDestacado
+    ? (tablero?.etapas.some((e) => e.registros.some((r) => r.id === registroIdDestacado)) ?? false)
+    : null;
 
   function hoyStr(): string {
     const ahora = new Date();
@@ -90,6 +100,15 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
       ro.disconnect();
     };
   }, [tablero]);
+
+  // Llevar la tarjeta destacada a la vista apenas el tablero esté cargado. Si el registro no
+  // está en este tablero, no se hace nada y se avisa arriba (ver render).
+  useEffect(() => {
+    if (!registroIdDestacado || !tablero) return;
+    const el = cardDestacadaRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [registroIdDestacado, tablero]);
 
   const mover = async (registroId: string, etapaId: string, motivoPerdida?: string) => {
     try {
@@ -229,6 +248,15 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
         </div>
       )}
 
+      {destacadoEncontrado === false && (
+        <div className="bg-warning-500/10 border border-warning-500/20 rounded-lg p-3 mb-4">
+          <p className="text-xs text-warning-700">
+            No se encontró esa operación en este tablero. Puede haber cambiado de etapa o de
+            pipeline desde que se registró la venta.
+          </p>
+        </div>
+      )}
+
       <div ref={tableroRef} className="flex gap-3 overflow-x-auto pb-4">
         {tablero.etapas.map((etapa) => (
           <div
@@ -253,9 +281,14 @@ export function KanbanBoard({ pipelineId }: { pipelineId: string }) {
                 return (
                   <div
                     key={r.id}
+                    ref={r.id === registroIdDestacado ? cardDestacadaRef : undefined}
                     draggable
                     onDragStart={() => setArrastrando(r.id)}
-                    className="bg-neutral-50 rounded-lg border border-neutral-200 p-2.5 text-sm cursor-move shadow-sm "
+                    className={`bg-neutral-50 rounded-lg border p-2.5 text-sm cursor-move shadow-sm ${
+                      r.id === registroIdDestacado
+                        ? "border-primary-500 ring-2 ring-primary-500/40"
+                        : "border-neutral-200"
+                    }`}
                   >
                     <p className="font-medium text-neutral-800">{r.personaNombre ?? "Sin persona asignada"}</p>
 
