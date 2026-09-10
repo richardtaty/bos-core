@@ -387,3 +387,10 @@ export const guardarSalarioSchema = z.object({
   vigenteDesde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha debe tener formato AAAA-MM-DD"),
   notas: z.string().max(300, "Las notas no pueden superar 300 caracteres").nullable().optional(),
 });
+
+// ─── RECURSOS HUMANOS → Asistencia · Check-ins de actividad ─────
+// Solo viaja el ID del check-in. Nunca el user_id: la identidad sale del token, así nadie
+// puede responder el check-in de otra persona cambiando el cuerpo de la petición.
+export const responderCheckinSchema = z.object({
+  checkinId: z.string().trim().min(1, "Falta el check-in a responder"),
+});

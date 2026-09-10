@@ -1155,6 +1155,42 @@ export interface PersonalRRHH {
 
 export type EstadoSesionJornada = "ABIERTA" | "FINALIZADA";
 
+/**
+ * REGULAR = jornada normal del día. REPOSICION = sesión aparte para recuperar dentro del mes
+ * las horas que quedaron pendientes. Una reposición NUNCA modifica la jornada original.
+ */
+export type TipoSesionJornada = "REGULAR" | "REPOSICION";
+
+/**
+ * Estado de un check-in de actividad. Los cancelados son los que nunca llegaron a ocurrir
+ * (porque la sesión terminó antes): quedan fuera del denominador de «7 de 8».
+ */
+export type EstadoCheckin = "PENDIENTE" | "RESPONDIDO" | "SIN_RESPUESTA" | "CANCELADO";
+
+export interface Checkin {
+  id: string;
+  jornadaId: string;
+  /** Bloque de 1 hora desde el inicio de la sesión (0, 1, 2…). Máximo uno por bloque. */
+  blockIndex: number;
+  /** Instante en que toca la alerta. Lo decide el servidor, no el navegador. */
+  scheduledAt: string;
+  /** Primera vez que la alerta se mostró. De aquí cuenta la ventana de respuesta. */
+  deliveredAt: string | null;
+  respondedAt: string | null;
+  estado: EstadoCheckin;
+  /** Fin de la ventana de respuesta. null mientras no se haya mostrado. */
+  expiraEn: string | null;
+}
+
+export interface ConteoCheckins {
+  /** Denominador de «7 de 8»: NO incluye los cancelados, que nunca llegaron a ocurrir. */
+  total: number;
+  respondidos: number;
+  sinRespuesta: number;
+  pendientes: number;
+  cancelados: number;
+}
+
 export interface SesionJornada {
   id: string;
   /** ID real de la persona (usuarios.id). */
@@ -1162,6 +1198,7 @@ export interface SesionJornada {
   /** ID del perfil laboral — la relación estructurada del futuro Control de Sueldo. */
   empleadoId: string;
   personaNombre: string;
+  sessionType: TipoSesionJornada;
   startedAt: string;
   /** null mientras la jornada siga abierta. */
   endedAt: string | null;
@@ -1173,12 +1210,18 @@ export interface SesionJornada {
   fecha: string;
   /** Minutos que ese día tenía programados según el horario de la persona. */
   minutosProgramados: number;
+  /**
+   * Conteo de check-ins de la sesión (solo informativo: no afecta a las horas ni al sueldo).
+   * null en las respuestas que no los piden, como Mi día.
+   */
+  checkins: ConteoCheckins | null;
 }
 
 export interface ResumenAsistencia {
   sesionesFinalizadas: number;
   /** Jornadas sin terminar: se muestran aparte y NO suman al tiempo trabajado. */
   sesionesAbiertas: number;
+  /** Tiempo TOTAL del período: regulares + reposiciones. */
   totalSegundos: number;
   totalMinutos: number;
   /** Horas programadas del período. null si la consulta no es de una persona concreta. */
@@ -1187,6 +1230,19 @@ export interface ResumenAsistencia {
   horarioConfigurado: boolean;
   desde: string;
   hasta: string;
+
+  // ─── Regulares vs repuestas (se muestran SEPARADAS) ───────────
+  /** Tiempo de jornadas regulares: lo que se compara contra lo programado. */
+  totalSegundosRegulares: number;
+  totalSegundosReposicion: number;
+  /** Cuánto de la reposición cubre déficit real (el resto es exceso que no acredita). */
+  minutosReposicionAcreditables: number;
+  /** Lo que cuenta para cumplir el mes. Nunca supera `minutosProgramados`. */
+  minutosAcreditables: number;
+  /** Lo que falta para completar el mes. */
+  minutosPendientes: number;
+  /** Reposición por encima del déficit: queda en el historial, no paga. */
+  minutosExcedidos: number;
 }
 
 export interface Asistencia {
@@ -1225,6 +1281,51 @@ export interface PersonaTrabajando {
   startedAt: string;
 }
 
+// ─── Check-ins de actividad (alerta global) ─────────────────────────
+// Un check-in es SOLO un registro de actividad para consulta: no descuenta sueldo, no reduce
+// horas, no cierra la jornada ni marca ausencia. Las horas trabajadas salen de
+// startedAt/endedAt, nunca de cuántos check-ins se respondieron.
+
+export interface EstadoCheckinActividad {
+  /** true = hay una sesión abierta (regular o reposición) y por tanto puede haber alertas. */
+  activa: boolean;
+  /** El check-in que toca mostrar ahora, o null. */
+  checkin: Checkin | null;
+}
+
+export interface RespuestaCheckin {
+  /** true = esta petición escribió la respuesta; false = otra pestaña ya la había dado. */
+  aplicado: boolean;
+  /** El estado real guardado, con su hora de respuesta original. */
+  checkin: Checkin;
+}
+
+export interface CheckinsDeJornada {
+  /** La sesión con sus conteos, para el chip «Check-ins: 7 de 8». */
+  sesion: SesionJornada;
+  /** El detalle línea a línea: hora, estado y hora de respuesta. */
+  checkins: Checkin[];
+}
+
+// ─── Reposición de horas (horas pendientes del mes) ─────────────────
+
+export interface PendientesMes {
+  /** Mes del negocio al que se refiere el cálculo (AAAA-MM). */
+  mes: string;
+  minutosProgramados: number;
+  /** false = no hay jornada esperada configurada, así que no hay nada que reponer. */
+  horarioConfigurado: boolean;
+  minutosRegulares: number;
+  minutosReposicion: number;
+  minutosAcreditables: number;
+  /** Lo que falta para completar el mes. 0 = nada que reponer. */
+  minutosPendientes: number;
+  /** Reposición que excede el déficit: queda en el historial, no acredita. */
+  minutosExcedidos: number;
+  /** true solo si hay déficit Y no hay ya una sesión abierta. */
+  puedeReponer: boolean;
+}
+
 // ─── Recursos Humanos → Control de Sueldo ───────────────────────────
 // Control INTERNO del sueldo estimado a pagar. NO es nómina: no hay impuestos, deducciones,
 // overtime automático ni pagos. Todo el dinero viaja en CENTAVOS ENTEROS.
@@ -1247,10 +1348,24 @@ export interface FilaSueldo {
   horarioConfigurado: boolean;
   sesionesFinalizadas: number;
   sesionesAbiertas: number;
+  /** TOTAL registrado: regulares + reposiciones. */
   segundosRegistrados: number;
   minutosRegistrados: number;
   /** Programadas − registradas. Puede ser negativa. Es información, no una sanción. */
   diferenciaMinutos: number;
+
+  // ─── Horas que cuentan (el estimado se calcula sobre `minutosAcreditables`) ───
+  minutosRegulares: number;
+  /** Reposición registrada, incluido el exceso que no acredita. */
+  minutosReposicion: number;
+  sesionesReposicion: number;
+  /** Regulares (topadas a lo programado) + reposición acreditable. */
+  minutosAcreditables: number;
+  /** Lo que falta para completar el mes. */
+  minutosPendientes: number;
+  /** Reposición por encima del déficit: se conserva en el historial, no paga. */
+  minutosExcedidos: number;
+
   /** null si no se puede calcular (ver `estado`). */
   estimadoCentavos: number | null;
   estado: EstadoCalculoSueldo;

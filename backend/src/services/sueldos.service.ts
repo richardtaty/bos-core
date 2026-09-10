@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { salarios } from "../db/schema";
 import { diasDelMes, esFechaValida, esMesValido, mesActualET } from "../lib/fechas-negocio";
-import { asegurarEmpleado, totalesDelMes } from "./asistencia.service";
+import { acreditarHoras, asegurarEmpleado, totalesDelMes } from "./asistencia.service";
 import { listarPersonal, type EstadoLaboral } from "./rrhh.service";
 import { registrarAuditoria } from "./auditoria.service";
 
@@ -18,6 +18,11 @@ import { registrarAuditoria } from "./auditoria.service";
 //   · overtime automático, bonos ni comisiones
 //   · descuentos por tardanza, ausencia, check-ins o feriados
 //   · calendarios de feriados inventados
+//
+// Los CHECK-INS no entran en ninguna cuenta de este módulo. No descuentan, no penalizan y no
+// modifican el estimado: son un registro de actividad para consulta. Y la REPOSICIÓN solo
+// cubre el déficit del mes — reponer de más no paga de más, así que el estimado nunca supera
+// el sueldo mensual configurado.
 //
 // Las horas NO se guardan aquí: se leen de Asistencia (vía `totalesDelMes`), que es la fuente
 // de verdad. Control de Sueldo no mantiene un segundo contador.
@@ -68,10 +73,27 @@ export interface FilaSueldoDTO {
   horarioConfigurado: boolean;
   sesionesFinalizadas: number;
   sesionesAbiertas: number;
+  /** TOTAL registrado: regulares + reposiciones. */
   segundosRegistrados: number;
   minutosRegistrados: number;
   /** Programadas − registradas. Puede ser negativa. Es información, no una sanción. */
   diferenciaMinutos: number;
+
+  // ─── Desglose y horas que cuentan (fase 4) ────────────────────
+  // El estimado se calcula sobre `minutosAcreditables`, NO sobre lo registrado en bruto: la
+  // reposición solo cubre el déficit del mes y su exceso no paga. Así el estimado nunca pasa
+  // del sueldo mensual configurado aunque alguien reponga de más.
+  minutosRegulares: number;
+  /** Reposición registrada, incluido el exceso. */
+  minutosReposicion: number;
+  sesionesReposicion: number;
+  /** Lo que cuenta para cumplir el mes: regulares (topadas) + reposición acreditable. */
+  minutosAcreditables: number;
+  /** Lo que falta para completar el mes. */
+  minutosPendientes: number;
+  /** Reposición por encima del déficit: se conserva en el historial, no acredita. */
+  minutosExcedidos: number;
+
   /** null si no se puede calcular (ver `estado`). */
   estimadoCentavos: number | null;
   estado: EstadoCalculo;
@@ -197,6 +219,9 @@ export async function listarControlSueldo(filtros: FiltrosSueldos): Promise<Cont
     const minutosProgramados = t?.minutosProgramados ?? 0;
     const segundosRegistrados = t?.segundosRegistrados ?? 0;
     const minutosRegistrados = Math.round(segundosRegistrados / 60);
+    // La acreditación la calcula Asistencia (fuente única): Control de Sueldo no la repite.
+    const a = t?.acreditacion ?? acreditarHoras(0, 0, 0);
+    const minutosAcreditables = Math.round(a.segundosAcreditables / 60);
 
     // Ni sueldo completo ni cero a ciegas: si falta el monto o la jornada esperada, el
     // estimado es null y `estado` dice exactamente qué falta.
@@ -207,9 +232,12 @@ export async function listarControlSueldo(filtros: FiltrosSueldos): Promise<Cont
     } else if (minutosProgramados <= 0) {
       estado = "SIN_JORNADA_ESPERADA";
     } else {
+      // Se paga por horas QUE CUENTAN, no por las registradas en bruto. Sin reposiciones
+      // `segundosAcreditables` coincide exactamente con lo que ya se usaba (ambos acotan a lo
+      // programado), así que ningún mes existente cambia de estimado.
       estimadoCentavos = calcularProporcionalCentavos(
         salario.montoCentavos,
-        segundosRegistrados,
+        a.segundosAcreditables,
         minutosProgramados * 60,
       );
     }
@@ -230,6 +258,12 @@ export async function listarControlSueldo(filtros: FiltrosSueldos): Promise<Cont
       segundosRegistrados,
       minutosRegistrados,
       diferenciaMinutos: minutosProgramados - minutosRegistrados,
+      minutosRegulares: Math.round(a.segundosRegulares / 60),
+      minutosReposicion: Math.round(a.segundosReposicion / 60),
+      sesionesReposicion: t?.sesionesReposicion ?? 0,
+      minutosAcreditables,
+      minutosPendientes: a.minutosPendientes,
+      minutosExcedidos: Math.round(a.segundosExcedidos / 60),
       estimadoCentavos,
       estado,
     };

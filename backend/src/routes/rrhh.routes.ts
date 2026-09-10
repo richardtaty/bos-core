@@ -10,6 +10,7 @@ import {
 import {
   FiltroInvalidoError,
   HorarioInvalidoError,
+  checkinsDeJornada,
   guardarHorarioPredeterminado,
   listarAsistencia,
   obtenerHorarioPredeterminado,
@@ -101,7 +102,9 @@ rrhhRouter.patch("/personal/:id", async (req, res) => {
 // vive en /api/jornada y lo puede hacer cualquier usuario autenticado desde Mi día.
 // Ver la asistencia de otras personas exige el mismo acceso que el resto de RRHH.
 //
-// Solo lee tiempo trabajado. No hay sueldo, tarifas, nómina, pagos, check-ins ni alertas.
+// Solo lee tiempo trabajado. No hay sueldo, tarifas, nómina ni pagos.
+// Los CHECK-INS de actividad SÍ se consultan aquí (fase 4): son historial para consulta y no
+// entran en ninguna cuenta de horas ni de dinero.
 
 // Historial de jornadas con totales. Filtros: ?userId= &mes=YYYY-MM  o  ?desde=&hasta=.
 rrhhRouter.get("/asistencia", async (req, res) => {
@@ -124,6 +127,21 @@ rrhhRouter.get("/asistencia", async (req, res) => {
 rrhhRouter.get("/asistencia/en-curso", async (_req, res) => {
   try {
     res.json(await quienEstaTrabajandoHoy());
+  } catch (e) {
+    responderError(res, e);
+  }
+});
+
+// Check-ins de actividad de UNA jornada, al desplegarla en el historial.
+// Va ANTES de cualquier ruta con `/:id` con el mismo prefijo (regla de Express del proyecto):
+// si estuviera después, `/asistencia/jornada` se leería como un id y nunca llegaría aquí.
+//
+// Es el detalle de una persona concreta, así que exige el mismo acceso que el resto de RRHH
+// (lo pone el router). No se amplía ningún permiso: quien ya veía la asistencia de la
+// plantilla es exactamente quien puede ver esto.
+rrhhRouter.get("/asistencia/jornada/:id/checkins", async (req, res) => {
+  try {
+    res.json(await checkinsDeJornada(req.params.id));
   } catch (e) {
     responderError(res, e);
   }

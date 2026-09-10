@@ -1172,6 +1172,33 @@ export const api = {
   terminarJornada: () =>
     request<import("../types").EstadoMiJornada>("/jornada/terminar", { method: "POST" }),
 
+  // ─── Check-ins de actividad ────────────────────────────────────
+  // La alerta «¿Sigues activo?» sigue al usuario por CUALQUIER módulo. El id del check-in va
+  // en el CUERPO (no en la ruta) y el backend filtra por el usuario del token: responder el
+  // check-in de otra persona es imposible desde aquí.
+
+  // Sin sesión abierta responde `activa: false` sin tocar nada: es barato llamarlo a menudo.
+  // (No se llama `miActividad`: ese nombre ya es el del feed de /actividad/mi-actividad.)
+  checkinPendiente: () =>
+    request<import("../types").EstadoCheckinActividad>("/jornada/checkin"),
+
+  responderCheckin: (checkinId: string) =>
+    request<import("../types").RespuestaCheckin>("/jornada/checkin/responder", {
+      method: "POST",
+      body: JSON.stringify({ checkinId }),
+    }),
+
+  // ─── Reposición de horas ───────────────────────────────────────
+  // Recuperar dentro del mismo mes las horas pendientes, como sesión NUEVA. Nunca modifica la
+  // jornada original ni recalcula meses pasados.
+  horasPendientes: () => request<import("../types").PendientesMes>("/jornada/pendientes"),
+
+  iniciarReposicion: () =>
+    request<import("../types").SesionJornada>("/jornada/reposicion/iniciar", { method: "POST" }),
+
+  terminarReposicion: () =>
+    request<import("../types").SesionJornada>("/jornada/reposicion/terminar", { method: "POST" }),
+
   // ─── Recursos Humanos → Asistencia ─────────────────────────────
   // Consulta de la plantilla. Exige acceso a RRHH (no la puede abrir un usuario normal).
   listarAsistencia: (params: { userId?: string; mes?: string; desde?: string; hasta?: string } = {}) => {
@@ -1185,6 +1212,13 @@ export const api = {
   },
 
   asistenciaEnCurso: () => request<import("../types").PersonaTrabajando[]>("/rrhh/asistencia/en-curso"),
+
+  // Detalle de check-ins de UNA jornada, al desplegarla en el historial. Es solo informativo:
+  // no afecta a las horas ni al sueldo.
+  checkinsDeJornada: (jornadaId: string) =>
+    request<import("../types").CheckinsDeJornada>(
+      `/rrhh/asistencia/jornada/${encodeURIComponent(jornadaId)}/checkins`,
+    ),
 
   obtenerHorario: () => request<import("../types").HorarioEsperado>("/rrhh/asistencia/horario"),
 

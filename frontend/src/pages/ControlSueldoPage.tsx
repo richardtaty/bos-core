@@ -250,6 +250,30 @@ function ModalDetalle({ userId, mes, onClose, onConfigurar }: ModalDetalleProps)
                 valor={fmtDuracion(fila.segundosRegistrados)}
                 nota={`${fila.sesionesFinalizadas} jornada${fila.sesionesFinalizadas !== 1 ? "s" : ""} finalizada${fila.sesionesFinalizadas !== 1 ? "s" : ""}`}
               />
+              {/* El estimado se calcula sobre estas horas, no sobre lo registrado en bruto. */}
+              <Dato
+                etiqueta="Horas que cuentan"
+                valor={fmtDuracion(fila.minutosAcreditables * 60)}
+                nota={`Regulares ${fmtDuracion(fila.minutosRegulares * 60)} + repuestas que cubren déficit ${fmtDuracion(Math.max(0, fila.minutosAcreditables - Math.min(fila.minutosRegulares, fila.minutosProgramados)) * 60)}`}
+              />
+              <Dato
+                etiqueta="Horas repuestas"
+                valor={fmtDuracion(fila.minutosReposicion * 60)}
+                nota={
+                  fila.sesionesReposicion === 0
+                    ? "Sin reposiciones este mes"
+                    : `${fila.sesionesReposicion} sesión${fila.sesionesReposicion !== 1 ? "es" : ""} de reposición`
+                }
+              />
+              <Dato
+                etiqueta="Horas pendientes"
+                valor={fmtDuracion(fila.minutosPendientes * 60)}
+                nota={
+                  fila.minutosExcedidos > 0
+                    ? `Hay ${fmtDuracion(fila.minutosExcedidos * 60)} repuestas de más que no suman`
+                    : "Lo que falta para completar el mes"
+                }
+              />
               <Dato etiqueta="Diferencia de horas" valor={fmtDuracion(Math.abs(fila.diferenciaMinutos) * 60)} nota={fila.diferenciaMinutos < 0 ? "Trabajó más de lo programado" : "Programadas − registradas"} />
               <Dato
                 etiqueta="Jornadas abiertas"
@@ -529,6 +553,16 @@ export function ControlSueldoPage() {
                   <p className="text-sm font-medium text-neutral-800">{fmtDuracion(f.segundosRegistrados)}</p>
                 </div>
                 <div>
+                  <p className="text-[11px] text-neutral-500">Horas que cuentan</p>
+                  <p className="text-sm font-medium text-neutral-800">{fmtDuracion(f.minutosAcreditables * 60)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-neutral-500">Repuestas / pendientes</p>
+                  <p className="text-sm font-medium text-neutral-800">
+                    {fmtDuracion(f.minutosReposicion * 60)} / {fmtDuracion(f.minutosPendientes * 60)}
+                  </p>
+                </div>
+                <div>
                   <p className="text-[11px] text-neutral-500">Diferencia</p>
                   <p className={`text-sm font-medium ${f.diferenciaMinutos < 0 ? "text-warning-700" : "text-neutral-800"}`}>
                     {fmtDuracion(Math.abs(f.diferenciaMinutos) * 60)}
@@ -544,10 +578,12 @@ export function ControlSueldoPage() {
       </div>
 
       <p className="text-[11px] text-neutral-500 mt-6">
-        El sueldo estimado es proporcional a las horas registradas sobre las programadas; nunca
+        El sueldo estimado es proporcional a las horas QUE CUENTAN sobre las programadas; nunca
         supera el sueldo mensual configurado. Las horas salen de Asistencia y solo se consideran
-        las jornadas terminadas. No incluye impuestos, deducciones ni pagos: es una estimación
-        interna.
+        las jornadas terminadas. Una reposición solo cubre lo que faltaba: reponer de más queda
+        en el historial pero no paga de más, así que no hay overtime automático. Los check-ins
+        de actividad no entran en ninguna cuenta. No incluye impuestos, deducciones ni pagos: es
+        una estimación interna.
       </p>
 
       {editando && (

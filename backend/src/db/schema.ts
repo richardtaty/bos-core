@@ -78,13 +78,19 @@ export const horarioDias = sqliteTable(
 // ─── Asistencia: sesiones de jornada reales ─────────────────────
 // started_at/ended_at los pone SIEMPRE el servidor. ended_at NULL = jornada ABIERTA
 // (una persona olvidó terminar: no se cierra sola ni se inventa una hora de salida).
-// Un índice único parcial en la BD impide más de una jornada abierta por persona.
+// Un índice único parcial en la BD impide más de una jornada abierta por persona — de
+// CUALQUIER tipo, así que también impide una jornada regular y una reposición a la vez.
+//
+// `session_type` distingue la jornada normal de una REPOSICION de horas (recuperar dentro del
+// mismo mes lo que quedó pendiente, sin tocar la jornada original). Las filas anteriores a la
+// migración 0032 quedan como REGULAR, que es lo que son.
 export const jornadasLaborales = sqliteTable(
   "jornadas_laborales",
   {
     id: cuid(),
     userId: text("user_id").notNull().references(() => usuarios.id),
     empleadoId: text("empleado_id").notNull().references(() => empleados.id),
+    sessionType: text("session_type", { enum: ["REGULAR", "REPOSICION"] }).notNull().default("REGULAR"),
     startedAt: timestamp("started_at").notNull(),
     endedAt: timestamp("ended_at"),
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
@@ -93,6 +99,41 @@ export const jornadasLaborales = sqliteTable(
   (t) => ({
     userStartedIdx: index("jornadas_user_started_idx").on(t.userId, t.startedAt),
     startedIdx: index("jornadas_started_idx").on(t.startedAt),
+    userTipoStartedIdx: index("jornadas_user_tipo_started_idx").on(t.userId, t.sessionType, t.startedAt),
+  })
+);
+
+// ─── Asistencia: check-ins aleatorios de actividad ──────────────
+// Uno por cada bloque de 1 hora de una sesión activa, en un minuto aleatorio derivado de
+// forma DETERMINISTA del id de la sesión (ver services/checkins.service.ts). Esa mezcla
+// —aleatorio por persona, estable por sesión— es lo que permite materializarlos en cada
+// lectura sin que un refresh los regenere y sin necesitar un proceso de fondo.
+//
+// Solo INFORMAN: no descuentan sueldo, no reducen horas y no cierran jornadas. Las horas
+// trabajadas salen siempre de jornadas_laborales.started_at/ended_at.
+export const jornadasCheckins = sqliteTable(
+  "jornadas_checkins",
+  {
+    id: cuid(),
+    jornadaId: text("jornada_id").notNull().references(() => jornadasLaborales.id),
+    userId: text("user_id").notNull().references(() => usuarios.id),
+    empleadoId: text("empleado_id").notNull().references(() => empleados.id),
+    /** Bloque de 1 hora desde started_at: 0, 1, 2… */
+    blockIndex: integer("block_index").notNull(),
+    scheduledAt: timestamp("scheduled_at").notNull(),
+    /** Primera vez que la alerta se sirvió al navegador. De aquí cuenta la ventana. */
+    deliveredAt: timestamp("delivered_at"),
+    respondedAt: timestamp("responded_at"),
+    estado: text("estado", { enum: ["PENDIENTE", "RESPONDIDO", "SIN_RESPUESTA", "CANCELADO"] })
+      .notNull()
+      .default("PENDIENTE"),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+    updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    // Idempotencia de la materialización: el INSERT con ON CONFLICT DO NOTHING choca aquí.
+    bloqueUnico: uniqueIndex("jornadas_checkins_bloque_unico").on(t.jornadaId, t.blockIndex),
+    jornadaIdx: index("jornadas_checkins_jornada_idx").on(t.jornadaId, t.scheduledAt),
   })
 );
 

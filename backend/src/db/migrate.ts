@@ -117,3 +117,6 @@ ejecutarMigracion("0030_rrhh_asistencia", sqlRrhhAsistencia);
 
 const sqlRrhhSueldos = readFileSync(join(__dirname, "migrations", "0031_rrhh_sueldos.sql"), "utf-8");
 ejecutarMigracion("0031_rrhh_sueldos", sqlRrhhSueldos);
+
+const sqlRrhhCheckinsReposicion = readFileSync(join(__dirname, "migrations", "0032_rrhh_checkins_reposicion.sql"), "utf-8");
+ejecutarMigracion("0032_rrhh_checkins_reposicion", sqlRrhhCheckinsReposicion);

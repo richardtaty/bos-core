@@ -4,6 +4,7 @@ import { useAuth } from "../api/AuthContext";
 import { CambiarPasswordModal } from "../components/CambiarPasswordModal";
 import { RevenueTicker } from "../components/RevenueTicker";
 import { NuevoTicketModal } from "../components/NuevoTicketModal";
+import { AlertaCheckin } from "../components/AlertaCheckin";
 import { api } from "../api/client";
 import { usePermisos } from "../hooks/usePermisos";
 import type { PermisosDepartamento } from "../hooks/usePermisos";
@@ -366,6 +367,10 @@ export function AppLayout() {
       {modalPassword && <CambiarPasswordModal onClose={() => setModalPassword(false)} />}
 
       {mostrarTicket && <NuevoTicketModal onClose={() => setMostrarTicket(false)} />}
+
+      {/* Alerta «¿Sigues activo?». Va aquí, y no en Mi día, porque AppLayout envuelve TODAS
+          las páginas protegidas: el aviso sigue al usuario por cualquier módulo del CRM. */}
+      <AlertaCheckin />
     </div>
   );
 }

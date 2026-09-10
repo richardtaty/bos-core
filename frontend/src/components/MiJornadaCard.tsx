@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { EstadoMiJornada } from "../types";
+import type { EstadoMiJornada, PendientesMes } from "../types";
 import { fmtDuracion, fmtHora12ET, fmtMinutos, transcurrido } from "../lib/jornada-formato";
 
 // ─── GENERAL → Mi día · Mi jornada ──────────────────────────────────
@@ -11,9 +11,13 @@ import { fmtDuracion, fmtHora12ET, fmtMinutos, transcurrido } from "../lib/jorna
 //
 // El estado viene del servidor (SQLite), nunca de localStorage: sobrevive a refresh, a
 // cambiar de dispositivo y a un deploy.
+//
+// REPOSICIÓN DE HORAS: si al mes le faltan horas, aquí se ofrece recuperarlas. Es una sesión
+// NUEVA e independiente — nunca modifica la jornada del día que quedó corta.
 
 export function MiJornadaCard() {
   const [estado, setEstado] = useState<EstadoMiJornada | null>(null);
+  const [pendientes, setPendientes] = useState<PendientesMes | null>(null);
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +26,11 @@ export function MiJornadaCard() {
 
   const cargar = useCallback(async () => {
     try {
-      setEstado(await api.miJornadaActual());
+      // Las horas pendientes van en su propia petición: así no se recalculan en cada refresco
+      // del reloj y un fallo suyo no impide ver la jornada.
+      const [jornada, mes] = await Promise.all([api.miJornadaActual(), api.horasPendientes()]);
+      setEstado(jornada);
+      setPendientes(mes);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo leer tu jornada.");
     } finally {
@@ -41,18 +49,19 @@ export function MiJornadaCard() {
     return () => window.clearInterval(id);
   }, [estado?.activa]);
 
-  async function accion(operacion: () => Promise<EstadoMiJornada>) {
+  async function accion(operacion: () => Promise<unknown>) {
     if (enviando) return;
     setEnviando(true);
     setError(null);
     try {
-      setEstado(await operacion());
+      await operacion();
       setAhora(Date.now());
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo registrar. Inténtalo de nuevo.");
-      // El estado puede haber cambiado por otro lado (u otra pestaña): se relee del servidor.
-      await cargar();
     } finally {
+      // Se relee SIEMPRE del servidor: el estado pudo cambiar en otra pestaña y las horas
+      // pendientes cambian con cada sesión. La pantalla nunca adivina.
+      await cargar();
       setEnviando(false);
     }
   }
@@ -66,9 +75,13 @@ export function MiJornadaCard() {
   }
 
   const activa = estado?.activa ?? null;
+  const esReposicion = activa?.sessionType === "REPOSICION";
   const programadoHoy = estado?.minutosProgramadosHoy ?? 0;
   const trabajado = estado?.totalHoySegundos ?? 0;
   const cerradas = (estado?.sesionesHoy ?? []).filter((s) => s.estado === "FINALIZADA");
+  // Reponer solo tiene sentido si de verdad falta tiempo y no hay ya una sesión abierta.
+  const puedeReponer = !activa && (pendientes?.puedeReponer ?? false);
+  const minutosPendientes = pendientes?.minutosPendientes ?? 0;
 
   return (
     <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-4">
@@ -77,33 +90,64 @@ export function MiJornadaCard() {
           <h2 className="text-sm font-semibold text-neutral-700">⏱ Mi jornada</h2>
           <p className="text-xs text-neutral-500 mt-0.5">
             {activa
-              ? `Trabajando desde las ${fmtHora12ET(activa.startedAt)}`
+              ? `${esReposicion ? "Reponiendo horas" : "Trabajando"} desde las ${fmtHora12ET(activa.startedAt)}`
               : cerradas.length > 0
                 ? "Jornada terminada. Puedes iniciar otra si vuelves a trabajar."
                 : "Todavía no has iniciado tu jornada de hoy."}
           </p>
         </div>
 
-        {activa ? (
-          <button
-            type="button"
-            onClick={() => void accion(api.terminarJornada)}
-            disabled={enviando}
-            className="text-sm font-medium px-4 py-2 rounded-lg bg-danger-500 text-white hover:bg-danger-600 disabled:bg-danger-100 disabled:text-danger-800 disabled:cursor-not-allowed"
-          >
-            {enviando ? "Terminando…" : "■ Terminar jornada"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => void accion(api.iniciarJornada)}
-            disabled={enviando}
-            className="text-sm font-medium px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800 disabled:cursor-not-allowed"
-          >
-            {enviando ? "Iniciando…" : "▶ Iniciar jornada"}
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {activa ? (
+            <button
+              type="button"
+              onClick={() => void accion(esReposicion ? api.terminarReposicion : api.terminarJornada)}
+              disabled={enviando}
+              className="text-sm font-medium px-4 py-2 rounded-lg bg-danger-500 text-white hover:bg-danger-600 disabled:bg-danger-100 disabled:text-danger-800 disabled:cursor-not-allowed"
+            >
+              {enviando ? "Terminando…" : esReposicion ? "■ Terminar reposición" : "■ Terminar jornada"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void accion(api.iniciarJornada)}
+              disabled={enviando}
+              className="text-sm font-medium px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800 disabled:cursor-not-allowed"
+            >
+              {enviando ? "Iniciando…" : "▶ Iniciar jornada"}
+            </button>
+          )}
+
+          {/* Reposición de horas: solo con déficit del mes y sin otra sesión abierta. */}
+          {puedeReponer && (
+            <button
+              type="button"
+              onClick={() => void accion(api.iniciarReposicion)}
+              disabled={enviando}
+              className="text-sm font-medium px-4 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {enviando ? "Iniciando…" : "▶ Iniciar reposición de horas"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Horas pendientes del mes: informativo y con la acción al lado. */}
+      {!activa && minutosPendientes > 0 && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <p className="text-xs text-amber-800">
+            Horas pendientes este mes:{" "}
+            <span className="font-semibold">{fmtMinutos(minutosPendientes)}</span>
+          </p>
+          <p className="text-[11px] text-amber-700/80 mt-0.5">
+            {puedeReponer
+              ? "Puedes recuperarlas con una reposición: se registra como una sesión aparte y no cambia tu jornada del día que quedó corta."
+              : pendientes?.horarioConfigurado === false
+                ? "Todavía no tienes una jornada esperada configurada, así que no hay horas que reponer."
+                : "Termina la sesión abierta para poder reponer."}
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2">
@@ -117,11 +161,13 @@ export function MiJornadaCard() {
       {activa && (
         <div className="mt-3 rounded-lg border border-success-200 bg-success-50 px-3 py-2">
           <p className="text-xs text-success-700">
-            Jornada <span className="font-semibold">abierta</span> desde las {fmtHora12ET(activa.startedAt)}
+            {esReposicion ? "Reposición de horas" : "Jornada"}{" "}
+            <span className="font-semibold">activa</span> · Hora de inicio: {fmtHora12ET(activa.startedAt)}
             {transcurrido(activa.startedAt, ahora) ? ` · ${transcurrido(activa.startedAt, ahora)} transcurridas` : ""}
           </p>
           <p className="text-[11px] text-success-700/80 mt-0.5">
-            Ese tiempo todavía no cuenta como trabajado: se registra cuando pulses Terminar jornada.
+            Ese tiempo todavía no cuenta como trabajado: se registra cuando pulses{" "}
+            {esReposicion ? "Terminar reposición" : "Terminar jornada"}.
           </p>
         </div>
       )}

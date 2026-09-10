@@ -5,6 +5,8 @@
 // muestra un texto suelto tipo "8 horas". Una jornada abierta no tiene duración: se muestra
 // como "Abierta" (el tiempo transcurrido es solo un indicador visual, nunca un dato).
 
+import type { EstadoCheckin, TipoSesionJornada } from "../types";
+
 export const ZONA_NEGOCIO = "America/New_York";
 
 export const NOMBRES_DIA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -111,4 +113,38 @@ export function etiquetaMes(mes: string): string {
  */
 export function transcurrido(iso: string, ahora: number): string {
   return fmtDuracion(Math.max(0, Math.floor((ahora - new Date(iso).getTime()) / 1000)));
+}
+
+// ─── Check-ins de actividad ─────────────────────────────────────────
+// Solo informativos: un check-in sin responder NO descuenta sueldo, NO reduce horas y NO cierra
+// la jornada. Nunca se etiqueta como falta ni como sanción.
+
+/** «Respondido» / «Sin respuesta» / «Pendiente» / «Cancelado». */
+export function etiquetaEstadoCheckin(estado: EstadoCheckin): string {
+  switch (estado) {
+    case "RESPONDIDO":
+      return "Respondido";
+    case "SIN_RESPUESTA":
+      return "Sin respuesta";
+    case "PENDIENTE":
+      return "Pendiente";
+    case "CANCELADO":
+      return "Cancelado";
+  }
+}
+
+/** «Jornada» / «Reposición de horas». */
+export function etiquetaTipoSesion(tipo: TipoSesionJornada): string {
+  return tipo === "REPOSICION" ? "Reposición de horas" : "Jornada";
+}
+
+/**
+ * "10:18 AM Respondido · 10:19 AM" — una línea del historial de check-ins.
+ * Cuando aún no hay respuesta se muestra solo la hora y el estado.
+ */
+export function fmtCheckin(scheduledAt: string, estado: EstadoCheckin, respondedAt: string | null): string {
+  const hora = fmtHora12ET(scheduledAt);
+  const etiqueta = etiquetaEstadoCheckin(estado);
+  const respuesta = respondedAt ? fmtHora12ET(respondedAt) : null;
+  return respuesta ? `${hora} ${etiqueta} · ${respuesta}` : `${hora} ${etiqueta}`;
 }
