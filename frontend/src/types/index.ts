@@ -1121,3 +1121,176 @@ export interface ActivoDigital {
   createdAt: string;
   updatedAt: string;
 }
+
+// ─── Recursos Humanos → Personal ────────────────────────────────────
+// La plantilla NO es una segunda base de personas: es la vista laboral de las personas que
+// ya existen en `usuarios`. Todo se relaciona por `userId` (ID real), nunca por nombre ni
+// email. `estadoLaboral` (RRHH) y `accesoActivo` (CRM) son cosas distintas a propósito.
+
+export type EstadoLaboral = "ACTIVO" | "INACTIVO";
+
+export interface PersonalRRHH {
+  /** ID real de la persona en el CRM. Llave para Asistencia y futuro Control de Sueldo. */
+  userId: string;
+  /** ID del perfil laboral (null hasta el primer guardado). */
+  empleadoId: string | null;
+  nombre: string;
+  email: string;
+  /** Cargo/puesto. No confundir con el rol de permisos del CRM. */
+  cargo: string | null;
+  estadoLaboral: EstadoLaboral;
+  notas: string | null;
+  departamentos: { id: string; nombre: string }[];
+  supervisorId: string | null;
+  supervisorNombre: string | null;
+  /** ¿Su cuenta del CRM está habilitada? Independiente del estado laboral. */
+  accesoActivo: boolean;
+}
+
+// ─── Recursos Humanos → Asistencia / Mi jornada ─────────────────────
+// Solo tiempo: cuándo entró, cuándo salió y cuánto trabajó. Nada de sueldo, tarifas ni nómina.
+// La duración SIEMPRE se calcula desde startedAt/endedAt; no se guarda como texto.
+// `estado` y `duracionSegundos` son null/"ABIERTA" mientras la jornada siga abierta: no se
+// inventa una hora de salida ni una duración ficticia.
+
+export type EstadoSesionJornada = "ABIERTA" | "FINALIZADA";
+
+export interface SesionJornada {
+  id: string;
+  /** ID real de la persona (usuarios.id). */
+  userId: string;
+  /** ID del perfil laboral — la relación estructurada del futuro Control de Sueldo. */
+  empleadoId: string;
+  personaNombre: string;
+  startedAt: string;
+  /** null mientras la jornada siga abierta. */
+  endedAt: string | null;
+  estado: EstadoSesionJornada;
+  /** Segundos reales trabajados. null si sigue abierta. */
+  duracionSegundos: number | null;
+  duracionMinutos: number | null;
+  /** Día del negocio (Florida) en que inició, formato YYYY-MM-DD. */
+  fecha: string;
+  /** Minutos que ese día tenía programados según el horario de la persona. */
+  minutosProgramados: number;
+}
+
+export interface ResumenAsistencia {
+  sesionesFinalizadas: number;
+  /** Jornadas sin terminar: se muestran aparte y NO suman al tiempo trabajado. */
+  sesionesAbiertas: number;
+  totalSegundos: number;
+  totalMinutos: number;
+  /** Horas programadas del período. null si la consulta no es de una persona concreta. */
+  minutosProgramados: number | null;
+  /** false = esa persona todavía no tiene jornada esperada configurada. */
+  horarioConfigurado: boolean;
+  desde: string;
+  hasta: string;
+}
+
+export interface Asistencia {
+  sesiones: SesionJornada[];
+  resumen: ResumenAsistencia;
+}
+
+export interface DiaHorario {
+  /** 0 = domingo … 6 = sábado (misma convención que Date.getDay). */
+  diaSemana: number;
+  laborable: boolean;
+  horaInicio: string | null;
+  horaFin: string | null;
+  minutosEsperados: number;
+}
+
+export interface HorarioEsperado {
+  id: string | null;
+  nombre: string;
+  esPredeterminado: boolean;
+  /** Siempre los 7 días, aunque falten filas. */
+  dias: DiaHorario[];
+}
+
+export interface EstadoMiJornada {
+  activa: SesionJornada | null;
+  sesionesHoy: SesionJornada[];
+  totalHoySegundos: number;
+  minutosProgramadosHoy: number;
+  fecha: string;
+}
+
+export interface PersonaTrabajando {
+  userId: string;
+  personaNombre: string;
+  startedAt: string;
+}
+
+// ─── Recursos Humanos → Control de Sueldo ───────────────────────────
+// Control INTERNO del sueldo estimado a pagar. NO es nómina: no hay impuestos, deducciones,
+// overtime automático ni pagos. Todo el dinero viaja en CENTAVOS ENTEROS.
+
+/** Por qué un estimado puede no existir. Nunca se asume sueldo completo ni cero a ciegas. */
+export type EstadoCalculoSueldo = "OK" | "SIN_SUELDO" | "SIN_JORNADA_ESPERADA";
+
+/** Una persona en el período consultado, con sus horas y su estimado. */
+export interface FilaSueldo {
+  userId: string;
+  empleadoId: string | null;
+  nombre: string;
+  cargo: string | null;
+  estadoLaboral: EstadoLaboral;
+  departamentos: { id: string; nombre: string }[];
+  /** Sueldo que aplica AL PERÍODO consultado, no necesariamente el vigente hoy. */
+  montoCentavos: number | null;
+  vigenteDesde: string | null;
+  minutosProgramados: number;
+  horarioConfigurado: boolean;
+  sesionesFinalizadas: number;
+  sesionesAbiertas: number;
+  segundosRegistrados: number;
+  minutosRegistrados: number;
+  /** Programadas − registradas. Puede ser negativa. Es información, no una sanción. */
+  diferenciaMinutos: number;
+  /** null si no se puede calcular (ver `estado`). */
+  estimadoCentavos: number | null;
+  estado: EstadoCalculoSueldo;
+}
+
+export interface ResumenPeriodoSueldo {
+  empleados: number;
+  totalBaseCentavos: number;
+  totalEstimadoCentavos: number;
+}
+
+export interface ControlSueldo {
+  mes: string;
+  desde: string;
+  hasta: string;
+  filas: FilaSueldo[];
+  resumen: ResumenPeriodoSueldo;
+}
+
+/** Una vigencia salarial. El historial nunca se borra: los meses pasados no se recalculan. */
+export interface Salario {
+  id: string;
+  userId: string;
+  empleadoId: string;
+  montoCentavos: number;
+  vigenteDesde: string;
+  notas: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DetalleControlSueldo {
+  periodo: ControlSueldo;
+  fila: FilaSueldo;
+  historial: Salario[];
+}
+
+export interface ResultadoGuardarSalario {
+  userId: string;
+  /** true = ya existía un monto para esa misma fecha y se corrigió esa vigencia. */
+  reemplazo: boolean;
+  historial: Salario[];
+}

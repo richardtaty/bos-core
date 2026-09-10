@@ -11,7 +11,12 @@
 // criterios a mano — de ahí nacieron las inconsistencias (una misma tarea ya
 // completada aparecía como "atrasada" según la vista que la contara).
 
-export const ZONA_NEGOCIO = "America/New_York";
+// La zona y los formateadores de día viven ahora en lib/fechas-negocio.ts (hogar común de
+// todo el backend, incluido Recursos Humanos). Se reexportan aquí para no romper ni una
+// importación existente y para que el criterio de "qué día es" siga siendo único.
+import { ZONA_NEGOCIO, fechaET, hoyET } from "./fechas-negocio";
+
+export { ZONA_NEGOCIO, fechaET, hoyET };
 
 /** Estados que en versiones anteriores del CRM significaban "trabajo terminado" y
  *  que ya no existen: se migraron a `completada` (migración 0026). Se siguen
@@ -48,21 +53,6 @@ export function esActiva(estado: string | null | undefined): boolean {
 // El servidor corre en UTC (Fly.io), pero el negocio opera en hora de Florida. Sin
 // esto, una tarea terminada después de las 8pm ET "cae al día siguiente" porque en
 // UTC ya cruzó la medianoche. Toda comparación de "qué día es" pasa por fechaET.
-
-/** "YYYY-MM-DD" del día calendario en Florida para un instante dado. */
-export function fechaET(d: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: ZONA_NEGOCIO,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
-}
-
-/** "YYYY-MM-DD" de HOY en Florida. */
-export function hoyET(): string {
-  return fechaET(new Date());
-}
 
 function aDate(v: Date | string | null | undefined): Date | null {
   if (!v) return null;

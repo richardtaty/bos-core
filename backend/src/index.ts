@@ -25,6 +25,8 @@ import { publicBmfRouter } from "./routes/public-bmf.routes";
 import { cumpleanosRouter } from "./routes/cumpleanos.routes";
 import { marketingRouter } from "./routes/marketing.routes";
 import { calendarioRouter } from "./routes/calendario.routes";
+import { rrhhRouter } from "./routes/rrhh.routes";
+import { jornadaRouter } from "./routes/jornada.routes";
 import { iniciarFundingWorker } from "./services/funding-worker.service";
 import { iniciarCumpleanosWorker } from "./services/cumpleanos-worker.service";
 import { emailActivo, iaActiva, documentosActivos } from "./lib/funding-env";
@@ -79,6 +81,12 @@ app.use("/api/cumpleanos", cumpleanosRouter);
 app.use("/api/marketing", marketingRouter);
 // 📅 Calendario (SALA DE OFERTAS → Calendario): crear alertas/recordatorios/seguimientos.
 app.use("/api/calendario", calendarioRouter);
+// 👥 RECURSOS HUMANOS → Personal (plantilla laboral), Asistencia (jornadas) y Control de
+// Sueldo (sueldo estimado a pagar — dato sensible). Acceso por lib/rrhh-config.ts.
+app.use("/api/rrhh", rrhhRouter);
+// ⏱ Mi jornada (GENERAL → Mi día): cualquier usuario ficha la SUYA. La consulta de la
+// plantilla vive en /api/rrhh/asistencia, que sí exige acceso a Recursos Humanos.
+app.use("/api/jornada", jornadaRouter);
 
 // Sirve el frontend ya compilado (dist) desde el mismo servicio — un solo deploy en Fly.io,
 // sin necesidad de CORS entre dos dominios ni de correr dos apps separadas.

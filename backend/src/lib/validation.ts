@@ -101,6 +101,38 @@ export const crearUsuarioSchema = z.object({
   supervisorId: z.string().optional(),
 });
 
+// ─── Recursos Humanos → Personal ────────────────────────────────
+// Solo datos LABORALES. A propósito no acepta rol, activo, password ni departamentos:
+// el perfil laboral y el acceso al CRM se administran por separado (usuarios.routes.ts).
+export const actualizarPerfilLaboralSchema = z
+  .object({
+    cargo: z.string().max(120, "El cargo es demasiado largo").nullable().optional(),
+    estadoLaboral: z.enum(["ACTIVO", "INACTIVO"]).optional(),
+    notas: z.string().max(2000, "Las notas son demasiado largas").nullable().optional(),
+  })
+  .refine(
+    (d) => d.cargo !== undefined || d.estadoLaboral !== undefined || d.notas !== undefined,
+    { message: "No hay cambios de información laboral que guardar" },
+  );
+
+// ─── RRHH → Asistencia: jornada esperada ────────────────────────
+// La semana se envía (y se guarda) como una fila por día; nunca como texto libre.
+const HORA_HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const diaHorarioSchema = z.object({
+  diaSemana: z.number().int().min(0, "Día inválido").max(6, "Día inválido"),
+  laborable: z.boolean(),
+  horaInicio: z.string().regex(HORA_HHMM, "La hora debe tener formato HH:MM").nullable().optional(),
+  horaFin: z.string().regex(HORA_HHMM, "La hora debe tener formato HH:MM").nullable().optional(),
+  // Máximo 24 h: un día no puede tener más minutos programados que los que tiene.
+  minutosEsperados: z.number().int().min(0).max(24 * 60, "La jornada no puede superar 24 horas").optional(),
+});
+
+export const guardarHorarioSchema = z.object({
+  nombre: z.string().min(2, "El nombre es obligatorio").max(80).optional(),
+  dias: z.array(diaHorarioSchema).min(1, "Debe incluir al menos un día").max(7, "La semana tiene 7 días"),
+});
+
 export const cambiarPasswordSchema = z.object({
   passwordActual: z.string().min(1),
   passwordNueva: z.string().min(6, "La nueva contraseña debe tener al menos 6 caracteres"),
@@ -340,3 +372,18 @@ export const actualizarCumpleanoSchema = z
 
 export type CrearCumpleanoInput = z.infer<typeof crearCumpleanoSchema>;
 export type ActualizarCumpleanoInput = z.infer<typeof actualizarCumpleanoSchema>;
+
+// ─── RECURSOS HUMANOS → Control de Sueldo ───────────────────────
+// El monto viaja SIEMPRE en centavos enteros: nunca un decimal en punto flotante, para que
+// un sueldo no se desvíe por redondeo binario. La conversión a dólares es solo de pantalla.
+export const guardarSalarioSchema = z.object({
+  montoCentavos: z
+    .number()
+    .int("El monto debe venir en centavos enteros")
+    .min(0, "El sueldo no puede ser negativo")
+    // Tope de cordura ($10,000,000.00): un monto mayor casi siempre es un error de tipeo.
+    .max(1_000_000_000, "El sueldo indicado es demasiado alto. Revisa el monto."),
+  // Primer día desde el que aplica. El sueldo de un mes es el último monto vigente a fin de mes.
+  vigenteDesde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha debe tener formato AAAA-MM-DD"),
+  notas: z.string().max(300, "Las notas no pueden superar 300 caracteres").nullable().optional(),
+});

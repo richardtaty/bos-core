@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/client";
 import { departamentos } from "../db/schema";
 import { UNIDADES_AUDIENCIA } from "../lib/cumpleanos-config";
+import { ROLES_ACCESO_RRHH } from "../lib/rrhh-config";
 
 // AGENTE es un rol de máquina (Hermes Agent), no de persona. A propósito NO aparece en
 // JERARQUIA más abajo: así `requireRole` lo rechaza en todas las rutas normales del sistema y
@@ -206,6 +207,30 @@ export async function requireAccesoCumpleanos(
   const puede = await puedeAccederCumpleanos(req.user);
   if (!puede) {
     res.status(403).json({ error: "No tienes acceso a este recurso." });
+    return;
+  }
+  next();
+}
+
+// ─── Acceso al módulo RECURSOS HUMANOS ─────────────────────────
+// Regla única en lib/rrhh-config.ts. A diferencia de Cumpleaños, NO depende del
+// departamento (RRHH es transversal a la empresa) y NO se apoya en requireRole: si mañana
+// RRHH lo administra otro rol, basta cambiar ROLES_ACCESO_RRHH sin tocar la jerarquía
+// global ni ningún otro módulo. Frontend y backend aplican exactamente la misma regla.
+
+/** ¿Puede este usuario acceder a Recursos Humanos? */
+export function puedeAccederRRHH(user: AuthUser): boolean {
+  return ROLES_ACCESO_RRHH.includes(user.rol);
+}
+
+/** Middleware que exige acceso a RRHH; 403 para el resto (aunque conozcan la URL). */
+export function requireAccesoRRHH(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  if (!puedeAccederRRHH(req.user)) {
+    res.status(403).json({ error: "No tienes acceso a Recursos Humanos." });
     return;
   }
   next();

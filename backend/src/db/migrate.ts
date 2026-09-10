@@ -108,3 +108,12 @@ ejecutarMigracion("0027_tickets", sqlTickets);
 
 const sqlTicketsEstado = readFileSync(join(__dirname, "migrations", "0028_tickets_estado.sql"), "utf-8");
 ejecutarMigracion("0028_tickets_estado", sqlTicketsEstado);
+
+const sqlRrhhEmpleados = readFileSync(join(__dirname, "migrations", "0029_rrhh_empleados.sql"), "utf-8");
+ejecutarMigracion("0029_rrhh_empleados", sqlRrhhEmpleados);
+
+const sqlRrhhAsistencia = readFileSync(join(__dirname, "migrations", "0030_rrhh_asistencia.sql"), "utf-8");
+ejecutarMigracion("0030_rrhh_asistencia", sqlRrhhAsistencia);
+
+const sqlRrhhSueldos = readFileSync(join(__dirname, "migrations", "0031_rrhh_sueldos.sql"), "utf-8");
+ejecutarMigracion("0031_rrhh_sueldos", sqlRrhhSueldos);

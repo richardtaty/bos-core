@@ -16,7 +16,17 @@ export interface PermisosDepartamento {
   // 🎂 Próximos cumpleaños: lo ven ADMIN/SUPER_ADMIN y los miembros de Marketing/Podcast
   // (misma regla que el backend — este flag es solo para mostrar/ocultar la UI).
   puedeVerCumpleanos: boolean;
+  // 👥 RECURSOS HUMANOS → Personal. Regla única y aislada (espejo del backend,
+  // lib/rrhh-config.ts): hoy entra el Super Admin y el Admin. Se ajusta aquí y allá —
+  // y en ningún otro módulo— para cambiar quién administra RRHH.
+  puedeVerRRHH: boolean;
 }
+
+// Roles con acceso a Recursos Humanos. Espejo EXACTO de ROLES_ACCESO_RRHH en
+// backend/src/lib/rrhh-config.ts — si cambia uno, cambia el otro.
+const ROLES_ACCESO_RRHH = ["SUPER_ADMIN", "ADMIN"];
+
+const puedeAccederRRHH = (rol: string | undefined) => !!rol && ROLES_ACCESO_RRHH.includes(rol);
 
 const SUPER_ADMIN_PERMISOS: PermisosDepartamento = {
   nombreDepto: null,
@@ -29,6 +39,7 @@ const SUPER_ADMIN_PERMISOS: PermisosDepartamento = {
   puedeVerCEO: true,
   puedeVerReportesGlobales: true,
   puedeVerCumpleanos: true,
+  puedeVerRRHH: true,
 };
 
 // Los nombres de departamento son estables (no cambian entre deploy).
@@ -99,6 +110,7 @@ const PERMISO_MINIMO: PermisosDepartamento = {
   puedeVerCEO: false,
   puedeVerReportesGlobales: false,
   puedeVerCumpleanos: false,
+  puedeVerRRHH: false,
 };
 
 const PERMISO_CARGANDO: PermisosDepartamento = {
@@ -112,6 +124,7 @@ const PERMISO_CARGANDO: PermisosDepartamento = {
   puedeVerCEO: false,
   puedeVerReportesGlobales: false,
   puedeVerCumpleanos: false,
+  puedeVerRRHH: false,
 };
 
 // ─── Caché global de departamentos ───────────────────────────────
@@ -206,5 +219,6 @@ export function usePermisos(): PermisosDepartamento {
     puedeVerCEO,
     puedeVerReportesGlobales,
     puedeVerCumpleanos,
+    puedeVerRRHH: puedeAccederRRHH(usuario?.rol),
   };
 }

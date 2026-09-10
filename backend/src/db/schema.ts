@@ -25,6 +25,102 @@ export const usuarios = sqliteTable("usuarios", {
   ultimoAccesoPin: text("ultimo_acceso_pin"),
 });
 
+// ---------- Recursos Humanos ----------
+
+// Perfil laboral de una persona que ya existe en `usuarios`. Relación 1:1 por ID real
+// (user_id UNIQUE): RRHH nunca crea una segunda persona ni la relaciona por nombre/email.
+// Aquí solo vive lo que es exclusivamente laboral. `estado_laboral` es independiente de
+// `usuarios.activo` (acceso al CRM) a propósito — ver migración 0029.
+export const empleados = sqliteTable(
+  "empleados",
+  {
+    id: cuid(),
+    userId: text("user_id").notNull().unique().references(() => usuarios.id),
+    estadoLaboral: text("estado_laboral", { enum: ["ACTIVO", "INACTIVO"] }).notNull().default("ACTIVO"),
+    notas: text("notas"),
+    // Horario propio de esta persona (jornada esperada). NULL = usa el predeterminado.
+    // Sin `.references()` a propósito: la columna se añadió con ALTER TABLE (migración 0030),
+    // donde SQLite no admite claves foráneas; la integridad la garantiza el servicio.
+    horarioId: text("horario_id"),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+    updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({ estadoLaboralIdx: index("empleados_estado_laboral_idx").on(t.estadoLaboral) })
+);
+
+// ─── Asistencia: jornada esperada (por día de la semana) ────────
+// La semana NUNCA se guarda como texto libre: una fila por día en `horarioDias`.
+export const horarios = sqliteTable("horarios", {
+  id: cuid(),
+  nombre: text("nombre").notNull(),
+  esPredeterminado: integer("es_predeterminado", { mode: "boolean" }).notNull().default(false),
+  createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+});
+
+export const horarioDias = sqliteTable(
+  "horario_dias",
+  {
+    id: cuid(),
+    horarioId: text("horario_id").notNull().references(() => horarios.id, { onDelete: "cascade" }),
+    // 0 = domingo … 6 = sábado (igual que Date.getDay()).
+    diaSemana: integer("dia_semana").notNull(),
+    laborable: integer("laborable", { mode: "boolean" }).notNull().default(false),
+    // Hora local del negocio, 'HH:MM'. Opcionales.
+    horaInicio: text("hora_inicio"),
+    horaFin: text("hora_fin"),
+    // Fuente de verdad de la jornada esperada del día (permite sábado de media jornada).
+    minutosEsperados: integer("minutos_esperados").notNull().default(0),
+  },
+  (t) => ({ unicoDia: uniqueIndex("horario_dias_unico").on(t.horarioId, t.diaSemana) })
+);
+
+// ─── Asistencia: sesiones de jornada reales ─────────────────────
+// started_at/ended_at los pone SIEMPRE el servidor. ended_at NULL = jornada ABIERTA
+// (una persona olvidó terminar: no se cierra sola ni se inventa una hora de salida).
+// Un índice único parcial en la BD impide más de una jornada abierta por persona.
+export const jornadasLaborales = sqliteTable(
+  "jornadas_laborales",
+  {
+    id: cuid(),
+    userId: text("user_id").notNull().references(() => usuarios.id),
+    empleadoId: text("empleado_id").notNull().references(() => empleados.id),
+    startedAt: timestamp("started_at").notNull(),
+    endedAt: timestamp("ended_at"),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+    updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    userStartedIdx: index("jornadas_user_started_idx").on(t.userId, t.startedAt),
+    startedIdx: index("jornadas_started_idx").on(t.startedAt),
+  })
+);
+
+// ─── Control de Sueldo: sueldo mensual con vigencia ─────────────
+// El dinero se guarda en CENTAVOS ENTEROS: nunca coma flotante. Un cambio de sueldo crea una
+// VIGENCIA NUEVA y no borra la anterior, así que un mes pasado se sigue calculando con el
+// monto que le correspondía. `vigente_desde` es un día del negocio (AAAA-MM-DD); el sueldo de
+// un período es el último registro con vigente_desde <= último día de ese período.
+export const salarios = sqliteTable(
+  "salarios",
+  {
+    id: cuid(),
+    userId: text("user_id").notNull().references(() => usuarios.id),
+    empleadoId: text("empleado_id").notNull().references(() => empleados.id),
+    montoCentavos: integer("monto_centavos").notNull(),
+    vigenteDesde: text("vigente_desde").notNull(),
+    notas: text("notas"),
+    createdBy: text("created_by").references(() => usuarios.id),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+    updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    userVigenteIdx: index("salarios_user_vigente_idx").on(t.userId, t.vigenteDesde),
+    // Una sola vigencia por persona y fecha: dos montos para el mismo día se contradicen.
+    userFechaUnico: uniqueIndex("salarios_user_fecha_unico").on(t.userId, t.vigenteDesde),
+  })
+);
+
 export const personas = sqliteTable(
   "personas",
   {

@@ -1143,6 +1143,90 @@ export const api = {
 
   eliminarActivoDigital: (personaId: string, activoId: string) =>
     request<{ ok: boolean }>(`/personas/${personaId}/activos-digitales/${activoId}`, { method: "DELETE" }),
+
+  // ─── Recursos Humanos → Personal ───────────────────────────────
+  // Plantilla laboral real (personas que ya existen en el CRM). `userId` es el ID real.
+  listarPersonal: () => request<import("../types").PersonalRRHH[]>("/rrhh/personal"),
+
+  obtenerPersonal: (userId: string) => request<import("../types").PersonalRRHH>(`/rrhh/personal/${userId}`),
+
+  // Solo datos LABORALES: cargo, estado laboral y notas internas. Nunca rol, contraseña,
+  // permisos ni el acceso al CRM — eso se administra en "Mi Equipo".
+  actualizarPerfilLaboral: (
+    userId: string,
+    data: { cargo?: string | null; estadoLaboral?: import("../types").EstadoLaboral; notas?: string | null },
+  ) =>
+    request<import("../types").PersonalRRHH>(`/rrhh/personal/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  // ─── Mi jornada (GENERAL → Mi día) ─────────────────────────────
+  // La identidad la pone el backend desde el token: estas llamadas NO envían userId, así que
+  // es imposible fichar la jornada de otra persona desde el navegador.
+  miJornadaActual: () => request<import("../types").EstadoMiJornada>("/jornada/actual"),
+
+  iniciarJornada: () =>
+    request<import("../types").EstadoMiJornada>("/jornada/iniciar", { method: "POST" }),
+
+  terminarJornada: () =>
+    request<import("../types").EstadoMiJornada>("/jornada/terminar", { method: "POST" }),
+
+  // ─── Recursos Humanos → Asistencia ─────────────────────────────
+  // Consulta de la plantilla. Exige acceso a RRHH (no la puede abrir un usuario normal).
+  listarAsistencia: (params: { userId?: string; mes?: string; desde?: string; hasta?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.userId) qs.set("userId", params.userId);
+    if (params.mes) qs.set("mes", params.mes);
+    if (params.desde) qs.set("desde", params.desde);
+    if (params.hasta) qs.set("hasta", params.hasta);
+    const s = qs.toString();
+    return request<import("../types").Asistencia>(`/rrhh/asistencia${s ? `?${s}` : ""}`);
+  },
+
+  asistenciaEnCurso: () => request<import("../types").PersonaTrabajando[]>("/rrhh/asistencia/en-curso"),
+
+  obtenerHorario: () => request<import("../types").HorarioEsperado>("/rrhh/asistencia/horario"),
+
+  // La jornada esperada se guarda por día de la semana (nunca como texto libre).
+  guardarHorario: (data: {
+    nombre?: string;
+    dias: {
+      diaSemana: number;
+      laborable: boolean;
+      horaInicio?: string | null;
+      horaFin?: string | null;
+      minutosEsperados?: number;
+    }[];
+  }) =>
+    request<import("../types").HorarioEsperado>("/rrhh/asistencia/horario", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  // ─── Recursos Humanos → Control de Sueldo ──────────────────────
+  // Información sensible: exige el mismo acceso que el resto de RRHH (el backend responde 403
+  // a quien no lo tenga). El monto viaja SIEMPRE en centavos enteros, nunca en decimales.
+  listarSueldos: (params: { mes?: string; userId?: string; departamentoId?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.mes) qs.set("mes", params.mes);
+    if (params.userId) qs.set("userId", params.userId);
+    if (params.departamentoId) qs.set("departamentoId", params.departamentoId);
+    const s = qs.toString();
+    return request<import("../types").ControlSueldo>(`/rrhh/sueldos${s ? `?${s}` : ""}`);
+  },
+
+  detalleSueldo: (userId: string, mes?: string) =>
+    request<import("../types").DetalleControlSueldo>(
+      `/rrhh/sueldos/${userId}${mes ? `?mes=${encodeURIComponent(mes)}` : ""}`,
+    ),
+
+  // Configurar o actualizar el sueldo mensual: crea una vigencia nueva y conserva el historial.
+  guardarSueldo: (userId: string, data: { montoCentavos: number; vigenteDesde: string; notas?: string | null }) =>
+    request<import("../types").ResultadoGuardarSalario>(`/rrhh/sueldos/${userId}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 export { getToken };

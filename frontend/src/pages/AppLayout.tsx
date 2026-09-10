@@ -133,6 +133,18 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
     items.push({ to: "/cumpleanos", label: "🎂 Próximos cumpleaños", seccion: "general" });
   }
 
+  // ── RECURSOS HUMANOS ─────────────────────────────────
+  // Sección principal propia, al final del sidebar, con su propio sistema desplegable.
+  // Personal (plantilla laboral), Asistencia (historial de jornadas) y Control de Sueldo
+  // (sueldo estimado a pagar, con historial de cambios). El acceso lo decide `puedeVerRRHH`
+  // (misma regla que el backend): no se expone a todos los usuarios solo por existir. Fichar
+  // la PROPIA jornada no está aquí: eso vive en GENERAL → Mi día y lo puede hacer cualquiera.
+  if (p.puedeVerRRHH) {
+    items.push({ to: "/rrhh/personal", label: "👥 Personal", seccion: "rrhh" });
+    items.push({ to: "/rrhh/asistencia", label: "⏱ Asistencia", seccion: "rrhh" });
+    items.push({ to: "/rrhh/sueldos", label: "💰 Control de Sueldo", seccion: "rrhh" });
+  }
+
   return items;
 }
 
@@ -242,6 +254,7 @@ export function AppLayout() {
               ceo: "CEO",
               dev: "DEV",
               general: "General",
+              rrhh: "Recursos Humanos",
             };
 
             const badgeDe = (item: NavItem) =>

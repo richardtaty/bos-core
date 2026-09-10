@@ -21,6 +21,10 @@ import { CentroActividadPage } from "../pages/CentroActividadPage";
 import { TareasPage } from "../pages/TareasPage";
 import { DevPage } from "../pages/DevPage";
 import { DevTicketsPage } from "../pages/DevTicketsPage";
+import { PersonalPage } from "../pages/PersonalPage";
+import { PersonalRrhhDetailPage } from "../pages/PersonalRrhhDetailPage";
+import { AsistenciaPage } from "../pages/AsistenciaPage";
+import { ControlSueldoPage } from "../pages/ControlSueldoPage";
 import { CumpleanosPage } from "../pages/CumpleanosPage";
 import { CalendarioEditorialPage } from "../pages/CalendarioEditorialPage";
 import { CentroControlPage } from "../pages/CentroControlPage";
@@ -158,6 +162,18 @@ export function AppRoutes() {
 
         {/* DEV → Tickets — bandeja de solicitudes (solo SUPER_ADMIN, igual que /dev) */}
         <Route path="/dev/tickets" element={<RutaPorRol rol="SUPER_ADMIN"><DevTicketsPage /></RutaPorRol>} />
+
+        {/* RECURSOS HUMANOS — sección principal propia. Personal (la plantilla laboral
+            real, personas que YA existen en el CRM), Asistencia (historial de jornadas:
+            entrada, salida y tiempo trabajado) y Control de Sueldo (sueldo estimado a pagar
+            del período — control interno, NO nómina fiscal: sin impuestos, deducciones ni
+            pagos). El acceso lo decide `puedeVerRRHH` (lib/rrhh-config.ts en backend, espejo
+            en usePermisos); las páginas redirigen solas y el backend responde 403 igual.
+            Fichar la PROPIA jornada no está aquí: vive en GENERAL → Mi día. */}
+        <Route path="/rrhh/personal" element={<PersonalPage />} />
+        <Route path="/rrhh/personal/:userId" element={<PersonalRrhhDetailPage />} />
+        <Route path="/rrhh/asistencia" element={<AsistenciaPage />} />
+        <Route path="/rrhh/sueldos" element={<ControlSueldoPage />} />
 
         {/* General — compartido entre todos los departamentos */}
         <Route path="/mi-dia" element={<MiDiaPage />} />

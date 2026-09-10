@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../api/AuthContext";
+import { MiJornadaCard } from "../components/MiJornadaCard";
 import { claseChipTipoRegistro, etiquetaTipoRegistro } from "../lib/calendario-tipos";
 import type { TareaPendiente, Cumpleanero } from "../types";
 
@@ -355,6 +356,9 @@ export function MiDiaPage() {
     <div>
       <h1 className="text-xl font-semibold text-neutral-900 mb-1">Hola, {usuario?.nombre.split(" ")[0]}</h1>
       <p className="text-sm text-neutral-500 mb-6">Esto es lo que tienes pendiente hoy</p>
+
+      {/* ⏱ Mi jornada — control personal de entrada/salida (no da acceso a RRHH) */}
+      <MiJornadaCard />
 
       {errorAccion && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2">
