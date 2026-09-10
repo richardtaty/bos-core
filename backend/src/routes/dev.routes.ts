@@ -7,6 +7,7 @@ import {
   listarTareasDev,
   SinPermisoTareaError,
 } from "../services/tareas.service";
+import { listarTicketsDev, obtenerTicket, obtenerAdjunto } from "../services/tickets.service";
 
 // ─── Módulo DEV: tareas de desarrollo ───────────────────────────
 // Apartado exclusivo del SUPER ADMIN (matriz: ADMIN, SUPERVISOR y USUARIO quedan fuera
@@ -48,5 +49,55 @@ devRouter.patch("/tareas/:id", async (req, res) => {
     res.json(tarea);
   } catch (e) {
     responderError(res, e);
+  }
+});
+
+// ─── Módulo DEV → Tickets: bandeja de recepción (SOLO SUPER_ADMIN) ─────────
+// Mismas reglas que DEV → Tareas: este router ya aplicó requireRole("SUPER_ADMIN")
+// arriba, así que quien no tenga acceso a DEV no puede listar/consultar/descargar
+// tickets ni por sidebar, ni por URL directa, ni por API. CREAR tickets sigue siendo
+// abierto a todo autenticado vía /api/tickets (router independiente, sin requireRole).
+
+function statusDe(e: unknown): number {
+  const s = (e as { status?: unknown })?.status;
+  return typeof s === "number" ? s : 400;
+}
+
+// GET /api/dev/tickets — más recientes primero (created_at real de la BD).
+devRouter.get("/tickets", async (_req, res) => {
+  res.json(await listarTicketsDev());
+});
+
+// GET /api/dev/tickets/:id — detalle completo + adjuntos (sin binario).
+devRouter.get("/tickets/:id", async (req, res) => {
+  try {
+    res.json(await obtenerTicket(req.params.id));
+  } catch (e) {
+    const status = statusDe(e);
+    if (status === 404) { res.status(404).json({ error: "Ticket no encontrado" }); return; }
+    res.status(status).json({ error: e instanceof Error ? e.message : "Error inesperado" });
+  }
+});
+
+// GET /api/dev/tickets/:id/adjuntos/:adjuntoId — descarga protegida del binario.
+// El nombre original NUNCA se usa como ruta del servidor; el archivo se sirve desde
+// el BLOB de la BD con su content-type, tras verificar la pertenencia al ticket.
+devRouter.get("/tickets/:id/adjuntos/:adjuntoId", async (req, res) => {
+  try {
+    const adjunto = await obtenerAdjunto(req.params.adjuntoId);
+    if (adjunto.ticketId !== req.params.id) {
+      res.status(404).json({ error: "Adjunto no encontrado" });
+      return;
+    }
+    res.setHeader("Content-Type", adjunto.contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename*=UTF-8''${encodeURIComponent(adjunto.nombreOriginal)}`,
+    );
+    res.send(adjunto.datos);
+  } catch (e) {
+    const status = statusDe(e);
+    if (status === 404) { res.status(404).json({ error: "Adjunto no encontrado" }); return; }
+    res.status(status).json({ error: e instanceof Error ? e.message : "Error inesperado" });
   }
 });

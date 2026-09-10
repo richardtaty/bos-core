@@ -11,6 +11,7 @@ import { podcastRouter } from "./routes/podcast.routes";
 import { tareasRouter } from "./routes/tareas.routes";
 import { devRouter } from "./routes/dev.routes";
 import { archivosRouter } from "./routes/archivos.routes";
+import { ticketsRouter } from "./routes/tickets.routes";
 import { actividadRouter } from "./routes/actividad.routes";
 import { orgRouter } from "./routes/org.routes";
 import { proyectosRouter } from "./routes/proyectos.routes";
@@ -57,6 +58,9 @@ app.use("/api/tareas", tareasRouter);
 // Módulo DEV (tareas de desarrollo) — restringido a SUPER_ADMIN dentro del router.
 app.use("/api/dev", devRouter);
 app.use("/api/archivos", archivosRouter);
+// Tickets (bandeja DEV): CREAR está abierto a cualquier usuario autenticado; la bandeja
+// de consulta vive en /api/dev/tickets y conserva el gate de DEV (SUPER_ADMIN).
+app.use("/api/tickets", ticketsRouter);
 app.use("/api/actividad", actividadRouter);
 app.use("/api/org", orgRouter);
 app.use("/api/proyectos", proyectosRouter);

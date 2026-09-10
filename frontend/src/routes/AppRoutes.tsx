@@ -20,6 +20,7 @@ import { MarketingDashboardPage } from "../pages/MarketingDashboardPage";
 import { CentroActividadPage } from "../pages/CentroActividadPage";
 import { TareasPage } from "../pages/TareasPage";
 import { DevPage } from "../pages/DevPage";
+import { DevTicketsPage } from "../pages/DevTicketsPage";
 import { CumpleanosPage } from "../pages/CumpleanosPage";
 import { CalendarioEditorialPage } from "../pages/CalendarioEditorialPage";
 import { CentroControlPage } from "../pages/CentroControlPage";
@@ -154,6 +155,9 @@ export function AppRoutes() {
 
         {/* DEV — tareas de desarrollo (solo SUPER_ADMIN: menú, ruta y backend) */}
         <Route path="/dev" element={<RutaPorRol rol="SUPER_ADMIN"><DevPage /></RutaPorRol>} />
+
+        {/* DEV → Tickets — bandeja de solicitudes (solo SUPER_ADMIN, igual que /dev) */}
+        <Route path="/dev/tickets" element={<RutaPorRol rol="SUPER_ADMIN"><DevTicketsPage /></RutaPorRol>} />
 
         {/* General — compartido entre todos los departamentos */}
         <Route path="/mi-dia" element={<MiDiaPage />} />

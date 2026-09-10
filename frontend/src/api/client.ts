@@ -705,6 +705,52 @@ export const api = {
   actualizarTareaDev: (id: string, data: Record<string, unknown>) =>
     request<import("../types").TareaOperativa>(`/dev/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
+  // ─── Tickets (DEV → Tickets): crear está abierto a todo usuario autenticado ──
+  // (POST /api/tickets). Consultar la bandeja (/dev/tickets) responde 403 a quien no
+  // tenga acceso a DEV, igual que DEV → Tareas.
+
+  crearTicket: (data: { description: string; prioridad?: string; idempotencyKey?: string }) =>
+    request<import("../types").Ticket>("/tickets", { method: "POST", body: JSON.stringify(data) }),
+
+  // Adjunta UN archivo real (body binario, sin base64). El backend valida tipo y tamaño.
+  subirAdjuntoTicket: async (ticketId: string, file: File): Promise<import("../types").TicketAdjunto> => {
+    const token = getToken();
+    const res = await fetch(`${BASE_URL}/tickets/${ticketId}/adjuntos`, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "Content-Type": file.type || "application/octet-stream",
+        "x-nombre-archivo": encodeURIComponent(file.name),
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: res.statusText }));
+      throw new ApiError(res.status, body.error);
+    }
+    return res.json();
+  },
+
+  listarTicketsDev: () => request<import("../types").Ticket[]>("/dev/tickets"),
+
+  obtenerTicketDev: (id: string) => request<import("../types").Ticket>(`/dev/tickets/${id}`),
+
+  // Descarga protegida de un adjunto (binario). Se usa para vista previa de imágenes
+  // y para descargar; requiere acceso a DEV (403 en backend para quien no lo tenga).
+  obtenerAdjuntoTicketDev: async (ticketId: string, adjuntoId: string): Promise<{ blob: Blob; contentType: string; nombre: string }> => {
+    const token = getToken();
+    const res = await fetch(`${BASE_URL}/dev/tickets/${ticketId}/adjuntos/${adjuntoId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: res.statusText }));
+      throw new ApiError(res.status, body.error);
+    }
+    const blob = await res.blob();
+    const nombre = decodeURIComponent((res.headers.get("Content-Disposition") ?? "").split("''").pop() ?? "archivo");
+    return { blob, contentType: res.headers.get("Content-Type") ?? "", nombre };
+  },
+
   agregarChecklistItem: (tareaId: string, texto: string) =>
     request<import("../types").ChecklistItem>(`/tareas/${tareaId}/checklist`, {
       method: "POST",

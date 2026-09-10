@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../api/AuthContext";
 import { CambiarPasswordModal } from "../components/CambiarPasswordModal";
 import { RevenueTicker } from "../components/RevenueTicker";
+import { NuevoTicketModal } from "../components/NuevoTicketModal";
 import { api } from "../api/client";
 import { usePermisos } from "../hooks/usePermisos";
 import type { PermisosDepartamento } from "../hooks/usePermisos";
@@ -17,11 +18,14 @@ interface NavItem {
 function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
   const items: NavItem[] = [];
 
-  // ── DEV: tareas de desarrollo. Sección propia e independiente, solo Super Admin. ──
-  // Va PRIMERO y contiene únicamente su acceso a tareas; la sección que le sigue
-  // abre con su propio encabezado, así ningún otro módulo queda agrupado bajo DEV.
+  // ── DEV: tareas de desarrollo + tickets. Sección propia, solo Super Admin. ──
+  // Va PRIMERO y contiene solo sus accesos; la sección que le sigue abre con su
+  // propio encabezado, así ningún otro módulo queda agrupado bajo DEV.
   if (p.esSuperAdmin) {
-    items.push({ to: "/dev", label: "Tareas", seccion: "dev" });
+    items.push(
+      { to: "/dev", label: "Tareas", seccion: "dev" },
+      { to: "/dev/tickets", label: "🎫 Tickets", seccion: "dev" },
+    );
   }
 
   // ── Marketing Operations Center ──────────────────────
@@ -144,6 +148,9 @@ export function AppLayout() {
   const { usuario, logout } = useAuth();
   const permisos = usePermisos();
   const [modalPassword, setModalPassword] = useState(false);
+  // Botón flotante global "Crear ticket": cualquier usuario autenticado puede abrirlo
+  // desde cualquier página (AppLayout solo existe bajo RutaProtegida). No aparece en /login.
+  const [mostrarTicket, setMostrarTicket] = useState(false);
   const [conteoPropias, setConteoPropias] = useState(0);
   const [conteoEquipo, setConteoEquipo] = useState(0);
   const [notificado, setNotificado] = useState(false);
@@ -330,6 +337,25 @@ export function AppLayout() {
       </div>
 
       {modalPassword && <CambiarPasswordModal onClose={() => setModalPassword(false)} />}
+
+      {/* Botón flotante global para crear tickets (esquina inferior izquierda; el chat
+          de BMF ya ocupa la derecha). No altera el layout de ninguna página: es un
+          overlay fixed. Al enviar el ticket se cierra el modal sin redirigir a DEV. */}
+      {!mostrarTicket && (
+        <button
+          type="button"
+          onClick={() => setMostrarTicket(true)}
+          title="Enviar una solicitud de ajuste, error o mejora a DEV"
+          className="shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-shadow"
+          style={{ position: "fixed", bottom: 24, left: 24, zIndex: 9990 }}
+        >
+          <span className="flex items-center gap-2 rounded-full bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium px-4 py-2.5">
+            🎫 Crear ticket
+          </span>
+        </button>
+      )}
+
+      {mostrarTicket && <NuevoTicketModal onClose={() => setMostrarTicket(false)} />}
     </div>
   );
 }

@@ -481,6 +481,31 @@ export interface Archivo {
   fecha: string;
 }
 
+// ─── Tickets de soporte (DEV → Tickets) ────────────────────
+
+export type PrioridadTicket = "Baja" | "Normal" | "Alta";
+
+export interface TicketAdjunto {
+  id: string;
+  nombreOriginal: string;
+  contentType: string;
+  tamanoBytes: number;
+  createdAt: string;
+}
+
+export interface Ticket {
+  id: string;
+  requestedByUserId: string;
+  solicitanteNombre: string;
+  solicitudEmail: string | null;
+  solicitudCargo: string | null;
+  description: string;
+  prioridad: PrioridadTicket;
+  createdAt: string;
+  adjuntosCount: number;
+  adjuntos?: TicketAdjunto[];
+}
+
 // ─── Dashboard Ejecutivo ───────────────────────────────────
 
 export interface ResumenEjecutivo {

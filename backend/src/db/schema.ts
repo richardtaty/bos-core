@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex, blob } from "drizzle-orm/sqlite-core";
 
 const cuid = () => text("id").primaryKey().$defaultFn(() => crypto.randomUUID());
 const timestamp = (name: string) => integer(name, { mode: "timestamp" });
@@ -1008,4 +1008,44 @@ export const cumpleanosRecordatorios = sqliteTable(
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
   },
   (t) => ({ ocurrenciaUq: uniqueIndex("cumpleanos_recordatorio_uq").on(t.cumpleanosId, t.anio) })
+);
+
+// ---------- Tickets de soporte (DEV → Tickets) ----------
+// Bandeja de solicitudes recibidas (problemas / correcciones / mejoras del CRM) que
+// cualquier usuario autenticado puede crear desde el botón global "Crear ticket".
+// CREAR está abierto a todos; VER queda restringido a SUPER_ADMIN vía el router /api/dev
+// (mismas reglas que DEV → Tareas). NO son tareas DEV: ticket y tarea son conceptos
+// distintos y no se convierten entre sí (sin estados ni responsables en esta versión).
+
+export const tickets = sqliteTable(
+  "tickets",
+  {
+    id: cuid(),
+    // Solicitante real: relación al ID del usuario autenticado (nunca texto libre).
+    requestedByUserId: text("requested_by_user_id").notNull().references(() => usuarios.id),
+    description: text("description").notNull(),
+    prioridad: text("prioridad", { enum: ["Baja", "Normal", "Alta"] }).notNull().default("Normal"),
+    // Clave de idempotencia anti doble-clic: un reintento con la misma clave no crea
+    // un segundo ticket (misma mecánica que pagos.idempotencyKey).
+    idempotencyKey: text("idempotency_key"),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({ createdIdx: index("tickets_created_idx").on(t.createdAt) })
+);
+
+// Adjuntos de un ticket: el binario vive aquí como BLOB (nunca base64 en `tickets`).
+// Un adjunto pertenece a UN ticket por ID; imagen del Ticket A jamás aparece en Ticket B.
+export const ticketAdjuntos = sqliteTable(
+  "ticket_adjuntos",
+  {
+    id: cuid(),
+    ticketId: text("ticket_id").notNull().references(() => tickets.id, { onDelete: "cascade" }),
+    nombreOriginal: text("nombre_original").notNull(),
+    contentType: text("content_type").notNull(),
+    tamanoBytes: integer("tamano_bytes").notNull(),
+    datos: blob("datos", { mode: "buffer" }).notNull(),
+    subidoPor: text("subido_por").notNull().references(() => usuarios.id),
+    createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({ ticketIdx: index("ticket_adjuntos_ticket_idx").on(t.ticketId) })
 );
