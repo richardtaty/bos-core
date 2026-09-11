@@ -134,3 +134,17 @@ ejecutarMigracion("0035_frecuencia_recurrente", sqlFrecuenciaRecurrente);
 // Hora de envío del Cierre diario de Podcast: la necesita el historial de reportes.
 const sqlPodcastEnviadoEn = readFileSync(join(__dirname, "migrations", "0036_podcast_reporte_enviado_en.sql"), "utf-8");
 ejecutarMigracion("0036_podcast_reporte_enviado_en", sqlPodcastEnviadoEn);
+
+// Prospección por canal del Cierre diario (1:N del reporte). Solo crea una tabla nueva:
+// las columnas viejas del reporte quedan intactas para los reportes históricos.
+const sqlPodcastCanales = readFileSync(join(__dirname, "migrations", "0037_podcast_reporte_canales.sql"), "utf-8");
+ejecutarMigracion("0037_podcast_reporte_canales", sqlPodcastCanales);
+
+// Sello de las métricas automáticas al enviar el Cierre diario: evita que un reporte histórico
+// cambie solo cuando alguien corrige el CRM semanas después.
+const sqlPodcastSnapshot = readFileSync(join(__dirname, "migrations", "0038_podcast_reporte_snapshot.sql"), "utf-8");
+ejecutarMigracion("0038_podcast_reporte_snapshot", sqlPodcastSnapshot);
+
+// Índices de las consultas de métricas (por persona y por rango de fechas). Aditivos.
+const sqlPodcastIndices = readFileSync(join(__dirname, "migrations", "0039_podcast_indices_metricas.sql"), "utf-8");
+ejecutarMigracion("0039_podcast_indices_metricas", sqlPodcastIndices);

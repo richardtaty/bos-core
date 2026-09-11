@@ -1,49 +1,64 @@
 import { useEffect, useState } from "react";
-import { api, type ReporteDiarioPodcastDTO } from "../api/client";
+import {
+  api,
+  CANALES_CONTACTO,
+  type CanalProspeccionDTO,
+  type ReporteDiarioPodcastDTO,
+} from "../api/client";
 import { PodcastHistorialReportes } from "../components/PodcastHistorialReportes";
+import { PodcastResumenEquipo } from "../components/PodcastResumenEquipo";
+import { AvisoDiscrepancia } from "../components/PodcastUI";
+import { useAuth } from "../api/AuthContext";
 
-// El reporte diario del equipo Podcast. BOS calcula solo la parte automática
-// (agendados, realizados, reuniones, ventas, no-shows, follow-ups) a partir de
-// historial_etapas y tareas_seguimiento; el empleado solo tipea lo que el sistema
-// no puede saber: prospección pre-funnel, compromiso de mañana y bloqueos.
+// El reporte diario del equipo Podcast. BOS calcula solo toda la parte de resultados
+// (agendados, completados, 1%, transacciones, seguimiento, no-shows, follow-ups) a partir del
+// pipeline y del calendario; la persona solo tipea lo que el sistema no puede saber: por qué
+// canal prospectó, qué produjo cada canal, y qué la bloqueó.
 
-interface Formulario {
-  encontrados: string;
+/** Una fila del formulario. Los números son texto mientras se escribe ("" = sin llenar). */
+interface CanalFila {
+  canal: string;
   contactados: string;
   respuestas: string;
   interesados: string;
-  compromisoContactos: string;
-  compromisoFollowups: string;
-  compromisoPodcasts: string;
-  compromisoNota: string;
+}
+
+interface Formulario {
+  canales: CanalFila[];
   bloqueos: string;
 }
 
-const VACIO: Formulario = {
-  encontrados: "",
-  contactados: "",
-  respuestas: "",
-  interesados: "",
-  compromisoContactos: "",
-  compromisoFollowups: "",
-  compromisoPodcasts: "",
-  compromisoNota: "",
-  bloqueos: "",
-};
+const CANAL_VACIO: CanalFila = { canal: "", contactados: "", respuestas: "", interesados: "" };
 
-function NumInput({ label, valor, meta, onChange }: { label: string; valor: string; meta?: number; onChange: (v: string) => void }) {
+/** Arranca con un bloque vacío: los demás canales se agregan con el botón + solo si se usaron. */
+const VACIO: Formulario = { canales: [{ ...CANAL_VACIO }], bloqueos: "" };
+
+function aNumero(s: string): number {
+  return s === "" ? 0 : Number(s);
+}
+
+function NumInput({
+  label,
+  valor,
+  onChange,
+  invalido,
+}: {
+  label: string;
+  valor: string;
+  onChange: (v: string) => void;
+  invalido?: boolean;
+}) {
   return (
     <label className="block">
-      <span className="flex justify-between text-xs mb-1">
-        <span className="text-neutral-500">{label}</span>
-        {meta !== undefined && <span className="text-neutral-500">meta {meta}</span>}
-      </span>
+      <span className="text-xs text-neutral-500 mb-1 block">{label}</span>
       <input
         type="number"
         min={0}
         value={valor}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className={`w-full rounded-lg border px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+          invalido ? "border-danger-400" : "border-neutral-300"
+        }`}
       />
     </label>
   );
@@ -58,19 +73,39 @@ function Tarjeta({ titulo, children }: { titulo: string; children: React.ReactNo
   );
 }
 
+/** `null` = no hay dato (no es lo mismo que un 0): se muestra "—", nunca un cero inventado. */
+function Dato({ label, valor, nota }: { label: string; valor: number | null; nota?: string }) {
+  return (
+    <div className="bg-white border border-neutral-200 rounded-lg p-3">
+      <p className="text-xs text-neutral-500">{label}</p>
+      <p className={`text-xl font-semibold ${valor === null ? "text-neutral-300" : "text-neutral-800"}`}>{valor ?? "—"}</p>
+      {nota && <p className="text-[11px] text-neutral-400 mt-0.5">{nota}</p>}
+    </div>
+  );
+}
+
 /**
- * PODCAST → Cierre diario. Dos formas de ver el MISMO registro real:
- *   · Mi cierre  → el formulario de hoy (captura), sin cambios.
- *   · Historial  → consulta de solo lectura de los reportes ya existentes.
- * El formulario de abajo se dejó intacto a propósito.
+ * PODCAST → Cierre diario. Tres formas de ver el MISMO registro real:
+ *   · Mi cierre         → el formulario de hoy (captura).
+ *   · Historial         → consulta de solo lectura de los reportes ya existentes.
+ *   · Resumen del equipo → consolidado del día, solo lectura. Es el Historial visto de lado:
+ *     no es un sistema aparte de reportes y no hay una pantalla nueva en el menú.
  */
 export function PodcastReporteDiarioPage() {
-  const [vista, setVista] = useState<"cierre" | "historial">("cierre");
+  const { usuario } = useAuth();
+  const [vista, setVista] = useState<"cierre" | "historial" | "resumen">("cierre");
 
-  const tabs: { key: "cierre" | "historial"; label: string }[] = [
+  const tabs: { key: "cierre" | "historial" | "resumen"; label: string }[] = [
     { key: "cierre", label: "Mi cierre" },
     { key: "historial", label: "Historial" },
   ];
+
+  // El consolidado de TODO el equipo usa exactamente la misma regla que Equipo e Inteligencia.
+  // La pestaña se oculta acá, pero quien decide de verdad es el backend (requireRole ADMIN):
+  // un USUARIO que llame a la ruta recibe 403 aunque se salte la pantalla.
+  if (usuario?.rol === "ADMIN" || usuario?.rol === "SUPER_ADMIN") {
+    tabs.push({ key: "resumen", label: "Resumen del equipo" });
+  }
 
   return (
     <div className="max-w-4xl">
@@ -90,7 +125,9 @@ export function PodcastReporteDiarioPage() {
         ))}
       </div>
 
-      {vista === "historial" ? <PodcastHistorialReportes /> : <MiCierreDiario />}
+      {vista === "historial" && <PodcastHistorialReportes />}
+      {vista === "resumen" && <PodcastResumenEquipo />}
+      {vista === "cierre" && <MiCierreDiario />}
     </div>
   );
 }
@@ -107,14 +144,9 @@ function MiCierreDiario() {
       const d = await api.podcastReporteDiario();
       setData(d);
       setForm({
-        encontrados: d.reporte?.prospectosEncontrados?.toString() ?? "",
-        contactados: d.reporte?.prospectosContactados?.toString() ?? "",
-        respuestas: d.reporte?.respuestas?.toString() ?? "",
-        interesados: d.reporte?.interesados?.toString() ?? "",
-        compromisoContactos: d.compromisoHoy?.contactos?.toString() ?? "",
-        compromisoFollowups: d.compromisoHoy?.followups?.toString() ?? "",
-        compromisoPodcasts: d.compromisoHoy?.podcasts?.toString() ?? "",
-        compromisoNota: d.compromisoHoy?.nota ?? "",
+        // El borrador vuelve tal cual se dejó. Si el reporte es anterior a los canales, arranca
+        // con un bloque vacío (sus totales viejos se ven abajo, en el Historial).
+        canales: d.canales.length > 0 ? d.canales.map((c) => filaDesde(c)) : [{ ...CANAL_VACIO }],
         bloqueos: d.reporte?.bloqueos ?? "",
       });
       setCargando(false);
@@ -122,26 +154,48 @@ function MiCierreDiario() {
     void cargar();
   }, []);
 
-  const set = (k: keyof Formulario) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const setCanal = (i: number, campo: keyof CanalFila, valor: string) =>
+    setForm((f) => ({ ...f, canales: f.canales.map((c, idx) => (idx === i ? { ...c, [campo]: valor } : c)) }));
+
+  const agregarCanal = () => setForm((f) => ({ ...f, canales: [...f.canales, { ...CANAL_VACIO }] }));
+
+  const quitarCanal = (i: number) => setForm((f) => ({ ...f, canales: f.canales.filter((_, idx) => idx !== i) }));
+
+  // Los totales del día NO se guardan: se suman aquí, a partir del desglose por canal.
+  const totales = {
+    contactados: form.canales.reduce((a, c) => a + aNumero(c.contactados), 0),
+    respuestas: form.canales.reduce((a, c) => a + aNumero(c.respuestas), 0),
+    interesados: form.canales.reduce((a, c) => a + aNumero(c.interesados), 0),
+  };
+
+  // Filas con datos lógicamente imposibles (más respuestas que contactados, o más interesados que
+  // respuestas). Se avisan al escribir y el backend las rechaza al enviar.
+  const filasInvalidas = form.canales.map(
+    (c) => aNumero(c.respuestas) > aNumero(c.contactados) || aNumero(c.interesados) > aNumero(c.respuestas)
+  );
 
   const guardar = async (enviar: boolean) => {
+    // Los bloques sin canal elegido no se mandan: son filas que quedaron vacías.
+    const canales: CanalProspeccionDTO[] = form.canales
+      .filter((c) => c.canal !== "")
+      .map((c) => ({
+        canal: c.canal,
+        contactados: aNumero(c.contactados),
+        respuestas: aNumero(c.respuestas),
+        interesados: aNumero(c.interesados),
+      }));
+
+    if (enviar && canales.some((c) => c.respuestas > c.contactados || c.interesados > c.respuestas)) {
+      setMensaje("Revisa la prospección: no puede haber más respuestas que contactados, ni más interesados que respuestas.");
+      return;
+    }
+
     setGuardando(true);
     setMensaje(null);
-    const aNumero = (s: string) => (s === "" ? undefined : Number(s));
     try {
-      const d = await api.guardarPodcastReporte({
-        prospectosEncontrados: aNumero(form.encontrados),
-        prospectosContactados: aNumero(form.contactados),
-        respuestas: aNumero(form.respuestas),
-        interesados: aNumero(form.interesados),
-        compromisoContactos: aNumero(form.compromisoContactos),
-        compromisoFollowups: aNumero(form.compromisoFollowups),
-        compromisoPodcasts: aNumero(form.compromisoPodcasts),
-        compromisoNota: form.compromisoNota,
-        bloqueos: form.bloqueos,
-        enviar,
-      });
+      const d = await api.guardarPodcastReporte({ canales, bloqueos: form.bloqueos, enviar });
       setData(d);
+      setForm((f) => ({ ...f, canales: d.canales.length > 0 ? d.canales.map((c) => filaDesde(c)) : [{ ...CANAL_VACIO }] }));
       setMensaje(enviar ? "Reporte enviado." : "Borrador guardado.");
     } catch (e) {
       setMensaje((e as Error).message);
@@ -153,15 +207,7 @@ function MiCierreDiario() {
   if (cargando || !data) return <p className="text-sm text-neutral-500">Cargando...</p>;
 
   const m = data.metricas;
-  const auto = [
-    { label: "Podcasts agendados", valor: m.agendados },
-    { label: "Podcasts realizados", valor: m.realizados },
-    { label: "Reuniones del 1%", valor: m.reuniones },
-    { label: "Ventas cerradas", valor: m.ventas },
-    { label: "No-shows", valor: m.noShows },
-    { label: "Follow-ups realizados", valor: m.followupsRealizados },
-    { label: "Follow-ups vencidos", valor: m.followupsVencidos },
-  ];
+  const r = data.resultados;
 
   return (
     <div>
@@ -177,67 +223,113 @@ function MiCierreDiario() {
 
       {mensaje && <p className="text-sm text-primary-600 mb-4">{mensaje}</p>}
 
-      {/* Lo que BOS ya calculó — solo lectura */}
+      {/* Lo que BOS ya calculó — solo lectura. Los resultados comerciales del día están más abajo,
+          en "Resultados de hoy": aquí queda lo que no se repite allí. */}
       <Tarjeta titulo="Lo que BOS ya calculó hoy">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {auto.map((a) => (
-            <div key={a.label} className="bg-white border border-neutral-200 rounded-lg p-3">
-              <p className="text-xs text-neutral-500">{a.label}</p>
-              <p className="text-xl font-semibold text-neutral-800">{a.valor}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <Dato label="No-shows" valor={m.noShows} />
+          <Dato label="Follow-ups realizados" valor={m.followupsRealizados} />
+          <Dato label="Follow-ups vencidos" valor={m.followupsVencidos} />
         </div>
       </Tarjeta>
 
-      {/* Compromiso de ayer (continuidad) */}
+      {/* Prospección manual, desglosada por canal */}
       <div className="mt-4">
-        <Tarjeta titulo="Compromiso de ayer">
-          {data.compromisoAyer && (data.compromisoAyer.contactos || data.compromisoAyer.followups || data.compromisoAyer.podcasts) ? (
-            <div className="text-sm text-neutral-600">
-              <p>
-                Se comprometió a{" "}
-                <b>{data.compromisoAyer.contactos ?? 0} contactos</b>,{" "}
-                <b>{data.compromisoAyer.followups ?? 0} follow-ups</b> y{" "}
-                <b>{data.compromisoAyer.podcasts ?? 0} podcasts</b>.
-              </p>
-              {data.compromisoAyer.nota && <p className="mt-1 text-neutral-500">"{data.compromisoAyer.nota}"</p>}
-            </div>
-          ) : (
-            <p className="text-sm text-neutral-500">No dejó compromiso ayer.</p>
-          )}
+        <Tarjeta titulo="Prospección de hoy">
+          <div className="space-y-3">
+            {form.canales.map((c, i) => (
+              <div key={i} className="bg-white border border-neutral-200 rounded-lg p-3">
+                <div className="flex items-end gap-3">
+                  <label className="block w-40 shrink-0">
+                    <span className="text-xs text-neutral-500 mb-1 block">Canal</span>
+                    <select
+                      value={c.canal}
+                      onChange={(e) => setCanal(i, "canal", e.target.value)}
+                      className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="">Selecciona…</option>
+                      {CANALES_CONTACTO.map((canal) => (
+                        <option key={canal} value={canal}>
+                          {canal}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-3 gap-3 flex-1">
+                    <NumInput label="Contactados" valor={c.contactados} onChange={(v) => setCanal(i, "contactados", v)} />
+                    <NumInput
+                      label="Respuestas"
+                      valor={c.respuestas}
+                      onChange={(v) => setCanal(i, "respuestas", v)}
+                      invalido={aNumero(c.respuestas) > aNumero(c.contactados)}
+                    />
+                    <NumInput
+                      label="Interesados"
+                      valor={c.interesados}
+                      onChange={(v) => setCanal(i, "interesados", v)}
+                      invalido={aNumero(c.interesados) > aNumero(c.respuestas)}
+                    />
+                  </div>
+                  {form.canales.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => quitarCanal(i)}
+                      className="px-3 py-2 rounded-lg text-xs text-neutral-500 hover:text-danger-600 hover:bg-neutral-100"
+                    >
+                      ✕ Quitar
+                    </button>
+                  )}
+                </div>
+                {filasInvalidas[i] && (
+                  <p className="text-xs text-danger-600 mt-2">
+                    En un canal no puede haber más respuestas que contactados, ni más interesados que respuestas.
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={agregarCanal}
+            className="mt-3 text-sm px-3 py-1.5 rounded-lg border border-neutral-300 text-neutral-700 hover:border-primary-300 hover:text-primary-700"
+          >
+            + Agregar otro canal
+          </button>
+
+          {/* Totales del día: se calculan solos a partir de los bloques de arriba. */}
+          <div className="mt-4 pt-3 border-t border-neutral-200 grid grid-cols-3 gap-3 text-sm">
+            <p className="text-neutral-500">
+              Total contactados <span className="font-semibold text-neutral-800">{totales.contactados}</span>
+            </p>
+            <p className="text-neutral-500">
+              Total respuestas <span className="font-semibold text-neutral-800">{totales.respuestas}</span>
+            </p>
+            <p className="text-neutral-500">
+              Total interesados <span className="font-semibold text-neutral-800">{totales.interesados}</span>
+            </p>
+          </div>
         </Tarjeta>
       </div>
 
-      {/* Prospección manual */}
+      {/* Resultados del día — todo automático, nada que tipear */}
       <div className="mt-4">
-        <Tarjeta titulo="Prospección de hoy (manual)">
+        <Tarjeta titulo="Resultados de hoy">
+          <p className="text-xs text-neutral-500 mb-3">
+            Los calcula BOS solo, con las mismas reglas que Mi desempeño y el Reporte de equipo: una
+            sola cifra por concepto, igual en todas las pantallas.
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <NumInput label="Prospectos encontrados" valor={form.encontrados} meta={data.metas.prospectosEncontrados} onChange={set("encontrados")} />
-            <NumInput label="Prospectos contactados" valor={form.contactados} meta={data.metas.prospectosContactados} onChange={set("contactados")} />
-            <NumInput label="Respuestas recibidas" valor={form.respuestas} onChange={set("respuestas")} />
-            <NumInput label="Interesados" valor={form.interesados} onChange={set("interesados")} />
+            <Dato label="Podcasts agendados" valor={r.agendados} nota="los que conseguiste hoy" />
+            <Dato label="Podcasts completados" valor={r.completados} nota="realizados hoy" />
+            <Dato label="1% completados" valor={r.reuniones1} />
+            <Dato label="Convertidos" valor={r.convertidos} />
+            <Dato label="No-shows" valor={r.noShows} />
+            <Dato label="Follow-ups hechos" valor={r.followupsRealizados} />
+            <Dato label="Follow-ups vencidos" valor={r.followupsVencidos} nota="hoy" />
+            <Dato label="En seguimiento" valor={r.enSeguimiento} nota="hoy" />
           </div>
-        </Tarjeta>
-      </div>
-
-      {/* Compromiso de mañana */}
-      <div className="mt-4">
-        <Tarjeta titulo="Compromiso para mañana">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-            <NumInput label="Contactos" valor={form.compromisoContactos} onChange={set("compromisoContactos")} />
-            <NumInput label="Follow-ups" valor={form.compromisoFollowups} onChange={set("compromisoFollowups")} />
-            <NumInput label="Podcasts agendados" valor={form.compromisoPodcasts} onChange={set("compromisoPodcasts")} />
-          </div>
-          <label className="block">
-            <span className="text-xs text-neutral-500">Nota (opcional)</span>
-            <textarea
-              value={form.compromisoNota}
-              onChange={(e) => set("compromisoNota")(e.target.value)}
-              rows={2}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="Ej: mañana grabo 3 invitados en la mañana"
-            />
-          </label>
+          <AvisoDiscrepancia discrepancias={r.discrepancias} />
         </Tarjeta>
       </div>
 
@@ -246,7 +338,7 @@ function MiCierreDiario() {
         <Tarjeta titulo="¿Qué te bloqueó hoy?">
           <textarea
             value={form.bloqueos}
-            onChange={(e) => set("bloqueos")(e.target.value)}
+            onChange={(e) => setForm((f) => ({ ...f, bloqueos: e.target.value }))}
             rows={2}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="Ej: agenda llena, invitados no respondieron, problema técnico…"
@@ -272,4 +364,13 @@ function MiCierreDiario() {
       </div>
     </div>
   );
+}
+
+function filaDesde(c: CanalProspeccionDTO): CanalFila {
+  return {
+    canal: c.canal,
+    contactados: c.contactados.toString(),
+    respuestas: c.respuestas.toString(),
+    interesados: c.interesados.toString(),
+  };
 }

@@ -1,0 +1,25 @@
+-- 0038_podcast_reporte_snapshot.sql — Copia de las métricas automáticas al enviar el Cierre diario
+--
+-- QUÉ PROBLEMA RESUELVE
+-- Las métricas automáticas del Cierre diario (agendados, completados, 1%, convertidos, no-shows y
+-- follow-ups) nunca se guardaron: se recalculan en cada lectura desde el Calendario y el Pipeline.
+-- Eso significa que un reporte enviado el 11 de septiembre cambia solo si semanas después alguien
+-- corrige una tarjeta vieja. Este sello congela lo que BOS calculaba en el momento del envío.
+--
+-- CÓMO SE USA
+-- `guardarReporteDiario` escribe SIEMPRE para el día de hoy (nunca se puede editar un reporte de
+-- un día pasado), así que alcanza con volver a sellar en cada guardado que queda en "enviado": una
+-- vez que el día termina, el sello ya no puede cambiar porque ya no se puede guardar ese día.
+--
+-- QUÉ SE GUARDA
+-- Un JSON chico con los nombres ya visibles al usuario, no con la forma interna del cálculo:
+--   { "v": 1, "agendados": 3, "completados": 2, "reuniones1": 1, "convertidos": 1,
+--     "noShows": 0, "followupsRealizados": 4, "followupsVencidos": 2 }
+-- El campo `v` es la versión del formato, para poder distinguir un sello viejo si algún día
+-- cambia la forma de las métricas.
+--
+-- ES ADITIVA Y SIN PÉRDIDA
+-- Solo agrega una columna. Los reportes anteriores quedan en NULL y el Historial los muestra como
+-- siempre: con el valor actual y diciendo que no hay sello. No se recalcula ni se sobrescribe nada.
+
+ALTER TABLE podcast_reportes_diarios ADD COLUMN metricas_snapshot TEXT;

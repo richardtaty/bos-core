@@ -188,20 +188,60 @@ export const actualizarModalidadPagoSchema = z
   });
 
 // ─── Podcast Performance ─────────────────────────────────
-// Reporte diario: solo lo que BOS no puede calcular solo (prospección manual + compromiso
-// estructurado + bloqueos). El frontend manda el estado completo del formulario en cada guardado.
-export const guardarReportePodcastSchema = z.object({
-  prospectosEncontrados: z.number().int().nonnegative().optional(),
-  prospectosContactados: z.number().int().nonnegative().optional(),
-  respuestas: z.number().int().nonnegative().optional(),
-  interesados: z.number().int().nonnegative().optional(),
-  compromisoContactos: z.number().int().nonnegative().optional(),
-  compromisoFollowups: z.number().int().nonnegative().optional(),
-  compromisoPodcasts: z.number().int().nonnegative().optional(),
-  compromisoNota: z.string().optional(),
-  bloqueos: z.string().optional(),
-  enviar: z.boolean().optional(),
+// Canales por los que se prospecta. La lista vive aquí (no en un CHECK de la base) para que
+// sumar un canal no exija una migración. El frontend la espeja para el <select> del Cierre diario.
+export const CANALES_CONTACTO = ["Instagram", "WhatsApp", "Llamada", "Email", "Facebook", "YouTube", "Otro"] as const;
+
+// Un bloque de prospección: cuánto se trabajó UN canal y qué produjo.
+const canalProspeccionSchema = z.object({
+  canal: z.enum(CANALES_CONTACTO),
+  contactados: z.number().int().nonnegative(),
+  respuestas: z.number().int().nonnegative(),
+  interesados: z.number().int().nonnegative(),
 });
+
+// Reporte diario: solo lo que BOS no puede calcular solo (prospección por canal + bloqueos).
+// El frontend manda el estado completo del formulario en cada guardado. Los totales del día no
+// se mandan: se suman al leer para que nunca puedan contradecir el desglose.
+export const guardarReportePodcastSchema = z
+  .object({
+    canales: z.array(canalProspeccionSchema).max(20, "No se pueden registrar más de 20 canales en un día").optional(),
+    // Campos del formulario anterior (prospección sin canal + compromiso para mañana). Se siguen
+    // aceptando para no romper nada, pero el Cierre diario ya no los manda y el servicio no los
+    // sobrescribe: los reportes guardados antes conservan lo que tenían.
+    prospectosEncontrados: z.number().int().nonnegative().optional(),
+    prospectosContactados: z.number().int().nonnegative().optional(),
+    respuestas: z.number().int().nonnegative().optional(),
+    interesados: z.number().int().nonnegative().optional(),
+    compromisoContactos: z.number().int().nonnegative().optional(),
+    compromisoFollowups: z.number().int().nonnegative().optional(),
+    compromisoPodcasts: z.number().int().nonnegative().optional(),
+    compromisoNota: z.string().optional(),
+    bloqueos: z.string().optional(),
+    enviar: z.boolean().optional(),
+  })
+  .superRefine((d, ctx) => {
+    // Datos lógicamente imposibles: no puede haber más respuestas que contactados, ni más
+    // interesados que respuestas. Solo se exige al ENVIAR — un borrador a medio llenar debe poder
+    // guardarse (se está escribiendo de arriba abajo y los números aún no cuadran).
+    if (!d.enviar || !d.canales) return;
+    d.canales.forEach((c, i) => {
+      if (c.respuestas > c.contactados) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["canales", i, "respuestas"],
+          message: `En ${c.canal} no puede haber más respuestas (${c.respuestas}) que contactados (${c.contactados}).`,
+        });
+      }
+      if (c.interesados > c.respuestas) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["canales", i, "interesados"],
+          message: `En ${c.canal} no puede haber más interesados (${c.interesados}) que respuestas (${c.respuestas}).`,
+        });
+      }
+    });
+  });
 
 export const guardarMetasPodcastSchema = z.object({
   metas: z

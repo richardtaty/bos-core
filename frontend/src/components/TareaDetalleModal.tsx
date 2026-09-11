@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../api/AuthContext";
-import type { TareaOperativa, ChecklistItem, ComentarioTarea, Usuario } from "../types";
+import type { TareaOperativa, ChecklistItem, ComentarioTarea, ContextoTareas, OpcionUsuario } from "../types";
 import { esActiva } from "../lib/estados";
 
 const DEPARTAMENTOS = ["Marketing", "Ventas", "Podcast", "Mentoría", "Código Financiero", "Kappitalia", "Contenido", "Operaciones"];
@@ -66,10 +66,16 @@ interface Props {
   tarea: TareaOperativa;
   onClose: () => void;
   onUpdate: () => void;
-  usuarios: Usuario[];
+  usuarios: OpcionUsuario[];
+  /**
+   * Vista acotada a un departamento (ej. PODCAST → Tareas). Aquí está el punto por donde
+   * una tarea podría mudarse de área: el guardado siempre mandaba `departamento`. Con
+   * contexto se deja de mandar y el selector desaparece — el servidor, además, lo ignora.
+   */
+  contexto?: ContextoTareas;
 }
 
-export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props) {
+export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios, contexto }: Props) {
   const { usuario } = useAuth();
 
   // Espejo de puedeGestionarTarea (backend/src/services/tareas.service.ts). Antes esto era
@@ -121,15 +127,23 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
     onUpdate();
   }
 
+  // El mismo registro real: en una vista acotada el cambio pasa por el endpoint del
+  // departamento, pero es una sola tarea, no dos.
+  const actualizar = contexto
+    ? (data: Record<string, unknown>) => contexto.actualizar(tarea.id, data)
+    : (data: Record<string, unknown>) => api.actualizarTarea(tarea.id, data);
+
   // ─── Cambio de estado ───────────────────────────────
   async function cambiarEstado(estado: string) {
-    await api.actualizarTarea(tarea.id, { estado });
+    await actualizar({ estado });
     onUpdate();
   }
 
   // ─── Completar ──────────────────────────────────────
+  // Sella `completed_at` (lo hace el backend, igual que en el módulo Tareas): no hay una
+  // segunda marca de completado.
   async function completar() {
-    await api.actualizarTarea(tarea.id, { estado: "completada", porcentajeAvance: 100 });
+    await actualizar({ estado: "completada", porcentajeAvance: 100 });
     onUpdate();
   }
 
@@ -153,11 +167,12 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
   async function guardarEdicion() {
     setGuardando(true);
     try {
-      await api.actualizarTarea(tarea.id, {
+      await actualizar({
         titulo: editTitulo.trim(),
         descripcion: editDescripcion.trim() || null,
         responsableId: editResponsableId,
-        departamento: editDepartamento,
+        // Con contexto, el departamento NO viaja: la tarea se queda en su área.
+        ...(contexto ? {} : { departamento: editDepartamento }),
         prioridad: editPrioridad,
         fechaLimite: editFechaLimite || null,
         canal: editCanal || null,
@@ -234,13 +249,16 @@ export function TareaDetalleModal({ tarea, onClose, onUpdate, usuarios }: Props)
                     {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nombre}</option>))}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-neutral-600 block mb-1">Departamento</label>
-                  <select value={editDepartamento} onChange={(e) => setEditDepartamento(e.target.value)}
-                    className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
-                    {DEPARTAMENTOS.map((d) => (<option key={d} value={d}>{d}</option>))}
-                  </select>
-                </div>
+                {/* En una vista acotada el departamento no se toca: la tarea es de esa área. */}
+                {!contexto && (
+                  <div>
+                    <label className="text-xs font-medium text-neutral-600 block mb-1">Departamento</label>
+                    <select value={editDepartamento} onChange={(e) => setEditDepartamento(e.target.value)}
+                      className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm">
+                      {DEPARTAMENTOS.map((d) => (<option key={d} value={d}>{d}</option>))}
+                    </select>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

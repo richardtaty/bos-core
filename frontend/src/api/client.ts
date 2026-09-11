@@ -136,6 +136,13 @@ export interface DesgloseScoreDTO {
   followup: number;
   resultados: number;
   continuidad: number;
+  /** Puntos sobre los que se calculó el total. 100 siempre, salvo 80 cuando la Actividad no se
+   *  pudo medir ese día (no hubo Cierre diario). */
+  maxDisponible: number;
+  /** true = algún componente no se pudo medir y el total se repartió sobre `maxDisponible`. */
+  parcial: boolean;
+  /** false = ese día no hay prospección registrada, así que la Actividad no se puntúa. */
+  actividadDisponible: boolean;
 }
 
 export type NivelAlertaDTO = "normal" | "atencion" | "intervencion";
@@ -154,13 +161,16 @@ export interface AlertaPodcastDTO {
 export interface ComparacionKpiDTO {
   clave: string;
   label: string;
-  hoy: number;
-  ayer: number;
-  promedio7: number;
+  /** null = ese día no hay dato (no lo registró). Nunca un 0 inventado. */
+  hoy: number | null;
+  ayer: number | null;
+  promedio7: number | null;
   meta: number | null;
   cumplimiento: number | null;
   variacionAyer: number | null;
   tendencia: TendenciaDTO;
+  /** false = sin dato; la pantalla escribe "—" en vez de 0. */
+  disponible: boolean;
 }
 
 /** Lo que la persona escribió a mano. `null` = no lo llenó (distinto de haber escrito 0). */
@@ -172,6 +182,61 @@ export interface ReporteManualPodcastDTO {
   bloqueos: string | null;
 }
 
+/** Canales por los que se puede prospectar. La lista canónica vive en el backend
+ *  (lib/validation.ts) y esto es su espejo para el selector. */
+export const CANALES_CONTACTO = ["Instagram", "WhatsApp", "Llamada", "Email", "Facebook", "YouTube", "Otro"] as const;
+export type CanalContactoDTO = (typeof CANALES_CONTACTO)[number];
+
+/** Un bloque de prospección: qué produjo UN canal. Los totales del día no se guardan: se suman. */
+export interface CanalProspeccionDTO {
+  canal: string;
+  contactados: number;
+  respuestas: number;
+  interesados: number;
+}
+
+/**
+ * Aviso de que el Pipeline y el Calendario no cuentan lo mismo ese día. NO es una métrica: la
+ * cifra oficial es la del Calendario, y esto solo sirve para que se note que alguien movió la
+ * tarjeta sin crear la cita.
+ */
+export interface DiscrepanciaPodcastDTO {
+  usuarioId: string;
+  nombre: string;
+  fecha: string;
+  concepto: "agendados" | "completados";
+  citas: number;
+  pipeline: number;
+}
+
+/**
+ * "Resultados de hoy": todo lo que BOS calcula solo, sin un solo campo manual.
+ *
+ * UNA cifra por concepto. Antes venían las dos versiones de cada cifra de podcasts (Pipeline y
+ * Calendario) una al lado de la otra, y la misma persona el mismo día podía dar números distintos
+ * según la pantalla. Ahora manda el Calendario, la misma fuente en todas las vistas.
+ */
+export interface ResultadosDiaDTO {
+  agendados: number;
+  completados: number;
+  reuniones1: number;
+  convertidos: number;
+  noShows: number;
+  followupsRealizados: number;
+  followupsVencidos: number;
+  /** Foto del momento (no histórica): personas con tarjeta abierta cuyo responsable es uno. */
+  enSeguimiento: number | null;
+  /** Avisos de calidad de datos. No son cifras: no se muestran como métrica. */
+  discrepancias: DiscrepanciaPodcastDTO[];
+}
+
+/** Lo que el Cierre diario manda al guardar. Los totales NO se mandan: se suman al leer. */
+export interface GuardarReportePodcastBody {
+  canales?: CanalProspeccionDTO[];
+  bloqueos?: string;
+  enviar?: boolean;
+}
+
 export interface ReporteDiarioPodcastDTO {
   id?: string | null;
   fecha: string;
@@ -180,6 +245,9 @@ export interface ReporteDiarioPodcastDTO {
   createdAt?: string | null;
   updatedAt?: string | null;
   reporte: ReporteManualPodcastDTO | null;
+  /** Desglose del día por canal. Lista vacía en los reportes anteriores a la migración 0037. */
+  canales: CanalProspeccionDTO[];
+  resultados: ResultadosDiaDTO;
   compromisoHoy: CompromisoDTO | null;
   metricas: MetricasDiaDTO;
   compromisoAyer: CompromisoDTO | null;
@@ -235,15 +303,144 @@ export interface DetalleHistorialDTO {
   createdAt: string | null;
   updatedAt: string | null;
   reporte: ReporteManualPodcastDTO | null;
+  /** vacío en reportes anteriores a la migración 0037 (no se inventa un reparto por canal). */
+  canales: CanalProspeccionDTO[] | null;
   compromiso: CompromisoDTO | null;
+  /** Lo que el CRM dice HOY de ese día (métrica operativa actual). */
   metricas: MetricasDiaDTO | null;
+  /**
+   * Copia de las métricas automáticas sellada al ENVIAR el reporte (reporte histórico). No cambia
+   * aunque después se corrija una tarjeta vieja. `null` en los reportes anteriores a la migración
+   * 0038: en ese caso la pantalla muestra el valor actual y dice que no hay sello.
+   */
+  metricasReportadas: MetricasSnapshotDTO | null;
   metas: MetasPodcastDTO["metas"] | null;
+}
+
+/** La forma legible con la que se sella el reporte al enviarlo. `v` es la versión del formato. */
+export interface MetricasSnapshotDTO {
+  v: 1;
+  agendados: number;
+  completados: number;
+  reuniones1: number;
+  convertidos: number;
+  noShows: number;
+  followupsRealizados: number;
+  followupsVencidos: number;
+}
+
+// ─── Resumen automático del equipo ─────────────
+// Todo lo que sigue se calcula en el backend sobre los MISMOS reportes del Cierre diario. La
+// pantalla no suma nada por su cuenta: si sumara acá, podría dar distinto que el total.
+
+/** Una fila por persona del equipo. `estado` distingue las tres situaciones reales. */
+export interface FilaEquipoResumenDTO {
+  usuarioId: string;
+  nombre: string;
+  estado: "enviado" | "borrador" | "sin_reporte";
+  enviadoEn: string | null;
+  reporteId: string | null;
+  /** null = no registró prospección. NUNCA es un 0 inventado. */
+  contactados: number | null;
+  respuestas: number | null;
+  interesados: number | null;
+  registroProspeccion: boolean;
+  canales: CanalProspeccionDTO[];
+  bloqueos: string | null;
+}
+
+export interface CanalConsolidadoDTO {
+  canal: string;
+  contactados: number | null;
+  respuestas: number | null;
+  interesados: number | null;
+}
+
+export interface TemaBloqueoDTO {
+  clave: string;
+  etiqueta: string;
+  personas: { usuarioId: string; nombre: string; reporteId: string; texto: string }[];
+}
+
+export interface SenalAtencionDTO {
+  clave: string;
+  titulo: string;
+  detalle: string;
+  usuarioIds: string[];
+}
+
+export interface ResumenEquipoDTO {
+  fecha: string;
+  reportes: { enviados: number; esperados: number };
+  equipo: FilaEquipoResumenDTO[];
+  prospeccion: {
+    contactados: number | null;
+    respuestas: number | null;
+    interesados: number | null;
+    reportesEnviados: number;
+    reportesConProspeccion: number;
+  };
+  canales: CanalConsolidadoDTO[];
+  /** Una sola cifra por concepto: las mismas reglas que el Cierre diario y Mi desempeño. */
+  resultados: ResultadosDiaDTO;
+  bloqueos: {
+    temas: TemaBloqueoDTO[];
+    otros: { usuarioId: string; nombre: string; reporteId: string; texto: string }[];
+    sinBloqueo: { usuarioId: string; nombre: string }[];
+  };
+  atencion: SenalAtencionDTO[];
+  /** null = ayer no tuvo ningún reporte enviado; no se compara contra un día sin información. */
+  comparacionAyer: {
+    fecha: string;
+    reportesEnviados: number;
+    contactados: number | null;
+    respuestas: number | null;
+    interesados: number | null;
+  } | null;
+  metas: MetasPodcastDTO["metas"];
+}
+
+/** El embudo de trabajo de Podcast: la misma secuencia en las dos pantallas de desempeño.
+ *  Todo lo que viene de la prospección va en `number | null` — null es "no registró", nunca 0. */
+export interface FunnelPodcastDTO {
+  contactados: number | null;
+  respuestas: number | null;
+  interesados: number | null;
+  agendados: number;
+  completados: number;
+  reuniones1: number;
+  transaccionaron: number;
+  /** Foto del momento (tarjetas abiertas). null = la fecha consultada no es hoy. */
+  enSeguimiento: number | null;
+  /** Calculadas en el backend para que las dos pantallas digan lo mismo.
+   *  null = no se puede calcular (división entre cero o sin datos). Nunca 0% ni Infinity. */
+  tasaRespuesta: number | null;
+  tasaInteres: number | null;
+}
+
+/** Estado del Cierre diario de una persona en una fecha. */
+export type EstadoReporteDTO = "enviado" | "borrador" | "sin_reporte";
+
+/** Lo que la persona registró ese día, ya resuelto (canales si los hay, si no las columnas).
+ *  null en el campo que corresponda = no lo registró. */
+export interface ProspeccionResueltaDTO {
+  contactados: number | null;
+  respuestas: number | null;
+  interesados: number | null;
+  canales: CanalConsolidadoDTO[];
 }
 
 export interface DesempenoMiDTO {
   usuarioId: string;
   fecha: string;
-  score: DesgloseScoreDTO;
+  score: DesgloseScoreDTO | null;
+  /** false = esa fecha no es hoy, así que el score no se puede calcular (ver nota en la pantalla). */
+  scoreDisponible: boolean;
+  estadoReporte: EstadoReporteDTO;
+  prospeccion: ProspeccionResueltaDTO | null;
+  reportesEnviados: number;
+  funnel: FunnelPodcastDTO;
+  canales: CanalConsolidadoDTO[];
   metricas: MetricasDiaDTO;
   comparaciones: ComparacionKpiDTO[];
   metas: MetasPodcastDTO["metas"];
@@ -255,20 +452,60 @@ export interface DesempenoMiDTO {
 export interface FilaEquipoPodcastDTO {
   usuarioId: string;
   nombre: string;
-  score: DesgloseScoreDTO;
-  contactados: number;
+  /** null cuando el período no es hoy: la tendencia y el score usan la serie de 7 días que termina
+   *  hoy y los follow-ups vencidos del momento, que no se pueden reconstruir hacia atrás. */
+  score: DesgloseScoreDTO | null;
+  tendencia: TendenciaDTO | null;
+  contactados: number | null;
+  respuestas: number | null;
+  interesados: number | null;
   followupsRealizados: number;
   agendados: number;
-  realizados: number;
+  completados: number;
+  reuniones1: number;
+  transaccionaron: number;
   pctMeta: number;
-  tendencia: TendenciaDTO;
-  estadoIA: NivelAlertaDTO;
+  /** Días del período con el Cierre diario enviado, sobre el total de días. */
+  reportesEnviados: number;
+  diasPeriodo: number;
+  /** Solo tiene valor cuando el período es un día suelto; en un rango va null. */
+  estado: EstadoReporteDTO | null;
 }
 
 export interface DesempenoEquipoDTO {
-  fecha: string;
+  desde: string;
+  hasta: string;
+  esHoy: boolean;
+  scoreDisponible: boolean;
   metas: MetasPodcastDTO["metas"];
   equipo: FilaEquipoPodcastDTO[];
+  funnel: FunnelPodcastDTO;
+  canales: CanalConsolidadoDTO[];
+  reportesEnviados: number;
+  diasPeriodo: number;
+}
+
+/** El día a día de una persona dentro del período consultado, para el detalle del drill-down. */
+export interface DiaMiembroDTO {
+  fecha: string;
+  estado: EstadoReporteDTO;
+  prospeccion: ProspeccionResueltaDTO | null;
+  metricas: MetricasDiaDTO;
+}
+
+export interface MiembroDetalleDTO {
+  usuarioId: string;
+  desde: string;
+  hasta: string;
+  esHoy: boolean;
+  scoreDisponible: boolean;
+  score: DesgloseScoreDTO | null;
+  funnel: FunnelPodcastDTO;
+  canales: CanalConsolidadoDTO[];
+  metas: MetasPodcastDTO["metas"];
+  dias: DiaMiembroDTO[];
+  reportesEnviados: number;
+  diasPeriodo: number;
 }
 
 export interface InteligenciaPodcastDTO {
@@ -638,12 +875,36 @@ export const api = {
 
   podcastReporteDiario: () => request<ReporteDiarioPodcastDTO>("/podcast/reporte-diario"),
 
-  guardarPodcastReporte: (data: Record<string, unknown>) =>
+  guardarPodcastReporte: (data: GuardarReportePodcastBody) =>
     request<ReporteDiarioPodcastDTO>("/podcast/reporte-diario", { method: "POST", body: JSON.stringify(data) }),
 
   podcastDesempenoMi: () => request<DesempenoMiDTO>("/podcast/desempeno/mi"),
 
-  podcastDesempenoEquipo: () => request<DesempenoEquipoDTO>("/podcast/desempeno/equipo"),
+  /** El desempeño de otra persona, para el selector de "Mi desempeño". El backend responde 403 si
+   *  el usuarioId no es del equipo de Podcast, aunque se cambie a mano en la URL. */
+  podcastDesempenoUsuario: (usuarioId: string, fecha?: string) =>
+    request<DesempenoMiDTO>(
+      `/podcast/desempeno/usuario/${encodeURIComponent(usuarioId)}${fecha ? `?fecha=${encodeURIComponent(fecha)}` : ""}`
+    ),
+
+  podcastDesempenoEquipo: (periodo: { desde?: string; hasta?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (periodo.desde) qs.set("desde", periodo.desde);
+    if (periodo.hasta) qs.set("hasta", periodo.hasta);
+    const s = qs.toString();
+    return request<DesempenoEquipoDTO>(`/podcast/desempeno/equipo${s ? `?${s}` : ""}`);
+  },
+
+  /** El detalle de una persona en el período, para el drill-down de "Reporte de equipo". */
+  podcastDesempenoMiembro: (usuarioId: string, periodo: { desde?: string; hasta?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (periodo.desde) qs.set("desde", periodo.desde);
+    if (periodo.hasta) qs.set("hasta", periodo.hasta);
+    const s = qs.toString();
+    return request<MiembroDetalleDTO>(
+      `/podcast/desempeno/miembro/${encodeURIComponent(usuarioId)}${s ? `?${s}` : ""}`
+    );
+  },
 
   podcastInteligencia: () => request<InteligenciaPodcastDTO>("/podcast/inteligencia"),
 
@@ -657,6 +918,10 @@ export const api = {
 
   podcastHistorialDetalle: (usuarioId: string, fecha: string) =>
     request<DetalleHistorialDTO>(`/podcast/historial/${encodeURIComponent(usuarioId)}/${encodeURIComponent(fecha)}`),
+
+  // Resumen automático del equipo para una fecha (solo ADMIN/SUPER_ADMIN: el backend responde 403).
+  podcastResumenEquipo: (fecha?: string) =>
+    request<ResumenEquipoDTO>(`/podcast/resumen-diario${fecha ? `?fecha=${encodeURIComponent(fecha)}` : ""}`),
 
   // ─── Calendario de podcasts (citas) ────────────────────
 
@@ -776,6 +1041,34 @@ export const api = {
 
   actualizarTarea: (id: string, data: Record<string, unknown>) =>
     request<import("../types").TareaOperativa>(`/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  // ─── Podcast → Tareas (MISMAS tareas centrales, acotadas al departamento) ───
+  //
+  // No hay tabla nueva: es `tareas_operativas` vista con el departamento fijo. Por eso
+  // ninguna de estas funciones manda `departamento` — lo pone el servidor. Los parámetros
+  // de aquí (responsableId, estado) solo acotan el alcance, nunca lo amplían.
+
+  listarTareasPodcast: (params: { responsableId?: string; estado?: string } = {}) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return request<import("../types").TareaOperativa[]>(`/podcast/tareas${qs ? `?${qs}` : ""}`);
+  },
+
+  // Miembros reales del equipo de Podcast (+ Super Admin activos), para el filtro
+  // Responsable y el formulario. Nunca una lista de nombres escrita a mano.
+  miembrosTareasPodcast: () =>
+    request<import("../types").OpcionUsuario[]>("/podcast/tareas/miembros"),
+
+  crearTareaPodcast: (data: Record<string, unknown>) =>
+    request<import("../types").TareaOperativa>("/podcast/tareas", { method: "POST", body: JSON.stringify(data) }),
+
+  actualizarTareaPodcast: (id: string, data: Record<string, unknown>) =>
+    request<import("../types").TareaOperativa>(`/podcast/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  reasignarTareaPodcast: (id: string, responsableId: string) =>
+    request<import("../types").TareaOperativa>(`/podcast/tareas/${id}/reasignar`, {
+      method: "PATCH",
+      body: JSON.stringify({ responsableId }),
+    }),
 
   // ─── DEV: tareas de desarrollo (solo SUPER_ADMIN; el backend responde 403 a otros roles) ───
 

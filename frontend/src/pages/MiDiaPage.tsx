@@ -4,7 +4,8 @@ import { api, ApiError } from "../api/client";
 import { useAuth } from "../api/AuthContext";
 import { MiJornadaCard } from "../components/MiJornadaCard";
 import { claseChipTipoRegistro, etiquetaTipoRegistro } from "../lib/calendario-tipos";
-import type { TareaPendiente, Cumpleanero } from "../types";
+import { esActiva, esAtrasada, fechaET, hoyET } from "../lib/estados";
+import type { TareaPendiente, TareaOperativa, Cumpleanero } from "../types";
 
 function diasDiferencia(fechaIso: string): number {
   const hoy = new Date();
@@ -126,6 +127,163 @@ function TarjetaAccionable({ t, colorClase, procesando, onCompletar, onReagendar
           ↻ Reagendar cita
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── Tareas de trabajo (tareas_operativas) ───────────────
+//
+// Mi día es personal y global: aquí conviven los seguimientos de clientes y las tareas de
+// trabajo asignadas a la persona, vengan del departamento que vengan (Podcast, Marketing,
+// Sala de OFERTAS…). Eso es correcto: Mi día es "lo tuyo", no "un departamento".
+//
+// Ojo con lo importante: es EL MISMO registro (`tareas_operativas`), no una copia. Si se
+// completa desde aquí, aparece completada en Podcast → Tareas y en el resto del CRM; si se
+// completa allá, desaparece de aquí. Nunca hay dos filas.
+
+const PRIORIDAD_CHIP: Record<string, string> = {
+  urgente: "bg-danger-100 text-danger-700",
+  alta: "bg-warning-100 text-warning-700",
+  media: "bg-neutral-100 text-neutral-700",
+  baja: "bg-success-100 text-success-700",
+};
+
+interface TarjetaTareaTrabajoProps {
+  t: TareaOperativa;
+  colorClase: string;
+  procesando: boolean;
+  onCompletar: (t: TareaOperativa) => void;
+  onReagendar: (t: TareaOperativa) => void;
+}
+
+function TarjetaTareaTrabajo({ t, colorClase, procesando, onCompletar, onReagendar }: TarjetaTareaTrabajoProps) {
+  return (
+    <div className={`p-3 rounded-lg border ${colorClase}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* El departamento se muestra para saber de dónde viene la tarea, pero no
+                cambia nada: sigue siendo una sola tarea. */}
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full border border-neutral-300 bg-white text-neutral-600">
+              📁 {t.departamento}
+            </span>
+            <span className={`shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${PRIORIDAD_CHIP[t.prioridad] ?? PRIORIDAD_CHIP.media}`}>
+              {t.prioridad}
+            </span>
+            <p className="text-sm font-medium text-neutral-900">{t.titulo}</p>
+          </div>
+          {t.descripcion ? <p className="text-xs text-neutral-500 mt-0.5">{t.descripcion}</p> : null}
+        </div>
+        <div className="shrink-0 text-right">
+          <span className="text-xs text-neutral-600">
+            {t.fechaLimite ? fmtFecha(t.fechaLimite) : ""}
+          </span>
+        </div>
+      </div>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onCompletar(t)}
+          disabled={procesando}
+          title="Marcar esta tarea como completada (el mismo registro que ves en su departamento)"
+          className={`${CLASE_BOTON_ACCION} text-success-700 border-success-300 hover:bg-success-50`}
+        >
+          {procesando ? "Completando…" : "✓ Completada"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onReagendar(t)}
+          disabled={procesando}
+          title="Cambiar la fecha límite del mismo registro"
+          className={`${CLASE_BOTON_ACCION} text-primary-700 border-primary-300 hover:bg-primary-50`}
+        >
+          ↻ Reagendar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface ModalReagendarTareaProps {
+  tarea: TareaOperativa;
+  onClose: () => void;
+  onGuardada: () => void;
+}
+
+// Reagendar una tarea de trabajo cambia `fecha_limite` de ESA MISMA fila. No se crea una
+// tarea nueva ni se toca el historial.
+function ModalReagendarTarea({ tarea, onClose, onGuardada }: ModalReagendarTareaProps) {
+  const [fecha, setFecha] = useState(() =>
+    tarea.fechaLimite ? fechaET(new Date(tarea.fechaLimite)) : hoyET(),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!fecha) {
+      setError("La fecha es obligatoria.");
+      return;
+    }
+    setGuardando(true);
+    setError(null);
+    try {
+      await api.actualizarTarea(tarea.id, { fechaLimite: fechaAISO(fecha, "") });
+      onGuardada();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo reagendar. Inténtalo de nuevo.");
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-neutral-900/40 flex items-start justify-center pt-10 sm:pt-16 z-40 overflow-y-auto">
+      <form
+        onSubmit={onSubmit}
+        className="bg-neutral-50 rounded-xl shadow-lg w-full max-w-md p-6 border border-neutral-200 mb-10"
+      >
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-semibold text-neutral-800">Reagendar tarea</h2>
+          <button type="button" onClick={onClose} className="text-neutral-500 hover:text-neutral-600 text-lg leading-none" aria-label="Cerrar">
+            ✕
+          </button>
+        </div>
+        <p className="text-xs text-neutral-500 mb-4">
+          Cambia la fecha límite de esta tarea. Se actualiza la misma tarea; no se crea una nueva.
+        </p>
+
+        <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2 mb-4">
+          <p className="text-sm font-medium text-neutral-900">📁 {tarea.departamento} · {tarea.titulo}</p>
+          <p className="text-xs text-neutral-500 mt-1.5">
+            Actual: {tarea.fechaLimite ? fmtFecha(tarea.fechaLimite) : "sin fecha"}
+          </p>
+        </div>
+
+        <div className="mb-4">
+          <label className="text-xs text-neutral-600 mb-1 block">Nueva fecha *</label>
+          <input
+            type="date"
+            value={fecha}
+            required
+            onChange={(e) => setFecha(e.target.value)}
+            className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+
+        {error && <p className="text-xs text-danger-600 mb-3">{error}</p>}
+
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="text-sm px-4 py-2 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-50">
+            Cancelar
+          </button>
+          <button
+            disabled={guardando || !fecha}
+            className="text-sm px-4 py-2 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 disabled:bg-primary-100 disabled:text-primary-800 disabled:cursor-not-allowed"
+          >
+            {guardando ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -252,6 +410,8 @@ function ModalReagendar({ tarea, onClose, onGuardada }: ModalReagendarProps) {
 export function MiDiaPage() {
   const { usuario } = useAuth();
   const [tareas, setTareas] = useState<TareaPendiente[]>([]);
+  // Tareas de trabajo asignadas a esta persona (mismo registro que ve su departamento).
+  const [tareasTrabajo, setTareasTrabajo] = useState<TareaOperativa[]>([]);
   const [cumpleanosHoy, setCumpleanosHoy] = useState<Cumpleanero[]>([]);
   const [cumpleanosProximos, setCumpleanosProximos] = useState<Cumpleanero[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -260,17 +420,25 @@ export function MiDiaPage() {
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   // Registro que se está reagendando (abre el modal con sus datos reales).
   const [reagendando, setReagendando] = useState<TareaPendiente | null>(null);
+  const [reagendandoTarea, setReagendandoTarea] = useState<TareaOperativa | null>(null);
 
   const cargar = useCallback(async () => {
-    const [data, cumple] = await Promise.all([
+    if (!usuario) return;
+    const [data, cumple, trabajo] = await Promise.all([
       api.listarTareasPendientes(true),
       api.cumpleanos(),
+      // El alcance lo sigue calculando el servidor desde el token: aquí solo se pide "las
+      // mías". No hay endpoint nuevo ni copia de tareas.
+      api.listarTareasVisibles({ responsableId: usuario.id }),
     ]);
     setTareas(data.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
     setCumpleanosHoy(cumple.hoy);
     setCumpleanosProximos(cumple.proximos);
+    // Solo las vivas Y con fecha límite: sin fecha no hay dónde clasificarlas, y una
+    // terminada o cancelada ya no es "lo que tienes pendiente hoy".
+    setTareasTrabajo(trabajo.filter((t) => esActiva(t.estado) && !!t.fechaLimite));
     setCargando(false);
-  }, []);
+  }, [usuario]);
 
   useEffect(() => {
     void cargar();
@@ -293,8 +461,29 @@ export function MiDiaPage() {
     }
   }
 
+  // Completar una tarea de trabajo usa la MISMA ruta central (PATCH /api/tareas/:id): el
+  // backend sella `completed_at` en la única fila que existe. Desde aquí no se duplica nada.
+  async function completarTrabajo(t: TareaOperativa) {
+    if (procesandoId) return;
+    setProcesandoId(t.id);
+    setErrorAccion(null);
+    try {
+      await api.actualizarTarea(t.id, { estado: "completada", porcentajeAvance: 100 });
+      await cargar();
+    } catch (err) {
+      setErrorAccion(err instanceof ApiError ? err.message : "No se pudo completar. Inténtalo de nuevo.");
+    } finally {
+      setProcesandoId(null);
+    }
+  }
+
   async function trasReagendar() {
     setReagendando(null);
+    await cargar();
+  }
+
+  async function trasReagendarTarea() {
+    setReagendandoTarea(null);
     await cargar();
   }
 
@@ -304,22 +493,32 @@ export function MiDiaPage() {
   const hoy = tareas.filter((t) => diasDiferencia(t.fecha) === 0);
   const proximas = tareas.filter((t) => diasDiferencia(t.fecha) > 0);
 
+  // Las tareas de trabajo se reparten en los MISMOS tres grupos, por su fecha límite (día
+  // en Florida, la misma regla que el resto del CRM). Aparecer aquí no cambia su
+  // departamento ni las saca de su módulo.
+  const diaDe = (t: TareaOperativa) => fechaET(new Date(t.fechaLimite!));
+  const trabajoAtrasadas = tareasTrabajo.filter((t) => esAtrasada(t));
+  const trabajoHoy = tareasTrabajo.filter((t) => !esAtrasada(t) && diaDe(t) === hoyET());
+  const trabajoProximas = tareasTrabajo.filter((t) => !esAtrasada(t) && diaDe(t) > hoyET());
+
   const Grupo = ({
     titulo,
     items,
+    trabajo,
     colorClase,
     accionable,
   }: {
     titulo: string;
     items: TareaPendiente[];
+    trabajo: TareaOperativa[];
     colorClase: string;
     accionable?: boolean;
   }) => (
     <div className="mb-6">
       <h3 className="text-sm font-medium text-neutral-700 mb-2">
-        {titulo} <span className="text-neutral-500 font-normal">({items.length})</span>
+        {titulo} <span className="text-neutral-500 font-normal">({items.length + trabajo.length})</span>
       </h3>
-      {items.length === 0 ? (
+      {items.length === 0 && trabajo.length === 0 ? (
         <p className="text-xs text-neutral-500">Nada aquí.</p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -347,6 +546,16 @@ export function MiDiaPage() {
               </Link>
             )
           )}
+          {trabajo.map((t) => (
+            <TarjetaTareaTrabajo
+              key={t.id}
+              t={t}
+              colorClase={colorClase}
+              procesando={procesandoId === t.id}
+              onCompletar={(tt) => void completarTrabajo(tt)}
+              onReagendar={setReagendandoTarea}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -433,22 +642,37 @@ export function MiDiaPage() {
       <Grupo
         titulo="Atrasadas"
         items={atrasadas}
+        trabajo={trabajoAtrasadas}
         colorClase="bg-danger-50 bg-danger-500/10 border-danger-100 border-danger-500/20"
         accionable
       />
       <Grupo
         titulo="Para hoy"
         items={hoy}
+        trabajo={trabajoHoy}
         colorClase="bg-warning-50 bg-warning-500/10 border-warning-100 border-warning-500/20"
         accionable
       />
-      <Grupo titulo="Próximas" items={proximas} colorClase="bg-neutral-50 border-neutral-200" />
+      <Grupo
+        titulo="Próximas"
+        items={proximas}
+        trabajo={trabajoProximas}
+        colorClase="bg-neutral-50 border-neutral-200"
+      />
 
       {reagendando && (
         <ModalReagendar
           tarea={reagendando}
           onClose={() => setReagendando(null)}
           onGuardada={() => void trasReagendar()}
+        />
+      )}
+
+      {reagendandoTarea && (
+        <ModalReagendarTarea
+          tarea={reagendandoTarea}
+          onClose={() => setReagendandoTarea(null)}
+          onGuardada={() => void trasReagendarTarea()}
         />
       )}
     </div>

@@ -388,6 +388,33 @@ export interface TareaOperativa {
   subtareas?: TareaOperativa[];
 }
 
+/**
+ * Lo mínimo que necesitan los selectores y las tarjetas de tarea: id + nombre.
+ * Un `Usuario` completo también encaja aquí, así que las pantallas generales no cambian;
+ * una vista acotada a un departamento puede pasar su lista real de miembros sin tener
+ * que inventar rol ni departamento para cada uno.
+ */
+export interface OpcionUsuario {
+  id: string;
+  nombre: string;
+}
+
+/**
+ * Contexto de una vista de tareas acotada a un departamento (por ejemplo PODCAST → Tareas).
+ *
+ * Cuando existe:
+ *   · crear/actualizar van por el endpoint de ese departamento, que fuerza el departamento
+ *     en el servidor;
+ *   · los formularios y el detalle OCULTAN el selector de Departamento.
+ * Así una tarea no puede salirse de su área desde esa pantalla. Sin contexto, los
+ * componentes se comportan exactamente como antes.
+ */
+export interface ContextoTareas {
+  departamento: string;
+  crear: (data: Record<string, unknown>) => Promise<TareaOperativa>;
+  actualizar: (id: string, data: Record<string, unknown>) => Promise<TareaOperativa>;
+}
+
 export interface KpiUsuario {
   total: number;
   completadas: number;

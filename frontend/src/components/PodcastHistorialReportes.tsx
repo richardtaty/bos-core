@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type DetalleHistorialDTO, type FilaHistorialDTO, type HistorialMiembroDTO } from "../api/client";
+import {
+  api,
+  type CanalProspeccionDTO,
+  type DetalleHistorialDTO,
+  type FilaHistorialDTO,
+  type HistorialMiembroDTO,
+} from "../api/client";
 import { useAuth } from "../api/AuthContext";
+
+/** Suma un campo de todos los canales. Los totales no se guardan: se derivan del desglose. */
+function sumar(canales: CanalProspeccionDTO[], campo: "contactados" | "respuestas" | "interesados"): number {
+  return canales.reduce((acc, c) => acc + c[campo], 0);
+}
 
 // HISTORIAL Y CONSULTA de los Reportes Diarios de Podcast (PODCAST → Cierre diario → Historial).
 //
@@ -329,21 +340,50 @@ export function PodcastHistorialReportes() {
 }
 
 // ─── Detalle completo, solo lectura ───────────────────────────────
+// Exportado para que PODCAST → Resumen del equipo pueda abrir el reporte real reutilizando este
+// MISMO componente, en vez de tener una segunda forma de pintar un reporte que podría divergir.
 
-function DetalleReporte({ detalle }: { detalle: DetalleHistorialDTO }) {
+export function DetalleReporte({ detalle }: { detalle: DetalleHistorialDTO }) {
   const r = detalle.reporte;
   const c = detalle.compromiso;
   const m = detalle.metricas;
-  const auto = m
+  const s = detalle.metricasReportadas;
+  const tieneCompromiso =
+    (c != null && [c.contactos, c.followups, c.podcasts].some((v) => v != null)) || !!c?.nota;
+
+  // REPORTE HISTÓRICO vs MÉTRICA ACTUAL. Son dos cosas distintas y la pantalla no las mezcla:
+  //   · con sello (migración 0038) → se muestran las cifras CONGELADAS al enviar, que son el
+  //     reporte histórico de verdad; el CRM puede haber cambiado después y no las toca;
+  //   · sin sello (reportes anteriores) → se muestran las cifras actuales, diciendo que no hay
+  //     sello, en vez de fingir que son las de aquel día.
+  const autoActual = m
     ? [
         { label: "Podcasts agendados", valor: m.agendados },
-        { label: "Podcasts realizados", valor: m.realizados },
+        { label: "Podcasts completados", valor: m.realizados },
         { label: "Reuniones del 1%", valor: m.reuniones },
         { label: "Ventas cerradas", valor: m.ventas },
         { label: "No-shows", valor: m.noShows },
         { label: "Follow-ups realizados", valor: m.followupsRealizados },
         { label: "Follow-ups vencidos", valor: m.followupsVencidos },
       ]
+    : [];
+  const autoSellado = s
+    ? [
+        { label: "Podcasts agendados", valor: s.agendados },
+        { label: "Podcasts completados", valor: s.completados },
+        { label: "Reuniones del 1%", valor: s.reuniones1 },
+        { label: "Ventas cerradas", valor: s.convertidos },
+        { label: "No-shows", valor: s.noShows },
+        { label: "Follow-ups realizados", valor: s.followupsRealizados },
+        { label: "Follow-ups vencidos", valor: s.followupsVencidos },
+      ]
+    : [];
+  const auto = s ? autoSellado : autoActual;
+  // Solo se avisa de las cifras que HOY dicen otra cosa: repetir las que coinciden es ruido.
+  const cambiaron = s
+    ? autoSellado
+        .map((a, i) => ({ label: a.label, sellado: a.valor, actual: autoActual[i]?.valor }))
+        .filter((d) => d.actual !== undefined && d.actual !== d.sellado)
     : [];
 
   return (
@@ -366,10 +406,10 @@ function DetalleReporte({ detalle }: { detalle: DetalleHistorialDTO }) {
         {detalle.updatedAt && <Dato label="Última actualización" valor={fechaHora(detalle.updatedAt)} />}
       </div>
 
-      {/* Automático: lo que BOS calculó ese día (no se inventa ni se recalcula distinto) */}
-      {m && (
+      {/* Automático: lo que BOS calculó ese día */}
+      {(s || m) && (
         <div className="mb-4">
-          <Tarjeta titulo="Lo que BOS calculó ese día">
+          <Tarjeta titulo={s ? "Lo que BOS reportó ese día" : "Lo que BOS calcula hoy de ese día"}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {auto.map((a) => (
                 <div key={a.label} className="bg-white border border-neutral-200 rounded-lg p-3">
@@ -378,33 +418,109 @@ function DetalleReporte({ detalle }: { detalle: DetalleHistorialDTO }) {
                 </div>
               ))}
             </div>
+
+            {s && (
+              <p className="text-xs text-neutral-400 mt-2">
+                Cifras selladas al enviar el reporte: no cambian después, aunque se corrija el CRM.
+              </p>
+            )}
+            {!s && m && (
+              <p className="text-xs text-neutral-400 mt-2">
+                Este reporte es anterior al sello de cifras, así que se muestran las que el CRM tiene
+                hoy. No se puede saber si ese día eran otras.
+              </p>
+            )}
+
+            {cambiaron.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-neutral-200">
+                <p className="text-xs font-semibold text-neutral-600 mb-1">
+                  El CRM cambió después del envío
+                </p>
+                <ul className="space-y-0.5">
+                  {cambiaron.map((d) => (
+                    <li key={d.label} className="text-xs text-neutral-500">
+                      {d.label}: reportado <span className="font-semibold text-neutral-700">{d.sellado}</span>,
+                      hoy <span className="font-semibold text-neutral-700">{d.actual}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  Lo reportado no se toca: es el registro histórico de ese día.
+                </p>
+              </div>
+            )}
           </Tarjeta>
         </div>
       )}
 
-      {/* Manual: lo que la persona escribió (esto es lo que no se puede deducir solo) */}
+      {/* Manual: lo que la persona escribió (esto es lo que no se puede deducir solo).
+          Los reportes nuevos traen el desglose POR CANAL; los anteriores solo los totales
+          sueltos y se muestran con esos, sin repartirlos por canal (nunca se registró). */}
       <div className="mb-4">
-        <Tarjeta titulo="Prospección registrada">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <NumeroManual label="Prospectos encontrados" valor={r?.prospectosEncontrados ?? null} meta={detalle.metas?.prospectosEncontrados} />
-            <NumeroManual label="Prospectos contactados" valor={r?.prospectosContactados ?? null} meta={detalle.metas?.prospectosContactados} />
-            <NumeroManual label="Respuestas recibidas" valor={r?.respuestas ?? null} />
-            <NumeroManual label="Interesados" valor={r?.interesados ?? null} />
-          </div>
-        </Tarjeta>
+        {detalle.canales && detalle.canales.length > 0 ? (
+          <Tarjeta titulo="Prospección registrada (por canal)">
+            <div className="space-y-2">
+              {detalle.canales.map((canal, i) => (
+                // El índice en la llave porque el mismo canal puede repetirse en un día.
+                <div key={`${canal.canal}-${i}`} className="bg-white border border-neutral-200 rounded-lg p-3 flex flex-wrap items-center gap-x-6 gap-y-1">
+                  <p className="text-sm font-medium text-neutral-800 w-28 shrink-0">{canal.canal}</p>
+                  <p className="text-xs text-neutral-500">
+                    Contactados <span className="text-sm font-semibold text-neutral-800">{canal.contactados}</span>
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Respuestas <span className="text-sm font-semibold text-neutral-800">{canal.respuestas}</span>
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Interesados <span className="text-sm font-semibold text-neutral-800">{canal.interesados}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+            {/* Se suman al vuelo desde el desglose: no existen como cifra guardada aparte. */}
+            <div className="mt-3 pt-3 border-t border-neutral-200 grid grid-cols-3 gap-3 text-sm">
+              <p className="text-neutral-500">
+                Total contactados <span className="font-semibold text-neutral-800">{sumar(detalle.canales, "contactados")}</span>
+              </p>
+              <p className="text-neutral-500">
+                Total respuestas <span className="font-semibold text-neutral-800">{sumar(detalle.canales, "respuestas")}</span>
+              </p>
+              <p className="text-neutral-500">
+                Total interesados <span className="font-semibold text-neutral-800">{sumar(detalle.canales, "interesados")}</span>
+              </p>
+            </div>
+          </Tarjeta>
+        ) : (
+          <Tarjeta titulo="Prospección registrada">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* "Prospectos encontrados" desapareció del Cierre diario: en los reportes nuevos
+                  viene en null y una tarjeta vacía solo confunde, así que no se muestra. */}
+              {r?.prospectosEncontrados != null && (
+                <NumeroManual label="Prospectos encontrados" valor={r.prospectosEncontrados} meta={detalle.metas?.prospectosEncontrados} />
+              )}
+              <NumeroManual label="Prospectos contactados" valor={r?.prospectosContactados ?? null} meta={detalle.metas?.prospectosContactados} />
+              <NumeroManual label="Respuestas recibidas" valor={r?.respuestas ?? null} />
+              <NumeroManual label="Interesados" valor={r?.interesados ?? null} />
+            </div>
+          </Tarjeta>
+        )}
       </div>
 
-      <div className="mb-4">
-        <Tarjeta titulo="Compromiso para el día siguiente">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-            <NumeroManual label="Contactos" valor={c?.contactos ?? null} />
-            <NumeroManual label="Follow-ups" valor={c?.followups ?? null} />
-            <NumeroManual label="Podcasts agendados" valor={c?.podcasts ?? null} />
-          </div>
-          <span className="text-xs text-neutral-500">Nota</span>
-          <TextoOriginal texto={c?.nota ?? null} />
-        </Tarjeta>
-      </div>
+      {/* El "Compromiso para mañana" salió del Cierre diario: en los reportes nuevos no existe y
+          una tarjeta con tres guiones solo confunde. En los reportes anteriores se muestra igual
+          que siempre, porque ahí sí se registró. */}
+      {tieneCompromiso && (
+        <div className="mb-4">
+          <Tarjeta titulo="Compromiso para el día siguiente">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+              <NumeroManual label="Contactos" valor={c?.contactos ?? null} />
+              <NumeroManual label="Follow-ups" valor={c?.followups ?? null} />
+              <NumeroManual label="Podcasts agendados" valor={c?.podcasts ?? null} />
+            </div>
+            <span className="text-xs text-neutral-500">Nota</span>
+            <TextoOriginal texto={c?.nota ?? null} />
+          </Tarjeta>
+        </div>
+      )}
 
       <div>
         <Tarjeta titulo="¿Qué te bloqueó hoy?">

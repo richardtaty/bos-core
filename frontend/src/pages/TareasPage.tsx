@@ -7,7 +7,7 @@ import { TareaForm } from "../components/TareaForm";
 import { ExportarReporteModal } from "../components/ExportarReporteModal";
 import { RecordatoriosCumpleanos } from "../components/RecordatoriosCumpleanos";
 import { KpiCard } from "../components/KpiCard";
-import type { TareaOperativa, Usuario, Departamento } from "../types";
+import type { ContextoTareas, TareaOperativa, OpcionUsuario, Usuario, Departamento } from "../types";
 import { GRUPOS, grupoDeEstado, ESTADOS_ACTIVOS, esAtrasada } from "../lib/estados";
 
 /** Roles que pueden supervisar el trabajo de otros dentro de su ámbito. */
@@ -19,11 +19,25 @@ function compartenDepartamento(u: Usuario, idsDepto: string[]): boolean {
   return idsDepto.some((id) => deU.includes(id));
 }
 
-export function TareasPage() {
+/**
+ * Módulo central de Tareas.
+ *
+ * `departamentoFijo` lo convierte en la vista de UN departamento (PODCAST → Tareas) sin
+ * duplicar nada: mismas tarjetas, mismos filtros, misma tabla `tareas_operativas`. Lo que
+ * cambia es que el departamento deja de ser elegible — el servidor lo fija en su endpoint —
+ * y que los responsables ofrecidos son los miembros reales de esa área.
+ *
+ * Sin la prop, la pantalla es exactamente la de siempre (General, Sala de Ofertas, etc.).
+ */
+export function TareasPage({ departamentoFijo }: { departamentoFijo?: string } = {}) {
   const { usuario } = useAuth();
   const permisos = usePermisos();
   const [tareas, setTareas] = useState<TareaOperativa[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  // En una vista acotada los selectores no ofrecen todo el CRM, sino los miembros reales
+  // de ese departamento (más los Super Admin activos). Lista aparte para no mezclarla con
+  // el directorio completo que necesita, por ejemplo, el modal de exportar.
+  const [miembros, setMiembros] = useState<OpcionUsuario[]>([]);
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [cargando, setCargando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
@@ -38,12 +52,26 @@ export function TareasPage() {
   const idsDeptoUsuario = usuario?.departamentoIds ??
     (usuario?.departamentoId ? [usuario.departamentoId] : []);
 
+  // ── Vista acotada a un departamento (PODCAST → Tareas) ───────────
+  // Hoy solo Podcast tiene endpoint propio; el objeto concentra las dos cosas que cambian:
+  // de dónde se leen/crean las tareas y de dónde salen los responsables.
+  const contexto: ContextoTareas | undefined =
+    departamentoFijo === "Podcast"
+      ? {
+          departamento: "Podcast",
+          crear: (data) => api.crearTareaPodcast(data),
+          actualizar: (id, data) => api.actualizarTareaPodcast(id, data),
+        }
+      : undefined;
+  const enContexto = !!contexto;
+
   // "Todas" = todo el ámbito de supervisión; "Mías" = solo las propias.
   const [vista, setVista] = useState<"todas" | "mias">("todas");
   const [filtroResponsable, setFiltroResponsable] = useState<string>("");
   const [filtroDepto, setFiltroDepto] = useState<string>("");
 
-  const mostrarFiltroDepto = esMando && (esSuperAdmin || idsDeptoUsuario.length > 1);
+  // En una vista acotada el departamento no es un filtro: es el contexto entero.
+  const mostrarFiltroDepto = !enContexto && esMando && (esSuperAdmin || idsDeptoUsuario.length > 1);
 
   const cargar = useCallback(async () => {
     if (!usuario) return;
@@ -52,9 +80,21 @@ export function TareasPage() {
       const params: { responsableId?: string; departamento?: string } = {};
       if (vista === "mias") params.responsableId = usuario.id;
       else if (filtroResponsable) params.responsableId = filtroResponsable;
-      if (filtroDepto) params.departamento = filtroDepto;
+      // El departamento solo se manda donde es un filtro elegible. En la vista acotada lo
+      // fija el servidor y el endpoint ni siquiera lee ese parámetro.
+      if (filtroDepto && !enContexto) params.departamento = filtroDepto;
 
-      const listaTareas = api.listarTareasVisibles(params);
+      const listaTareas = enContexto ? api.listarTareasPodcast(params) : api.listarTareasVisibles(params);
+
+      // Vista acotada: los responsables salen de la relación real del departamento, no del
+      // directorio completo. Nada más que cargar — ni el directorio ni los departamentos.
+      if (enContexto) {
+        const [tareasOk, miembrosOk] = await Promise.all([listaTareas, api.miembrosTareasPodcast()]);
+        setTareas(tareasOk);
+        setMiembros(miembrosOk);
+        return;
+      }
+
       const listaUsuarios = api.listarUsuarios();
 
       // Los departamentos se cargan para todo rol con mando: hacen falta también
@@ -76,7 +116,7 @@ export function TareasPage() {
     } finally {
       setCargando(false);
     }
-  }, [usuario, vista, filtroResponsable, filtroDepto, mostrarFiltroDepto]);
+  }, [usuario, vista, filtroResponsable, filtroDepto, mostrarFiltroDepto, enContexto]);
 
   useEffect(() => { void cargar(); }, [cargar]);
 
@@ -97,14 +137,22 @@ export function TareasPage() {
     return filtro === "activas" ? ESTADOS_ACTIVOS.includes(g) : g === filtro;
   });
 
+  // A quién se puede asignar desde esta pantalla: el directorio del CRM, o los miembros
+  // reales del departamento cuando la vista está acotada.
+  const usuariosDisponibles: OpcionUsuario[] = enContexto ? miembros : usuarios;
+
   // Opciones dinámicas de los filtros, según el alcance del usuario (sin nombres hardcodeados).
-  const responsablesFiltro = esMando
-    ? usuarios.filter((u) =>
-        u.activo === false
-          ? false
-          : esSuperAdmin || u.id === usuario!.id || compartenDepartamento(u, idsDeptoUsuario),
-      )
-    : [];
+  // En una vista acotada la lista ya viene del servidor (miembros reales de esa área), así
+  // que no se vuelve a filtrar por departamento compartido: se mostraría vacía.
+  const responsablesFiltro = !esMando
+    ? []
+    : enContexto
+      ? usuariosDisponibles
+      : usuarios.filter((u) =>
+          u.activo === false
+            ? false
+            : esSuperAdmin || u.id === usuario!.id || compartenDepartamento(u, idsDeptoUsuario),
+        );
   const deptosFiltro = mostrarFiltroDepto
     ? departamentos
         .filter((d) => esSuperAdmin || idsDeptoUsuario.includes(d.id))
@@ -119,9 +167,12 @@ export function TareasPage() {
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-xl font-semibold text-neutral-900">
           {esMando ? "Tareas" : "Mis tareas"}
+          {contexto && <span className="text-neutral-500 font-normal"> · {contexto.departamento}</span>}
         </h1>
         <div className="flex items-center gap-2">
-          {esSuperAdmin && (
+          {/* El reporte exportable deja elegir cualquier departamento del alcance, así que
+              no tiene sentido dentro de una vista acotada: solo existe en la general. */}
+          {esSuperAdmin && !enContexto && (
             <button
               onClick={() => setMostrarReporte(true)}
               className="text-sm border border-neutral-200 text-neutral-700 px-4 py-2 rounded-lg hover:bg-neutral-100"
@@ -142,10 +193,12 @@ export function TareasPage() {
         {!esMando
           ? `Tus asignaciones activas, ${usuario?.nombre.split(" ")[0]}`
           : vista === "mias"
-            ? "Solo las tareas asignadas directamente a ti."
-            : esSuperAdmin
-              ? "Todas las tareas del sistema."
-              : "Todas las tareas de tu departamento o área."}
+            ? `Solo las tareas de ${contexto?.departamento ?? "tu área"} asignadas directamente a ti.`
+            : contexto
+              ? `Todas las tareas de ${contexto.departamento} que puedes consultar.`
+              : esSuperAdmin
+                ? "Todas las tareas del sistema."
+                : "Todas las tareas de tu departamento o área."}
       </p>
 
       {/* KPIs — responden al ámbito de la vista actual */}
@@ -245,7 +298,7 @@ export function TareasPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {visibles.map((t) => (
-            <TareaCard key={t.id} tarea={t} onUpdate={cargar} usuarios={usuarios} agruparEstados />
+            <TareaCard key={t.id} tarea={t} onUpdate={cargar} usuarios={usuariosDisponibles} agruparEstados contexto={contexto} />
           ))}
         </div>
       )}
@@ -254,13 +307,14 @@ export function TareasPage() {
         <TareaForm
           onCreada={() => { setMostrarForm(false); cargar(); }}
           onCancel={() => setMostrarForm(false)}
-          usuarios={usuarios}
+          usuarios={usuariosDisponibles}
+          contexto={contexto}
         />
       )}
 
       {/* El botón "Exportar reporte" solo existe para SUPER_ADMIN; ADMIN, SUPERVISOR y
           USUARIO no lo ven. El backend además lo garantiza (requireRole SUPER_ADMIN). */}
-      {mostrarReporte && esSuperAdmin && usuario && (
+      {mostrarReporte && esSuperAdmin && usuario && !enContexto && (
         <ExportarReporteModal
           usuario={usuario}
           usuarios={usuarios}

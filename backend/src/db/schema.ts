@@ -1068,12 +1068,41 @@ export const podcastReportesDiarios = sqliteTable(
     // Cuándo se envió (transición borrador → enviado). NULL en los reportes anteriores a la
     // migración 0036: el historial muestra "Enviado" sin hora y no se inventa el dato.
     enviadoEn: timestamp("enviado_en"),
+    // Copia de las métricas automáticas del día en el momento del envío (JSON, migración 0038).
+    // Las métricas automáticas se recalculan al leer —eso es lo que hace que no puedan contradecir
+    // al CRM—, pero entonces un reporte viejo cambiaría solo si alguien corrige una tarjeta
+    // semanas después. Este sello guarda lo que BOS calculaba al enviar. NULL en los reportes
+    // anteriores a la migración: el historial muestra el valor actual y aclara que no hay sello.
+    metricasSnapshot: text("metricas_snapshot"),
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
     updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
   },
   (t) => ({
     usuarioFechaUq: uniqueIndex("podcast_reportes_usuario_fecha_uq").on(t.usuarioId, t.fecha),
     fechaIdx: index("podcast_reportes_fecha_idx").on(t.fecha),
+  })
+);
+
+// Prospección POR CANAL del Cierre diario (1:N del reporte). Un día puede prospectarse por
+// varios canales y cada uno produce resultados distintos, así que el desglose es una fila por
+// canal y no cuatro columnas más en el reporte. Los totales del día se SUMAN al leer; nunca se
+// guarda una cifra total aparte que pudiera contradecir el desglose.
+// Los reportes anteriores a la migración 0037 no tienen filas aquí y siguen usando sus columnas.
+export const podcastReporteCanales = sqliteTable(
+  "podcast_reporte_canales",
+  {
+    id: cuid(),
+    reporteId: text("reporte_id").notNull().references(() => podcastReportesDiarios.id, { onDelete: "cascade" }),
+    // Texto libre sin enum, igual que `interacciones.tipo`: la lista válida vive en
+    // lib/validation.ts (CANALES_CONTACTO) y sumar un canal no debe exigir migración.
+    canal: text("canal").notNull(),
+    contactados: integer("contactados").notNull().default(0),
+    respuestas: integer("respuestas").notNull().default(0),
+    interesados: integer("interesados").notNull().default(0),
+    orden: integer("orden").notNull().default(0),
+  },
+  (t) => ({
+    reporteIdx: index("podcast_reporte_canales_reporte_idx").on(t.reporteId),
   })
 );
 

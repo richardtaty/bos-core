@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { api } from "../api/client";
-import type { Usuario } from "../types";
+import type { ContextoTareas, OpcionUsuario } from "../types";
 
 interface Props {
   onCreada: () => void;
   onCancel: () => void;
-  usuarios: Usuario[];
+  usuarios: OpcionUsuario[];
   proyectoId?: string;
+  /**
+   * Vista acotada a un departamento (ej. PODCAST → Tareas). Con contexto, la tarea nace
+   * ya siendo de ese departamento y el selector de Departamento desaparece: el usuario no
+   * puede elegir otro. Sin contexto, el formulario se comporta igual que siempre.
+   */
+  contexto?: ContextoTareas;
 }
 
 const DEPARTAMENTOS = ["Marketing", "Ventas", "Podcast", "Mentoría", "Código Financiero", "Kappitalia", "Contenido", "Operaciones"];
@@ -27,11 +33,11 @@ const TIPOS_TAREA = [
   { valor: "administracion", etiqueta: "⚙️ Administración" },
 ];
 
-export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
+export function TareaForm({ onCreada, onCancel, usuarios, proyectoId, contexto }: Props) {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [responsableId, setResponsableId] = useState("");
-  const [departamento, setDepartamento] = useState("Marketing");
+  const [departamento, setDepartamento] = useState(contexto?.departamento ?? "Marketing");
   const [prioridad, setPrioridad] = useState<typeof PRIORIDADES[number]>("media");
   const [fechaLimite, setFechaLimite] = useState("");
   const [canal, setCanal] = useState("");
@@ -50,11 +56,10 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
     if (!titulo.trim() || !responsableId) return;
     setGuardando(true);
     try {
-      await api.crearTarea({
+      const datos = {
         titulo: titulo.trim(),
         descripcion: descripcion.trim() || undefined,
         responsableId,
-        departamento,
         prioridad,
         fechaLimite: fechaLimite || undefined,
         proyectoId: proyectoId || undefined,
@@ -66,7 +71,11 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
         solicitanteId: solicitanteId || undefined,
         criteriosTerminado: criteriosTerminado.trim() || undefined,
         sprint: sprint.trim() || undefined,
-      });
+      };
+      // En una vista acotada el departamento NO viaja: lo pone el servidor igual, y así no
+      // hay forma de que la tarea nazca en otra área por editar el request.
+      if (contexto) await contexto.crear(datos);
+      else await api.crearTarea({ ...datos, departamento });
       onCreada();
     } finally {
       setGuardando(false);
@@ -121,18 +130,22 @@ export function TareaForm({ onCreada, onCancel, usuarios, proyectoId }: Props) {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="text-xs font-medium text-neutral-600 block mb-1">Departamento</label>
-              <select
-                value={departamento}
-                onChange={(e) => setDepartamento(e.target.value)}
-                className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm"
-              >
-                {DEPARTAMENTOS.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-            </div>
+            {/* En una vista acotada (Podcast → Tareas) el departamento no se elige: la
+                tarea ya pertenece a esa área. */}
+            {!contexto && (
+              <div>
+                <label className="text-xs font-medium text-neutral-600 block mb-1">Departamento</label>
+                <select
+                  value={departamento}
+                  onChange={(e) => setDepartamento(e.target.value)}
+                  className="w-full border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder:text-neutral-400 rounded-lg px-3 py-2 text-sm"
+                >
+                  {DEPARTAMENTOS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

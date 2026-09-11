@@ -145,6 +145,10 @@ export function AppRoutes() {
 
         {/* Podcast */}
         <Route path="/podcast" element={<RutaPorDepartamento secciones={["podcast"]}><PodcastPage /></RutaPorDepartamento>} />
+        {/* Podcast → Tareas: el módulo central de tareas acotado a Podcast. El backend
+            fuerza el departamento en /api/podcast/tareas, así que el filtro no se puede
+            ampliar desde aquí ni manipulando el request. */}
+        <Route path="/podcast/tareas" element={<RutaPorDepartamento secciones={["podcast"]}><TareasPage departamentoFijo="Podcast" /></RutaPorDepartamento>} />
         <Route path="/podcast/calendario" element={<RutaPorDepartamento secciones={["podcast"]}><PodcastCalendarioPage /></RutaPorDepartamento>} />
         <Route path="/podcast/reporte-diario" element={<RutaPorDepartamento secciones={["podcast"]}><PodcastReporteDiarioPage /></RutaPorDepartamento>} />
         <Route path="/podcast/desempeno" element={<RutaPorDepartamento secciones={["podcast"]}><PodcastMiDesempenoPage /></RutaPorDepartamento>} />

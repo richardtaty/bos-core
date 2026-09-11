@@ -90,13 +90,16 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
   if (p.menuSecciones.includes("podcast")) {
     items.push(
       { to: "/podcast", label: "🎙 Podcast", seccion: "podcast" },
+      // Tareas: es el módulo CENTRAL de tareas visto con el departamento fijo en Podcast
+      // (no hay una pantalla aparte ni tareas duplicadas).
+      { to: "/podcast/tareas", label: "📋 Tareas", seccion: "podcast" },
       { to: "/podcast/calendario", label: "📅 Calendario", seccion: "podcast" },
       { to: "/podcast/reporte-diario", label: "📝 Cierre diario", seccion: "podcast" },
       { to: "/podcast/desempeno", label: "📈 Mi desempeño", seccion: "podcast" },
     );
     if (p.esSuperAdmin || rol === "ADMIN") {
       items.push(
-        { to: "/podcast/equipo", label: "👥 Equipo", seccion: "podcast" },
+        { to: "/podcast/equipo", label: "👥 Reporte de equipo", seccion: "podcast" },
         { to: "/podcast/inteligencia", label: "🧠 Inteligencia", seccion: "podcast" },
       );
     }

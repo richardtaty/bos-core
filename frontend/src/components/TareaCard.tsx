@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
-import type { TareaOperativa, Usuario } from "../types";
+import type { ContextoTareas, OpcionUsuario, TareaOperativa } from "../types";
 import { TareaDetalleModal } from "./TareaDetalleModal";
 import { GRUPO_COLOR, GRUPO_LABEL, grupoDeEstado, esActiva } from "../lib/estados";
 
@@ -51,20 +51,39 @@ const FLUJO_ESTADOS: Record<string, string[]> = {
   cancelado: ["pendiente", "por_hacer"],
 };
 
-export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }: { tarea: TareaOperativa; onUpdate: () => void; usuarios: Usuario[]; agruparEstados?: boolean }) {
+export function TareaCard({
+  tarea,
+  onUpdate,
+  usuarios,
+  agruparEstados = false,
+  contexto,
+}: {
+  tarea: TareaOperativa;
+  onUpdate: () => void;
+  usuarios: OpcionUsuario[];
+  agruparEstados?: boolean;
+  /** Vista acotada a un departamento (PODCAST → Tareas): los cambios van por su endpoint. */
+  contexto?: ContextoTareas;
+}) {
   const [modalAbierto, setModalAbierto] = useState(false);
 
   const checklist = tarea.checklist ?? [];
   const completados = checklist.filter((c) => c.completado).length;
   const grupo = grupoDeEstado(tarea.estado);
 
+  // Mismo registro real, misma ruta de siempre; en una vista acotada pasa por el endpoint
+  // del departamento para que el servidor siga siendo el que manda.
+  const actualizar = contexto
+    ? (data: Record<string, unknown>) => contexto.actualizar(tarea.id, data)
+    : (data: Record<string, unknown>) => api.actualizarTarea(tarea.id, data);
+
   async function cambiarEstado(estado: string) {
-    await api.actualizarTarea(tarea.id, { estado });
+    await actualizar({ estado });
     onUpdate();
   }
 
   async function completar() {
-    await api.actualizarTarea(tarea.id, { estado: "completada", porcentajeAvance: 100 });
+    await actualizar({ estado: "completada", porcentajeAvance: 100 });
     onUpdate();
   }
 
@@ -179,6 +198,7 @@ export function TareaCard({ tarea, onUpdate, usuarios, agruparEstados = false }:
           onClose={() => setModalAbierto(false)}
           onUpdate={() => { onUpdate(); }}
           usuarios={usuarios}
+          contexto={contexto}
         />
       )}
     </>
