@@ -1,4 +1,4 @@
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "../db/client";
 import {
   pipelines,
@@ -483,34 +483,85 @@ async function _usuariosPodcast(): Promise<{ id: string; nombre: string }[]> {
 
 // ─── Reporte diario ──────────────────────────────────────
 
-export async function obtenerReporteDiario(usuarioId: string, fechaParam?: string) {
-  const fecha = fechaParam ?? hoyET();
-  const [rep] = await db
-    .select()
-    .from(podcastReportesDiarios)
-    .where(and(eq(podcastReportesDiarios.usuarioId, usuarioId), eq(podcastReportesDiarios.fecha, fecha)));
+// La fila real del día, con el nombre del autor resuelto por JOIN (nunca por texto escrito:
+// la relación es `usuario_id`). Devuelve null si esa persona no tiene reporte ese día.
+const REPORTE_DIARIO_COLUMNS = {
+  id: podcastReportesDiarios.id,
+  usuarioId: podcastReportesDiarios.usuarioId,
+  usuarioNombre: usuarios.nombre,
+  fecha: podcastReportesDiarios.fecha,
+  prospectosEncontrados: podcastReportesDiarios.prospectosEncontrados,
+  prospectosContactados: podcastReportesDiarios.prospectosContactados,
+  respuestas: podcastReportesDiarios.respuestas,
+  interesados: podcastReportesDiarios.interesados,
+  compromisoContactos: podcastReportesDiarios.compromisoContactos,
+  compromisoFollowups: podcastReportesDiarios.compromisoFollowups,
+  compromisoPodcasts: podcastReportesDiarios.compromisoPodcasts,
+  compromisoNota: podcastReportesDiarios.compromisoNota,
+  bloqueos: podcastReportesDiarios.bloqueos,
+  estado: podcastReportesDiarios.estado,
+  enviadoEn: podcastReportesDiarios.enviadoEn,
+  createdAt: podcastReportesDiarios.createdAt,
+  updatedAt: podcastReportesDiarios.updatedAt,
+};
 
+async function _filaReporte(usuarioId: string, fecha: string) {
+  const [rep] = await db
+    .select(REPORTE_DIARIO_COLUMNS)
+    .from(podcastReportesDiarios)
+    .innerJoin(usuarios, eq(podcastReportesDiarios.usuarioId, usuarios.id))
+    .where(and(eq(podcastReportesDiarios.usuarioId, usuarioId), eq(podcastReportesDiarios.fecha, fecha)));
+  return rep ?? null;
+}
+
+// Métricas de UN día concreto: las automáticas que BOS calcula (historial_etapas +
+// tareas_seguimiento) más lo manual que la persona escribió ese día. Es la misma función que
+// alimenta el Cierre diario, así que el historial muestra exactamente lo que se vio ese día.
+async function _metricasDelDia(usuarioId: string, fecha: string): Promise<MetricasDia> {
   const metricas = (await _metricasPara(usuarioId, [fecha])).get(fecha)!;
   metricas.followupsVencidos = await _followupsVencidos(usuarioId, limitesDiaET(fecha).fin);
+  return metricas;
+}
+
+// Reporte manual de una fila ya leída (null si no hay fila). Los valores NULL se conservan
+// tal cual: "no lo llenó" y "escribió 0" son cosas distintas y el historial no las mezcla.
+function _reporteManual(rep: { prospectosEncontrados: number | null; prospectosContactados: number | null; respuestas: number | null; interesados: number | null; bloqueos: string | null }) {
+  return {
+    prospectosEncontrados: rep.prospectosEncontrados,
+    prospectosContactados: rep.prospectosContactados,
+    respuestas: rep.respuestas,
+    interesados: rep.interesados,
+    bloqueos: rep.bloqueos,
+  };
+}
+
+function _compromisoDeFila(rep: { compromisoContactos: number | null; compromisoFollowups: number | null; compromisoPodcasts: number | null; compromisoNota: string | null }): Compromiso {
+  return {
+    contactos: rep.compromisoContactos,
+    followups: rep.compromisoFollowups,
+    podcasts: rep.compromisoPodcasts,
+    nota: rep.compromisoNota,
+  };
+}
+
+export async function obtenerReporteDiario(usuarioId: string, fechaParam?: string) {
+  const fecha = fechaParam ?? hoyET();
+  const rep = await _filaReporte(usuarioId, fecha);
+
+  const metricas = await _metricasDelDia(usuarioId, fecha);
 
   const { metas } = await obtenerMetas();
   const compromisoAyer = await _compromisoDe(usuarioId, sumarDias(fecha, -1));
 
   return {
+    id: rep?.id ?? null,
     fecha,
     estado: rep?.estado ?? null,
-    reporte: rep
-      ? {
-          prospectosEncontrados: rep.prospectosEncontrados,
-          prospectosContactados: rep.prospectosContactados,
-          respuestas: rep.respuestas,
-          interesados: rep.interesados,
-          bloqueos: rep.bloqueos,
-        }
-      : null,
-    compromisoHoy: rep
-      ? { contactos: rep.compromisoContactos, followups: rep.compromisoFollowups, podcasts: rep.compromisoPodcasts, nota: rep.compromisoNota }
-      : null,
+    enviadoEn: rep?.enviadoEn ?? null,
+    createdAt: rep?.createdAt ?? null,
+    updatedAt: rep?.updatedAt ?? null,
+    reporte: rep ? _reporteManual(rep) : null,
+    compromisoHoy: rep ? _compromisoDeFila(rep) : null,
     metricas,
     compromisoAyer,
     metas,
@@ -527,6 +578,12 @@ export async function guardarReporteDiario(usuarioId: string, datos: GuardarRepo
 
   const estado: "borrador" | "enviado" = datos.enviar ? "enviado" : existente?.estado === "enviado" ? "enviado" : "borrador";
 
+  // Hora de envío: se sella SOLO en la transición borrador → enviado y nunca se sobrescribe,
+  // así que es la primera fecha de envío y no "la última vez que se tocó". Un reporte ya
+  // enviado que se vuelve a guardar conserva su hora original. Los reportes anteriores a esta
+  // columna quedan en NULL y el historial los muestra como "Enviado" sin hora.
+  const enviadoEn = estado === "enviado" ? (existente?.enviadoEn ?? ahora) : existente?.enviadoEn ?? null;
+
   const valores = {
     prospectosEncontrados: datos.prospectosEncontrados ?? null,
     prospectosContactados: datos.prospectosContactados ?? null,
@@ -538,6 +595,7 @@ export async function guardarReporteDiario(usuarioId: string, datos: GuardarRepo
     compromisoNota: datos.compromisoNota ?? null,
     bloqueos: datos.bloqueos ?? null,
     estado,
+    enviadoEn,
     updatedAt: ahora,
   };
 
@@ -554,6 +612,201 @@ export async function guardarReporteDiario(usuarioId: string, datos: GuardarRepo
   }
 
   return obtenerReporteDiario(usuarioId, fecha);
+}
+
+// ─── Historial de reportes diarios (SOLO LECTURA) ─────────
+// Capa de consulta sobre los MISMOS registros que escribe el Cierre diario: no hay segunda
+// base, ni copia del contenido, ni resumen generado. Ninguna función de esta sección escribe:
+// abrir un reporte histórico no cambia métricas, textos, fecha, usuario ni estado.
+//
+// AUTORIZACIÓN (validada aquí, en el backend — no basta con esconderlo en la UI):
+//   · Cada quien consulta SIEMPRE su propio historial, incluidos sus borradores.
+//   · Ver el historial de OTRA persona exige `puedeVerEquipo`, que la ruta calcula con la
+//     misma regla que ya usa PODCAST → Equipo: ADMIN / SUPER_ADMIN. Ningún otro rol la obtiene,
+//     así que esta tarea no amplía ningún acceso existente.
+//   · A terceros NUNCA se les expone un borrador: solo reportes `enviado`.
+//   · El `usuario_id` que llega en el request se valida contra el conjunto real de Podcast;
+//     cambiarlo a mano no da acceso a nadie de otro departamento.
+
+/** Se lanza cuando alguien intenta consultar el historial de una persona que no le corresponde. */
+export class SinPermisoHistorialError extends Error {}
+
+export interface MiembroHistorial {
+  usuarioId: string;
+  nombre: string;
+  esYo: boolean;
+}
+
+/**
+ * Conjunto real de personas cuyo historial de Podcast existe: los miembros actuales del
+ * departamento MÁS quienes alguna vez reportaron aquí. Lo segundo es a propósito: si alguien
+ * sale de Podcast, sus cierres ya enviados no deben desaparecer del historial (los datos
+ * históricos se conservan). Nunca se hardcodean nombres.
+ */
+async function _conjuntoHistorial(): Promise<{ id: string; nombre: string }[]> {
+  const [miembros, autores] = await Promise.all([
+    _usuariosPodcast(),
+    db
+      .select({ id: usuarios.id, nombre: usuarios.nombre })
+      .from(podcastReportesDiarios)
+      .innerJoin(usuarios, eq(podcastReportesDiarios.usuarioId, usuarios.id))
+      .groupBy(usuarios.id, usuarios.nombre),
+  ]);
+
+  const mapa = new Map<string, { id: string; nombre: string }>();
+  for (const u of [...miembros, ...autores]) if (!mapa.has(u.id)) mapa.set(u.id, u);
+  return Array.from(mapa.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+}
+
+async function _nombreDeUsuario(usuarioId: string): Promise<string | null> {
+  const [u] = await db.select({ nombre: usuarios.nombre }).from(usuarios).where(eq(usuarios.id, usuarioId));
+  return u?.nombre ?? null;
+}
+
+/**
+ * Verifica que `actorId` pueda consultar el historial de `usuarioId` y lanza
+ * SinPermisoHistorialError si no. Consultar lo propio siempre está permitido.
+ */
+async function _exigirAcceso(actorId: string, usuarioId: string, puedeVerEquipo: boolean): Promise<void> {
+  if (usuarioId === actorId) return;
+  if (!puedeVerEquipo) {
+    throw new SinPermisoHistorialError("Solo puedes consultar tu propio historial de reportes.");
+  }
+  const permitidos = await _conjuntoHistorial();
+  if (!permitidos.some((u) => u.id === usuarioId)) {
+    throw new SinPermisoHistorialError("Esa persona no forma parte del equipo de Podcast.");
+  }
+}
+
+/** Miembros que el solicitante puede elegir en el selector. Sin permiso de equipo, solo él. */
+export async function miembrosHistorial(actorId: string, puedeVerEquipo: boolean) {
+  if (!puedeVerEquipo) {
+    const nombre = (await _nombreDeUsuario(actorId)) ?? "";
+    return { puedeVerEquipo: false, miembros: [{ usuarioId: actorId, nombre, esYo: true }] };
+  }
+  const conjunto = await _conjuntoHistorial();
+  return {
+    puedeVerEquipo: true,
+    miembros: conjunto.map((u) => ({ usuarioId: u.id, nombre: u.nombre, esYo: u.id === actorId })),
+  };
+}
+
+export interface FiltroHistorial {
+  usuarioId?: string;
+  desde?: string;
+  hasta?: string;
+  limite?: number;
+}
+
+/**
+ * Listado cronológico de reportes (más reciente primero). `fecha` es ISO `YYYY-MM-DD`, que
+ * ordena cronológicamente por sí solo; el desempate es por última actualización. Si no se pide
+ * un miembro concreto, devuelve los de todo el conjunto de Podcast — siempre acotado a él,
+ * nunca a usuarios de otros departamentos.
+ */
+export async function listarHistorial(actorId: string, puedeVerEquipo: boolean, filtro: FiltroHistorial) {
+  // Un `limite` basura (?limite=abc) no debe llegar nunca a la consulta: se cae al valor por defecto.
+  const pedido = Number.isFinite(filtro.limite) ? Math.trunc(filtro.limite as number) : 100;
+  const limite = Math.min(Math.max(pedido, 1), 200);
+  const esPropio = filtro.usuarioId === actorId;
+
+  if (filtro.usuarioId) {
+    await _exigirAcceso(actorId, filtro.usuarioId, puedeVerEquipo);
+  }
+
+  let condUsuario;
+  if (filtro.usuarioId) {
+    condUsuario = eq(podcastReportesDiarios.usuarioId, filtro.usuarioId);
+  } else {
+    const conjunto = await _conjuntoHistorial();
+    condUsuario = inArray(podcastReportesDiarios.usuarioId, conjunto.map((u) => u.id));
+  }
+
+  const conds = [
+    condUsuario,
+    // Los borradores son privados: solo su autor los ve en su propio listado.
+    esPropio ? undefined : eq(podcastReportesDiarios.estado, "enviado"),
+    filtro.desde ? gte(podcastReportesDiarios.fecha, filtro.desde) : undefined,
+    filtro.hasta ? lte(podcastReportesDiarios.fecha, filtro.hasta) : undefined,
+  ].filter(Boolean);
+
+  // Se pide una fila de más para saber si hay más historial sin traerlo todo.
+  const filas = await db
+    .select(REPORTE_DIARIO_COLUMNS)
+    .from(podcastReportesDiarios)
+    .innerJoin(usuarios, eq(podcastReportesDiarios.usuarioId, usuarios.id))
+    .where(and(...conds))
+    .orderBy(desc(podcastReportesDiarios.fecha), desc(podcastReportesDiarios.updatedAt))
+    .limit(limite + 1);
+
+  const truncado = filas.length > limite;
+  return {
+    truncado,
+    reportes: filas.slice(0, limite).map((r) => ({
+      id: r.id,
+      usuarioId: r.usuarioId,
+      usuarioNombre: r.usuarioNombre,
+      fecha: r.fecha,
+      estado: r.estado,
+      enviadoEn: r.enviadoEn,
+      updatedAt: r.updatedAt,
+      reporte: _reporteManual(r),
+      compromiso: _compromisoDeFila(r),
+    })),
+  };
+}
+
+/**
+ * Reporte real de una persona en una fecha concreta, o la respuesta explícita de que no existe.
+ *
+ * NUNCA crea ni modifica nada. Cuando `existe` es false va todo en null A PROPÓSITO: no hay que
+ * mostrar ceros ficticios, porque "no entregó el cierre" y "entregó un cierre con actividad 0"
+ * son situaciones distintas. Si quien consulta no es el autor y el reporte sigue en borrador,
+ * también se responde `existe: false`.
+ */
+export async function detalleHistorial(actorId: string, puedeVerEquipo: boolean, usuarioId: string, fecha: string) {
+  await _exigirAcceso(actorId, usuarioId, puedeVerEquipo);
+
+  const esPropio = usuarioId === actorId;
+  const fila = await _filaReporte(usuarioId, fecha);
+  const usuarioNombre = fila?.usuarioNombre ?? (await _nombreDeUsuario(usuarioId)) ?? "";
+  const visible = fila && (esPropio || fila.estado === "enviado") ? fila : null;
+
+  if (!visible) {
+    return {
+      usuarioId,
+      usuarioNombre,
+      fecha,
+      existe: false,
+      id: null,
+      estado: null,
+      enviadoEn: null,
+      createdAt: null,
+      updatedAt: null,
+      reporte: null,
+      compromiso: null,
+      metricas: null,
+      metas: null,
+    };
+  }
+
+  const [metricas, { metas }] = await Promise.all([_metricasDelDia(usuarioId, fecha), obtenerMetas()]);
+
+  return {
+    usuarioId,
+    usuarioNombre,
+    fecha,
+    existe: true,
+    id: visible.id,
+    estado: visible.estado,
+    enviadoEn: visible.enviadoEn,
+    createdAt: visible.createdAt,
+    updatedAt: visible.updatedAt,
+    reporte: _reporteManual(visible),
+    compromiso: _compromisoDeFila(visible),
+    metricas,
+    metas,
+  };
 }
 
 // ─── Desempeño individual ────────────────────────────────

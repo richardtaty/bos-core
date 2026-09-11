@@ -163,20 +163,81 @@ export interface ComparacionKpiDTO {
   tendencia: TendenciaDTO;
 }
 
+/** Lo que la persona escribió a mano. `null` = no lo llenó (distinto de haber escrito 0). */
+export interface ReporteManualPodcastDTO {
+  prospectosEncontrados: number | null;
+  prospectosContactados: number | null;
+  respuestas: number | null;
+  interesados: number | null;
+  bloqueos: string | null;
+}
+
 export interface ReporteDiarioPodcastDTO {
+  id?: string | null;
   fecha: string;
   estado: "borrador" | "enviado" | null;
-  reporte: {
-    prospectosEncontrados: number | null;
-    prospectosContactados: number | null;
-    respuestas: number | null;
-    interesados: number | null;
-    bloqueos: string | null;
-  } | null;
+  enviadoEn?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  reporte: ReporteManualPodcastDTO | null;
   compromisoHoy: CompromisoDTO | null;
   metricas: MetricasDiaDTO;
   compromisoAyer: CompromisoDTO | null;
   metas: MetasPodcastDTO["metas"];
+}
+
+// ─── Historial y consulta de reportes diarios de Podcast ──
+// Solo lectura: son los MISMOS registros del Cierre diario, no una segunda base.
+
+export interface HistorialMiembroDTO {
+  usuarioId: string;
+  nombre: string;
+  esYo: boolean;
+}
+
+export interface HistorialMiembrosDTO {
+  /** Solo ADMIN / SUPER_ADMIN pueden consultar el historial de otras personas. */
+  puedeVerEquipo: boolean;
+  miembros: HistorialMiembroDTO[];
+}
+
+/** Una fila del listado cronológico. */
+export interface FilaHistorialDTO {
+  id: string;
+  usuarioId: string;
+  usuarioNombre: string;
+  fecha: string;
+  estado: "borrador" | "enviado";
+  enviadoEn: string | null;
+  updatedAt: string;
+  reporte: ReporteManualPodcastDTO;
+  compromiso: CompromisoDTO;
+}
+
+export interface ListadoHistorialDTO {
+  reportes: FilaHistorialDTO[];
+  truncado: boolean;
+}
+
+/**
+ * El reporte real de una persona en una fecha. Cuando `existe` es false, todo lo demás viene
+ * en null: NO se rellenan ceros ficticios, porque "no entregó el cierre" y "entregó un cierre
+ * con actividad 0" son situaciones distintas.
+ */
+export interface DetalleHistorialDTO {
+  usuarioId: string;
+  usuarioNombre: string;
+  fecha: string;
+  existe: boolean;
+  id: string | null;
+  estado: "borrador" | "enviado" | null;
+  enviadoEn: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  reporte: ReporteManualPodcastDTO | null;
+  compromiso: CompromisoDTO | null;
+  metricas: MetricasDiaDTO | null;
+  metas: MetasPodcastDTO["metas"] | null;
 }
 
 export interface DesempenoMiDTO {
@@ -504,7 +565,9 @@ export const api = {
       idempotencyKey?: string;
     }
   ) =>
-    request<{ pagoId: string; valor: number | null; totalPagado: number; saldoPendiente: number; tareaCreada: string | null }>(
+    // `saldoPendiente` puede ser null: un pago recurrente no tiene total pactado, así que no hay
+    // saldo que calcular. En cualquier otro caso es un número.
+    request<{ pagoId: string; valor: number | null; totalPagado: number; saldoPendiente: number | null; tareaCreada: string | null }>(
       `/pipelines/registros/${registroId}/pagos`,
       { method: "POST", body: JSON.stringify(data) }
     ),
@@ -526,6 +589,22 @@ export const api = {
     request<{ valor: number; totalPagado: number; saldoPendiente: number }>(
       `/pipelines/registros/${registroId}/valor`,
       { method: "PATCH", body: JSON.stringify({ valor }) }
+    ),
+
+  // Configurar cómo se cobra el trato. NO registra ningún pago: solo guarda la modalidad.
+  // `modalidad: null` la borra y lo deja "sin definir". En RECURRENTE el backend exige monto y
+  // frecuencia; en cualquier otra modalidad los ignora y los limpia.
+  actualizarModalidadPago: (
+    registroId: string,
+    data: {
+      modalidad: import("../types").ModalidadPago | null;
+      montoRecurrente?: number | null;
+      frecuenciaRecurrente?: import("../types").FrecuenciaRecurrente | null;
+    }
+  ) =>
+    request<import("../types").Registro>(
+      `/pipelines/registros/${registroId}/modalidad-pago`,
+      { method: "PATCH", body: JSON.stringify(data) }
     ),
 
   actividadDelDia: () => request<ActividadDelDiaDTO>("/reportes/actividad-hoy"),
@@ -567,6 +646,17 @@ export const api = {
   podcastDesempenoEquipo: () => request<DesempenoEquipoDTO>("/podcast/desempeno/equipo"),
 
   podcastInteligencia: () => request<InteligenciaPodcastDTO>("/podcast/inteligencia"),
+
+  // Historial de reportes diarios (solo consulta)
+  podcastHistorialMiembros: () => request<HistorialMiembrosDTO>("/podcast/historial/miembros"),
+
+  podcastHistorial: (params: { usuarioId?: string; desde?: string; hasta?: string } = {}) => {
+    const qs = new URLSearchParams(params as Record<string, string>).toString();
+    return request<ListadoHistorialDTO>(`/podcast/historial${qs ? `?${qs}` : ""}`);
+  },
+
+  podcastHistorialDetalle: (usuarioId: string, fecha: string) =>
+    request<DetalleHistorialDTO>(`/podcast/historial/${encodeURIComponent(usuarioId)}/${encodeURIComponent(fecha)}`),
 
   // ─── Calendario de podcasts (citas) ────────────────────
 

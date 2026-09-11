@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { requireAuth, requireDepartamento, requireRole } from "../middleware/auth";
 import { reportePodcast } from "../services/podcast.service";
 import {
@@ -9,6 +9,10 @@ import {
   desempenoMi,
   desempenoEquipo,
   inteligenciaPodcast,
+  miembrosHistorial,
+  listarHistorial,
+  detalleHistorial,
+  SinPermisoHistorialError,
 } from "../services/podcast-performance.service";
 import { guardarReportePodcastSchema, guardarMetasPodcastSchema, crearCitaPodcastSchema, actualizarCitaPodcastSchema, crearPersonaSchema } from "../lib/validation";
 import {
@@ -73,6 +77,75 @@ podcastRouter.post("/reporte-diario", requireDepartamento("Podcast"), async (req
     res.json(await guardarReporteDiario(req.user!.id, parsed.data));
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+// ─── Historial y consulta de reportes diarios ─────────────
+// SOLO LECTURA sobre los mismos registros que escribe el Cierre diario. No crea reportes, no
+// modifica históricos y no genera resúmenes.
+//
+// Regla de acceso (idéntica a /desempeno/equipo, no se inventa una nueva):
+//   · Cualquier miembro de Podcast consulta SU propio historial, incluidos sus borradores.
+//   · Ver a OTROS exige ADMIN o superior (SUPER_ADMIN siempre pasa). Un USUARIO que mande el
+//     `usuarioId` de otra persona recibe 403 desde el backend, no un filtro de la UI.
+const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Además del formato, la fecha tiene que existir en el calendario: "2026-13-99" no lo es. */
+function fechaValida(ymd: string): boolean {
+  if (!FECHA_ISO.test(ymd)) return false;
+  const [y, m, d] = ymd.split("-").map(Number);
+  const fecha = new Date(Date.UTC(y, m - 1, d));
+  return fecha.getUTCFullYear() === y && fecha.getUTCMonth() === m - 1 && fecha.getUTCDate() === d;
+}
+
+function puedeVerEquipoPodcast(req: Request): boolean {
+  const rol = req.user!.rol;
+  return rol === "SUPER_ADMIN" || rol === "ADMIN";
+}
+
+/** Traduce SinPermisoHistorialError a 403 y deja el resto como 500, en un solo lugar. */
+function responderErrorHistorial(res: Response, err: unknown): void {
+  if (err instanceof SinPermisoHistorialError) {
+    res.status(403).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: (err as Error).message });
+}
+
+// Miembros elegibles en el selector (reales, nunca hardcodeados).
+podcastRouter.get("/historial/miembros", requireDepartamento("Podcast"), async (req, res) => {
+  try {
+    res.json(await miembrosHistorial(req.user!.id, puedeVerEquipoPodcast(req)));
+  } catch (err) {
+    responderErrorHistorial(res, err);
+  }
+});
+
+// Listado cronológico (más reciente primero) — GET /podcast/historial?usuarioId=&desde=&hasta=
+podcastRouter.get("/historial", requireDepartamento("Podcast"), async (req, res) => {
+  const { usuarioId, desde, hasta, limite } = req.query as Record<string, string | undefined>;
+  if (desde && !fechaValida(desde)) { res.status(400).json({ error: "Fecha 'desde' inválida" }); return; }
+  if (hasta && !fechaValida(hasta)) { res.status(400).json({ error: "Fecha 'hasta' inválida" }); return; }
+  try {
+    res.json(await listarHistorial(req.user!.id, puedeVerEquipoPodcast(req), {
+      usuarioId,
+      desde,
+      hasta,
+      limite: limite ? Number(limite) : undefined,
+    }));
+  } catch (err) {
+    responderErrorHistorial(res, err);
+  }
+});
+
+// El reporte real de una persona en una fecha: GET /podcast/historial/:usuarioId/:fecha
+podcastRouter.get("/historial/:usuarioId/:fecha", requireDepartamento("Podcast"), async (req, res) => {
+  const { usuarioId, fecha } = req.params;
+  if (!fechaValida(fecha)) { res.status(400).json({ error: "Fecha inválida (formato YYYY-MM-DD)" }); return; }
+  try {
+    res.json(await detalleHistorial(req.user!.id, puedeVerEquipoPodcast(req), usuarioId, fecha));
+  } catch (err) {
+    responderErrorHistorial(res, err);
   }
 });
 

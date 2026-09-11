@@ -120,3 +120,7 @@ ejecutarMigracion("0031_rrhh_sueldos", sqlRrhhSueldos);
 
 const sqlRrhhCheckinsReposicion = readFileSync(join(__dirname, "migrations", "0032_rrhh_checkins_reposicion.sql"), "utf-8");
 ejecutarMigracion("0032_rrhh_checkins_reposicion", sqlRrhhCheckinsReposicion);
+
+// Hora de envío del Cierre diario de Podcast: la necesita el historial de reportes.
+const sqlPodcastEnviadoEn = readFileSync(join(__dirname, "migrations", "0036_podcast_reporte_enviado_en.sql"), "utf-8");
+ejecutarMigracion("0036_podcast_reporte_enviado_en", sqlPodcastEnviadoEn);

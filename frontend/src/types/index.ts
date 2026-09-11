@@ -204,7 +204,19 @@ export interface Registro {
   fechaProximoPago?: string | null;
   metodoPago?: string | null;
   montoVencido?: number;
+  /**
+   * Cómo se cobra este trato. `null` = sin definir, que es como están todos los tratos que ya
+   * existían antes de esta función: el sistema no adivina la modalidad de nadie.
+   * `montoRecurrente` + `frecuenciaRecurrente` solo describen el plan de un RECURRENTE — no son
+   * dinero cobrado y no entran en "Pagado" ni en "Saldo".
+   */
+  modalidadPago?: ModalidadPago | null;
+  montoRecurrente?: number | null;
+  frecuenciaRecurrente?: FrecuenciaRecurrente | null;
 }
+
+export type ModalidadPago = "PAGO_UNICO" | "ABONOS" | "RECURRENTE";
+export type FrecuenciaRecurrente = "SEMANAL" | "QUINCENAL" | "MENSUAL";
 
 export interface Pago {
   id: string;

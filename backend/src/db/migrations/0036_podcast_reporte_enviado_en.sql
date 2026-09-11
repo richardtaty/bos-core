@@ -1,0 +1,21 @@
+-- 0036_podcast_reporte_enviado_en.sql — Historial de Reportes Diarios de Podcast
+--
+-- Cuándo se envió el Cierre diario. Hasta ahora solo existía `estado` (borrador | enviado) y
+-- `updated_at`, que cambia con CUALQUIER guardado posterior: no servía como fecha de envío.
+-- El historial necesita poder mostrar "Reporte del 9 de septiembre · Enviado el 10 a las 8:03 AM",
+-- y la fecha del reporte y la fecha de envío pueden ser días distintos.
+--
+-- Aditiva y sin pérdida: los reportes que ya existen quedan en NULL y siguen funcionando igual.
+-- NO se rellena ni se adivina a partir de updated_at, porque ese timestamp no es el del envío y
+-- mostrar una hora inventada en una consulta de auditoría sería peor que no mostrarla.
+-- El historial muestra "Enviado" sin hora cuando el dato no existe.
+--
+-- Va en su propio archivo (una columna por archivo) por el mismo motivo documentado en
+-- 0033_modalidad_pago.sql: `migrate.ts` ejecuta el archivo completo con `sqlite.exec()`, que
+-- aborta en el primer statement que falla y trata "duplicate column name" como "ya aplicado".
+-- Este archivo tiene un solo statement, así que no hay ventana de riesgo.
+--
+-- Se sella SOLO en la transición borrador → enviado y nunca se sobrescribe: es la primera
+-- fecha de envío, no la última modificación.
+
+ALTER TABLE podcast_reportes_diarios ADD COLUMN enviado_en INTEGER;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type ReporteDiarioPodcastDTO } from "../api/client";
+import { PodcastHistorialReportes } from "../components/PodcastHistorialReportes";
 
 // El reporte diario del equipo Podcast. BOS calcula solo la parte automática
 // (agendados, realizados, reuniones, ventas, no-shows, follow-ups) a partir de
@@ -57,7 +58,44 @@ function Tarjeta({ titulo, children }: { titulo: string; children: React.ReactNo
   );
 }
 
+/**
+ * PODCAST → Cierre diario. Dos formas de ver el MISMO registro real:
+ *   · Mi cierre  → el formulario de hoy (captura), sin cambios.
+ *   · Historial  → consulta de solo lectura de los reportes ya existentes.
+ * El formulario de abajo se dejó intacto a propósito.
+ */
 export function PodcastReporteDiarioPage() {
+  const [vista, setVista] = useState<"cierre" | "historial">("cierre");
+
+  const tabs: { key: "cierre" | "historial"; label: string }[] = [
+    { key: "cierre", label: "Mi cierre" },
+    { key: "historial", label: "Historial" },
+  ];
+
+  return (
+    <div className="max-w-4xl">
+      <div className="flex flex-wrap gap-2 mb-4">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setVista(t.key)}
+            className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+              vista === t.key
+                ? "bg-primary-100 text-primary-700 border-transparent"
+                : "border-neutral-200 text-neutral-600 hover:border-primary-200"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {vista === "historial" ? <PodcastHistorialReportes /> : <MiCierreDiario />}
+    </div>
+  );
+}
+
+function MiCierreDiario() {
   const [data, setData] = useState<ReporteDiarioPodcastDTO | null>(null);
   const [form, setForm] = useState<Formulario>(VACIO);
   const [cargando, setCargando] = useState(true);
@@ -126,7 +164,7 @@ export function PodcastReporteDiarioPage() {
   ];
 
   return (
-    <div className="max-w-4xl">
+    <div>
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-xl font-semibold text-neutral-800">Cierre diario · Podcast</h1>
         {data.estado && (
