@@ -121,6 +121,16 @@ ejecutarMigracion("0031_rrhh_sueldos", sqlRrhhSueldos);
 const sqlRrhhCheckinsReposicion = readFileSync(join(__dirname, "migrations", "0032_rrhh_checkins_reposicion.sql"), "utf-8");
 ejecutarMigracion("0032_rrhh_checkins_reposicion", sqlRrhhCheckinsReposicion);
 
+// Modalidad de pago: una columna por archivo a propósito — ver la nota en 0033_modalidad_pago.sql.
+const sqlModalidadPago = readFileSync(join(__dirname, "migrations", "0033_modalidad_pago.sql"), "utf-8");
+ejecutarMigracion("0033_modalidad_pago", sqlModalidadPago);
+
+const sqlMontoRecurrente = readFileSync(join(__dirname, "migrations", "0034_monto_recurrente.sql"), "utf-8");
+ejecutarMigracion("0034_monto_recurrente", sqlMontoRecurrente);
+
+const sqlFrecuenciaRecurrente = readFileSync(join(__dirname, "migrations", "0035_frecuencia_recurrente.sql"), "utf-8");
+ejecutarMigracion("0035_frecuencia_recurrente", sqlFrecuenciaRecurrente);
+
 // Hora de envío del Cierre diario de Podcast: la necesita el historial de reportes.
 const sqlPodcastEnviadoEn = readFileSync(join(__dirname, "migrations", "0036_podcast_reporte_enviado_en.sql"), "utf-8");
 ejecutarMigracion("0036_podcast_reporte_enviado_en", sqlPodcastEnviadoEn);

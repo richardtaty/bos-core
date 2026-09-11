@@ -40,7 +40,12 @@ export function PipelinesPage() {
         </select>
       </div>
 
-      {seleccionado && <KanbanBoard pipelineId={seleccionado} registroIdDestacado={registroIdPedido} />}
+      {/* Sala de OFERTAS: aquí sí se puede configurar cómo se cobra cada oportunidad (pago único,
+          varios abonos o recurrente). Otras pantallas que reutilizan el mismo tablero (Podcast)
+          no lo activan. */}
+      {seleccionado && (
+        <KanbanBoard pipelineId={seleccionado} registroIdDestacado={registroIdPedido} permiteModalidadPago />
+      )}
     </div>
   );
 }

@@ -321,6 +321,14 @@ export const registros = sqliteTable(
     proximoPago: real("proximo_pago"),
     fechaProximoPago: timestamp("fecha_proximo_pago"),
     metodoPago: text("metodo_pago"),
+    // Modalidad de pago de la oportunidad: PAGO_UNICO | ABONOS | RECURRENTE, o null = sin definir
+    // (así quedan todos los tratos que ya existían — no se adivina ni se rellena). Es información
+    // FINANCIERA del trato, no una etapa comercial: nunca se deduce del nombre ni del texto libre.
+    // Para RECURRENTE, montoRecurrente + frecuenciaRecurrente describen el plan de cobro; ninguno
+    // de los tres entra en "Pagado"/"Saldo", que siguen saliendo de sumar las filas de `pagos`.
+    modalidadPago: text("modalidad_pago"),
+    montoRecurrente: real("monto_recurrente"),
+    frecuenciaRecurrente: text("frecuencia_recurrente"),
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
     updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
   },
@@ -1057,6 +1065,9 @@ export const podcastReportesDiarios = sqliteTable(
     compromisoNota: text("compromiso_nota"),
     bloqueos: text("bloqueos"),
     estado: text("estado", { enum: ["borrador", "enviado"] }).notNull().default("borrador"),
+    // Cuándo se envió (transición borrador → enviado). NULL en los reportes anteriores a la
+    // migración 0036: el historial muestra "Enviado" sin hora y no se inventa el dato.
+    enviadoEn: timestamp("enviado_en"),
     createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
     updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
   },

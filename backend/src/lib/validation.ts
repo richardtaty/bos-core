@@ -164,6 +164,29 @@ export const actualizarPlanPagoSchema = z.object({
   metodoPago: z.string().nullable().optional(),
 });
 
+// ─── Modalidad de pago de una oportunidad ─────────────────
+// Cómo se cobra el trato. Es una propiedad del DEAL (registros.modalidad_pago), no del pago: se
+// puede configurar antes de cobrar y también con cobros ya registrados, sin tocar ningún pago.
+export const MODALIDADES_PAGO = ["PAGO_UNICO", "ABONOS", "RECURRENTE"] as const;
+export const FRECUENCIAS_RECURRENTES = ["SEMANAL", "QUINCENAL", "MENSUAL"] as const;
+
+// `modalidad: null` borra la modalidad y deja el trato "sin definir" otra vez (es el estado en el
+// que están todos los tratos que ya existían, y el sistema no lo adivina por ellos).
+export const actualizarModalidadPagoSchema = z
+  .object({
+    modalidad: z.enum(MODALIDADES_PAGO).nullable(),
+    // Solo tienen sentido en RECURRENTE. En cualquier otra modalidad se ignoran y el servicio
+    // los limpia a null, para no dejar un plan de cobro a medias pegado a un trato que no aplica.
+    montoRecurrente: z.number().positive("El monto por período debe ser mayor a cero").nullable().optional(),
+    frecuenciaRecurrente: z.enum(FRECUENCIAS_RECURRENTES).nullable().optional(),
+  })
+  .refine((d) => d.modalidad !== "RECURRENTE" || (d.montoRecurrente != null && d.frecuenciaRecurrente != null), {
+    // Un recurrente sin monto ni frecuencia no se podría cobrar ni recordar. Se exige aquí, no en
+    // el servicio, para que el mensaje llegue legible a la pantalla.
+    message: "Un pago recurrente necesita el monto por período y cada cuánto se cobra.",
+    path: ["modalidad"],
+  });
+
 // ─── Podcast Performance ─────────────────────────────────
 // Reporte diario: solo lo que BOS no puede calcular solo (prospección manual + compromiso
 // estructurado + bloqueos). El frontend manda el estado completo del formulario en cada guardado.

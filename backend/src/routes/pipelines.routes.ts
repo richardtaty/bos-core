@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { moverEtapaSchema, registrarPagoSchema, actualizarPlanPagoSchema } from "../lib/validation";
+import { moverEtapaSchema, registrarPagoSchema, actualizarPlanPagoSchema, actualizarModalidadPagoSchema } from "../lib/validation";
 import {
   listarPipelines,
   tableroKanban,
@@ -11,6 +11,7 @@ import {
   listarPagos,
   actualizarValorRegistro,
   actualizarPlanPago,
+  actualizarModalidadPago,
   eliminarPago,
   resumenVentas,
 } from "../services/pipelines.service";
@@ -148,6 +149,33 @@ pipelinesRouter.post("/registros/:registroId/pagos", requireRole("USUARIO"), asy
     res.status(201).json(resultado);
   } catch (err) {
     res.status(422).json({ error: (err as Error).message });
+  }
+});
+
+// Cómo se cobra esta oportunidad (pago único / varios abonos / pago recurrente). No registra
+// ningún pago ni mueve dinero: solo deja configurada la modalidad del trato. Mismo permiso que el
+// plan de cobro — cualquier miembro, porque es información descriptiva y cambiarla no altera
+// ningún número; el cambio queda en la bitácora.
+pipelinesRouter.patch("/registros/:registroId/modalidad-pago", requireRole("USUARIO"), async (req, res) => {
+  const parsed = actualizarModalidadPagoSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  try {
+    const resultado = await actualizarModalidadPago(
+      req.params.registroId,
+      {
+        modalidad: parsed.data.modalidad,
+        montoRecurrente: parsed.data.montoRecurrente,
+        frecuenciaRecurrente: parsed.data.frecuenciaRecurrente,
+      },
+      req.user!.id
+    );
+    res.json(resultado);
+  } catch (err) {
+    const msg = (err as Error).message;
+    res.status(msg.includes("no encontrado") ? 404 : 422).json({ error: msg });
   }
 });
 

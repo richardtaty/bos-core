@@ -23,6 +23,65 @@ async function totalPagadoDe(registroId: string): Promise<number> {
   return Number(fila?.total ?? 0);
 }
 
+// Saldo pendiente de un trato: total pactado − lo cobrado, nunca negativo. Es `null` cuando el
+// trato NO tiene total pactado — un pago recurrente puede no tenerlo (una suscripción no tiene
+// "monto total del negocio"), y en ese caso no existe un saldo que calcular: el sistema no
+// inventa uno a partir de un número ficticio. Se usa un solo helper para que esta regla sea
+// idéntica en todos los caminos y no se desincronice según por dónde pase el código.
+function saldoDe(registro: { valor: number | null }, pagado: number): number | null {
+  return registro.valor != null ? Math.max(0, registro.valor - pagado) : null;
+}
+
+// Inserta un pago respetando la clave de idempotencia. Devuelve el id del pago recién creado, o
+// el id del pago que YA existía con esa clave si dos requests llegaron a la vez (el índice único
+// `pagos_idempotencia_uq` deja pasar a uno solo, y el segundo cae aquí).
+//
+// Vive en UNA sola función a propósito: es la protección contra cobrar dos veces la misma plata,
+// y el camino normal y el recurrente deben compartir exactamente la misma defensa — dos copias
+// terminarían divergiendo.
+async function insertarPagoIdempotente(input: {
+  registroId: string;
+  monto: number;
+  nota?: string;
+  autorId: string;
+  fechaPago: Date;
+  idempotencyKey?: string;
+}): Promise<{ pagoId: string; yaExistia: boolean }> {
+  const pagoId = crypto.randomUUID();
+  try {
+    await db.insert(pagos).values({
+      id: pagoId,
+      registroId: input.registroId,
+      monto: input.monto,
+      nota: input.nota,
+      autorId: input.autorId,
+      fecha: input.fechaPago,
+      idempotencyKey: input.idempotencyKey ?? null,
+    });
+    return { pagoId, yaExistia: false };
+  } catch (err) {
+    if (input.idempotencyKey && err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
+      const [existente] = await db
+        .select()
+        .from(pagos)
+        .where(and(eq(pagos.idempotencyKey, input.idempotencyKey), eq(pagos.registroId, input.registroId)));
+      if (existente) return { pagoId: existente.id, yaExistia: true };
+    }
+    throw err;
+  }
+}
+
+// Texto en español de una modalidad, para la bitácora (que la lee una persona, no un programa).
+const ETIQUETA_MODALIDAD: Record<string, string> = {
+  PAGO_UNICO: "pago único",
+  ABONOS: "varios abonos",
+  RECURRENTE: "pago recurrente",
+};
+
+function etiquetaModalidad(modalidad: string | null): string {
+  return modalidad ? (ETIQUETA_MODALIDAD[modalidad] ?? modalidad) : "sin definir";
+}
+
 // Vista Kanban: registros agrupados por etapa, con el nombre de la persona y el estado de
 // pago (total pagado / saldo pendiente) ya resueltos — nunca se guarda el saldo, siempre se calcula
 // sumando los pagos reales contra el valor total del deal.
@@ -44,6 +103,9 @@ export async function tableroKanban(pipelineId: string) {
         proximoPago: registros.proximoPago,
         fechaProximoPago: registros.fechaProximoPago,
         metodoPago: registros.metodoPago,
+        modalidadPago: registros.modalidadPago,
+        montoRecurrente: registros.montoRecurrente,
+        frecuenciaRecurrente: registros.frecuenciaRecurrente,
       })
       .from(registros)
       .leftJoin(personas, eq(registros.personaId, personas.id))
@@ -52,10 +114,16 @@ export async function tableroKanban(pipelineId: string) {
     const registrosConPago = await Promise.all(
       registrosEtapa.map(async (r) => {
         const totalPagado = await totalPagadoDe(r.id);
-        const saldoPendiente = r.valor != null ? Math.max(0, r.valor - totalPagado) : null;
+        const saldoPendiente = saldoDe(r, totalPagado);
+        // "Vencido" = hay una fecha de próximo cobro que ya pasó y todavía queda algo por cobrar.
+        // En un RECURRENTE sin total pactado no hay saldo, y sin esta condición un mes sin pagar
+        // nunca se marcaría en rojo — justo el caso más probable de una suscripción. Para el
+        // resto de modalidades la regla es exactamente la que ya existía.
+        const quedaPorCobrar =
+          saldoPendiente != null ? saldoPendiente > 0 : r.modalidadPago === "RECURRENTE";
         const montoVencido =
-          r.fechaProximoPago && r.fechaProximoPago < new Date() && saldoPendiente != null && saldoPendiente > 0
-            ? (r.proximoPago ?? 0)
+          r.fechaProximoPago && r.fechaProximoPago < new Date() && quedaPorCobrar
+            ? (r.proximoPago ?? r.montoRecurrente ?? 0)
             : 0;
         return { ...r, totalPagado, saldoPendiente, montoVencido };
       })
@@ -282,6 +350,10 @@ export async function resumenVentas(opts?: { departamentoIds?: string[]; limite?
 //  - No se permite sobrepagar (abono > saldo pendiente).
 //  - Clave de idempotencia (idempotencyKey): un doble clic o reintento con la misma clave no
 //    crea un segundo pago — el índice único de pagos lo descarta y se devuelve el ya existente.
+//
+// ÚNICA excepción a "hay que indicar el monto total": un trato marcado como PAGO RECURRENTE que
+// no tiene total pactado (ver el caso 3 más abajo). Se resuelve con una salida temprana propia
+// para que el camino de pago único / varios abonos — el 99% de los cobros — quede intacto.
 export async function registrarPago(input: {
   registroId: string;
   monto: number;
@@ -307,9 +379,87 @@ export async function registrarPago(input: {
       .where(and(eq(pagos.idempotencyKey, input.idempotencyKey), eq(pagos.registroId, input.registroId)));
     if (existentes.length > 0) {
       const pagado = await totalPagadoDe(input.registroId);
-      const saldo = registro.valor != null ? Math.max(0, registro.valor - pagado) : 0;
-      return { pagoId: existentes[0].id, valor: registro.valor, totalPagado: pagado, saldoPendiente: saldo, tareaCreada: null };
+      return {
+        pagoId: existentes[0].id,
+        valor: registro.valor,
+        totalPagado: pagado,
+        saldoPendiente: saldoDe(registro, pagado),
+        tareaCreada: null,
+      };
     }
+  }
+
+  // 3) PAGO RECURRENTE sin total pactado.
+  // Una suscripción no tiene "monto total del negocio", así que exigirlo obligaría a inventar un
+  // número falso — y ese número falso después contamina el Resumen de Ventas, el valor abierto
+  // del Pipeline y los reportes de ingresos. Aquí el cobro se registra tal cual: sin total, sin
+  // saldo (no hay contra qué comparar) y sin guarda de sobrepago. `registros.valor` NUNCA se
+  // escribe. Se sale por aquí antes de tocar el camino normal, que queda intacto.
+  if (registro.valor == null && registro.modalidadPago === "RECURRENTE") {
+    const fechaPago = input.fecha ? new Date(input.fecha) : new Date();
+    const { pagoId, yaExistia } = await insertarPagoIdempotente({
+      registroId: input.registroId,
+      monto: input.monto,
+      nota: input.nota,
+      autorId: input.autorId,
+      fechaPago,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (yaExistia) {
+      return {
+        pagoId,
+        valor: null,
+        totalPagado: await totalPagadoDe(input.registroId),
+        saldoPendiente: null,
+        tareaCreada: null,
+      };
+    }
+
+    const nuevoTotalPagado = totalPagadoActual + input.monto;
+    const montoProximoCobro = input.proximoPago ?? registro.montoRecurrente ?? input.monto;
+
+    // Plan de cobro: solo se toca lo que el usuario mandó, y a diferencia del camino normal NO
+    // se limpia lo que ya estaba — un trato recurrente no se "salda" nunca, así que no hay motivo
+    // para borrar el próximo cobro ni el método.
+    await db
+      .update(registros)
+      .set({
+        proximoPago: montoProximoCobro,
+        fechaProximoPago: input.proximaFechaCobro ? new Date(input.proximaFechaCobro) : registro.fechaProximoPago,
+        metodoPago: input.metodoPago ?? registro.metodoPago,
+        updatedAt: new Date(),
+      })
+      .where(eq(registros.id, input.registroId));
+
+    // Recordatorio del próximo período: el mismo mecanismo que ya usa cualquier cobro con saldo,
+    // sin inventar nada nuevo. Nunca se crea un PAGO futuro — solo la tarea de cobro.
+    let tareaCreada: string | null = null;
+    if (registro.personaId && input.proximaFechaCobro) {
+      const tareaId = crypto.randomUUID();
+      await db.insert(tareasSeguimiento).values({
+        id: tareaId,
+        personaId: registro.personaId,
+        fecha: new Date(input.proximaFechaCobro),
+        nota: `Cobro recurrente de $${montoProximoCobro.toLocaleString()} (próximo pago)`,
+        autorId: input.autorId,
+        createdAt: new Date(),
+      });
+      tareaCreada = tareaId;
+    }
+
+    if (registro.personaId) {
+      await db.insert(bitacoraAuditoria).values({
+        id: crypto.randomUUID(),
+        entidad: "Pago",
+        entidadId: pagoId,
+        accion: `Pago recurrente registrado: $${input.monto.toLocaleString()} — sin total pactado`,
+        autorId: input.autorId,
+        personaId: registro.personaId,
+        fecha: fechaPago,
+      });
+    }
+
+    return { pagoId, valor: null, totalPagado: nuevoTotalPagado, saldoPendiente: null, tareaCreada };
   }
 
   // 2) Total del trato: se fija o corrige SOLO mientras no haya pagos. Con pagos, queda fijo.
@@ -341,34 +491,27 @@ export async function registrarPago(input: {
     throw new Error("Queda saldo pendiente — debes indicar la fecha del próximo cobro.");
   }
 
-  const pagoId = crypto.randomUUID();
   const fechaPago = input.fecha ? new Date(input.fecha) : new Date();
 
-  try {
-    await db.insert(pagos).values({
-      id: pagoId,
-      registroId: input.registroId,
-      monto: input.monto,
-      nota: input.nota,
-      autorId: input.autorId,
-      fecha: fechaPago,
-      idempotencyKey: input.idempotencyKey ?? null,
-    });
-  } catch (err) {
-    // Dos requests simultáneos con la misma clave: el índice único dejó pasar a uno solo.
-    // Devolver el pago que ya quedó registrado en lugar de crear un duplicado.
-    if (input.idempotencyKey && err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
-      const [existente] = await db
-        .select()
-        .from(pagos)
-        .where(and(eq(pagos.idempotencyKey, input.idempotencyKey), eq(pagos.registroId, input.registroId)));
-      if (existente) {
-        const pagado = await totalPagadoDe(input.registroId);
-        const saldo = registro.valor != null ? Math.max(0, registro.valor - pagado) : 0;
-        return { pagoId: existente.id, valor: registro.valor, totalPagado: pagado, saldoPendiente: saldo, tareaCreada: null };
-      }
-    }
-    throw err;
+  // Dos requests simultáneos con la misma clave: el índice único dejó pasar a uno solo. Se
+  // devuelve el pago que ya quedó registrado en lugar de crear un duplicado.
+  const { pagoId, yaExistia } = await insertarPagoIdempotente({
+    registroId: input.registroId,
+    monto: input.monto,
+    nota: input.nota,
+    autorId: input.autorId,
+    fechaPago,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (yaExistia) {
+    const pagado = await totalPagadoDe(input.registroId);
+    return {
+      pagoId,
+      valor: registro.valor,
+      totalPagado: pagado,
+      saldoPendiente: saldoDe(registro, pagado),
+      tareaCreada: null,
+    };
   }
 
   // Actualizar el total si hace falta (primera definición o corrección previa a pagos) y el
@@ -462,6 +605,12 @@ export async function actualizarValorRegistro(registroId: string, nuevoValor: nu
 
 // Estado financiero completo de un deal: cobrado/saldo/vencido siempre calculados a partir
 // de los pagos reales, nunca guardados — así nunca se desincronizan con la caja.
+//
+// NOTA sobre PAGO RECURRENTE sin total pactado: `valorTotal` es null y `saldoPendiente` sigue
+// siendo 0 (no `null`). No es un descuido: este es el contrato que ya consume un agente externo
+// (GET /api/agente/registros/:id/financiero) y no se cambia aquí. En un recurrente, ese 0
+// significa "sin total pactado", NO "ya está pagado". El tablero del Pipeline sí distingue los
+// dos casos y muestra el saldo como "—".
 export async function estadoFinanciero(registroId: string) {
   const [registro] = await db.select().from(registros).where(eq(registros.id, registroId));
   if (!registro) throw new Error("Registro no encontrado");
@@ -556,4 +705,67 @@ export async function actualizarPlanPago(
   }
 
   return estadoFinanciero(registroId);
+}
+
+// Configurar CÓMO se cobra una oportunidad: pago único, varios abonos o pago recurrente.
+//
+// Es información FINANCIERA del trato, no una etapa comercial: no mueve dinero, no crea ni borra
+// pagos, no cambia de etapa y no toca el plan de cobro (`proximoPago`/`fechaProximoPago`/
+// `metodoPago` tienen su propia ruta y una sola dueña — si esta función los escribiera habría
+// dos fuentes de verdad sobre lo mismo). Escribe solo sus tres columnas.
+//
+// La puede cambiar cualquier miembro: se puede configurar antes de cobrar y también con cobros ya
+// registrados, y cambiar de modalidad no altera ningún número (los pagos y el total siguen
+// siendo los mismos). Cada cambio queda en la bitácora para poder rastrearlo.
+//
+// `modalidad: null` la borra y deja el trato "sin definir" otra vez — el estado en el que están
+// todos los tratos que ya existían, porque el sistema no adivina cómo se cobra cada uno.
+export async function actualizarModalidadPago(
+  registroId: string,
+  entrada: {
+    modalidad: "PAGO_UNICO" | "ABONOS" | "RECURRENTE" | null;
+    montoRecurrente?: number | null;
+    frecuenciaRecurrente?: string | null;
+  },
+  autorId: string
+) {
+  const [registro] = await db.select().from(registros).where(eq(registros.id, registroId));
+  if (!registro) throw new Error("Registro no encontrado");
+
+  const esRecurrente = entrada.modalidad === "RECURRENTE";
+  if (esRecurrente && (entrada.montoRecurrente == null || !entrada.frecuenciaRecurrente)) {
+    // La ruta ya lo valida con zod (mensaje legible en pantalla); esto es la red de seguridad
+    // para cualquier llamada interna, porque un recurrente sin monto ni frecuencia no se podría
+    // cobrar ni recordar.
+    throw new Error("Un pago recurrente necesita el monto por período y cada cuánto se cobra.");
+  }
+
+  const modalidadAnterior = registro.modalidadPago;
+
+  await db
+    .update(registros)
+    .set({
+      modalidadPago: entrada.modalidad,
+      // El plan por período solo existe en un recurrente. En cualquier otra modalidad se limpia,
+      // para no dejar pegado un monto/frecuencia que ya no describen nada.
+      montoRecurrente: esRecurrente ? (entrada.montoRecurrente ?? null) : null,
+      frecuenciaRecurrente: esRecurrente ? (entrada.frecuenciaRecurrente ?? null) : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(registros.id, registroId));
+
+  if (registro.personaId) {
+    await db.insert(bitacoraAuditoria).values({
+      id: crypto.randomUUID(),
+      entidad: "Registro",
+      entidadId: registroId,
+      accion: `Modalidad de pago: ${etiquetaModalidad(modalidadAnterior)} → ${etiquetaModalidad(entrada.modalidad)}`,
+      autorId,
+      personaId: registro.personaId,
+      fecha: new Date(),
+    });
+  }
+
+  const [actualizado] = await db.select().from(registros).where(eq(registros.id, registroId));
+  return actualizado;
 }

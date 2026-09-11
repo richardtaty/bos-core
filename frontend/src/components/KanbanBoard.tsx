@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, DragEvent } from "react";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../api/AuthContext";
-import type { TableroPipeline, Registro } from "../types";
+import type { TableroPipeline, Registro, ModalidadPago, FrecuenciaRecurrente } from "../types";
 
 function nuevaClavePago(): string {
   // Clave única por intento de pago: si el usuario reintenta (o un doble clic dispara dos
@@ -14,10 +14,60 @@ function nuevaClavePago(): string {
   }
 }
 
+// Etiqueta legible de la modalidad de pago del trato. `null` = sin definir, que es como quedan
+// todos los tratos que ya existían: el sistema no adivina la modalidad de ninguno.
+function etiquetaModalidad(r: Registro): string | null {
+  if (r.modalidadPago === "PAGO_UNICO") return "💵 Pago único";
+  if (r.modalidadPago === "ABONOS") return "🧾 Varios abonos";
+  if (r.modalidadPago === "RECURRENTE") {
+    const monto = r.montoRecurrente != null ? ` $${r.montoRecurrente.toLocaleString()}` : "";
+    const cada =
+      r.frecuenciaRecurrente === "SEMANAL" ? " semanal"
+      : r.frecuenciaRecurrente === "QUINCENAL" ? " quincenal"
+      : r.frecuenciaRecurrente === "MENSUAL" ? " mensual"
+      : "";
+    return `🔁 Recurrente${monto}${cada}`;
+  }
+  return null;
+}
+
+// Próximo cobro de un pago recurrente: un período después de la fecha dada.
+// Se calcula con componentes de fecha, NO sumando milisegundos, para que el fin de mes no se
+// desborde: 31 de enero + 1 mes = 28/29 de febrero, nunca 3 de marzo.
+function proximaFechaDeRecurrencia(desdeYmd: string, frecuencia: Registro["frecuenciaRecurrente"]): string {
+  const [y, m, d] = desdeYmd.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  const fecha = new Date(y, m - 1, d);
+  if (frecuencia === "SEMANAL") {
+    fecha.setDate(fecha.getDate() + 7);
+  } else if (frecuencia === "QUINCENAL") {
+    fecha.setDate(fecha.getDate() + 15);
+  } else {
+    const diaOriginal = fecha.getDate();
+    fecha.setDate(1);
+    fecha.setMonth(fecha.getMonth() + 1);
+    const ultimoDiaDelMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate();
+    fecha.setDate(Math.min(diaOriginal, ultimoDiaDelMes));
+  }
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+}
+
 // `registroIdDestacado` llega desde "Ver en origen" (Resumen de Ventas): es el id REAL del
 // registro que hay que mostrar. Este componente solo lo enfoca y lo resalta — no cambia etapas,
 // columnas, pagos ni el arrastre. Es opcional: el resto de usos (Podcast) sigue igual.
-export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: string; registroIdDestacado?: string | null }) {
+//
+// `permiteModalidadPago` habilita la configuración de la modalidad de pago (pago único / varios
+// abonos / recurrente). Va apagada por defecto para no cambiar otras pantallas que reutilizan
+// este mismo tablero (Podcast).
+export function KanbanBoard({
+  pipelineId,
+  registroIdDestacado,
+  permiteModalidadPago = false,
+}: {
+  pipelineId: string;
+  registroIdDestacado?: string | null;
+  permiteModalidadPago?: boolean;
+}) {
   const { usuario } = useAuth();
   const esSuperAdmin = usuario?.rol === "SUPER_ADMIN";
 
@@ -48,6 +98,16 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
   const [ajusteValorInput, setAjusteValorInput] = useState("");
   const [guardandoAjuste, setGuardandoAjuste] = useState(false);
   const [errorAjuste, setErrorAjuste] = useState<string | null>(null);
+
+  // Modalidad de pago del trato: información del deal, NO dinero. Se edita en línea en la tarjeta
+  // con el mismo patrón que "ajustar total", y se puede configurar en cualquier momento (antes de
+  // cobrar o con el trato ya pagado) porque no registra ningún pago ni mueve un centavo.
+  const [modalidadAbiertaId, setModalidadAbiertaId] = useState<string | null>(null);
+  const [modalidadInput, setModalidadInput] = useState<ModalidadPago | "">("");
+  const [montoRecurrenteInput, setMontoRecurrenteInput] = useState("");
+  const [frecuenciaInput, setFrecuenciaInput] = useState<FrecuenciaRecurrente>("MENSUAL");
+  const [guardandoModalidad, setGuardandoModalidad] = useState(false);
+  const [errorModalidad, setErrorModalidad] = useState<string | null>(null);
 
   // Referencia al contenedor de columnas y altura visible disponible:
   // permite que cada columna tenga su propio scroll vertical sin agrandar la página.
@@ -132,6 +192,40 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
     setArrastrando(null);
   };
 
+  // ── Modalidad de pago del trato ─────────────────────────────
+  const abrirModalidad = (r: Registro) => {
+    setModalidadAbiertaId(r.id);
+    setModalidadInput(r.modalidadPago ?? "");
+    setMontoRecurrenteInput(r.montoRecurrente != null ? String(r.montoRecurrente) : "");
+    setFrecuenciaInput(r.frecuenciaRecurrente ?? "MENSUAL");
+    setErrorModalidad(null);
+  };
+
+  const guardarModalidad = async (registroId: string) => {
+    const esRecurrente = modalidadInput === "RECURRENTE";
+    const montoNum = Number(montoRecurrenteInput) || 0;
+    if (esRecurrente && montoNum <= 0) {
+      setErrorModalidad("Indica cuánto se cobra en cada período.");
+      return;
+    }
+    setGuardandoModalidad(true);
+    setErrorModalidad(null);
+    try {
+      await api.actualizarModalidadPago(registroId, {
+        // "" = sin definir: así vuelve a quedar un trato del que no se sabe cómo se cobra.
+        modalidad: modalidadInput === "" ? null : modalidadInput,
+        montoRecurrente: esRecurrente ? montoNum : null,
+        frecuenciaRecurrente: esRecurrente ? frecuenciaInput : null,
+      });
+      setModalidadAbiertaId(null);
+      void cargar();
+    } catch (err) {
+      setErrorModalidad(err instanceof ApiError ? String(err.payload) : "No se pudo guardar la modalidad de pago");
+    } finally {
+      setGuardandoModalidad(false);
+    }
+  };
+
   // ── Registrar / Abonar pago ─────────────────────────────────
   const abrirPago = (r: Registro) => {
     setPagoModal(r);
@@ -139,9 +233,13 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
     setMontoTotalInput(r.valor != null ? String(r.valor) : "");
     setMontoPago("");
     setNotaPago("");
-    setFechaPago(hoyStr());
-    setFechaProximoCobro("");
-    setProximoPago("");
+    const hoy = hoyStr();
+    setFechaPago(hoy);
+    // En un pago recurrente el próximo cobro es el siguiente período, con el monto del plan: así
+    // el recordatorio se agenda solo sin volver a teclear nada. Todo editable, como el resto.
+    const esRecurrente = r.modalidadPago === "RECURRENTE";
+    setFechaProximoCobro(esRecurrente ? proximaFechaDeRecurrencia(hoy, r.frecuenciaRecurrente) : "");
+    setProximoPago(esRecurrente && r.montoRecurrente != null ? String(r.montoRecurrente) : "");
     setMetodoPago("");
     setErrorPago(null);
     setClavePago(nuevaClavePago());
@@ -152,14 +250,20 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
   const pagadoActual = pagoModal?.totalPagado ?? 0;
   const valorActual = pagoModal?.valor ?? null;
   const esPrimerPago = pagadoActual === 0;
-  // Solo si el trato no tiene total aún (valor == null) se pide el monto total en el modal.
-  const necesitaDefinirTotal = valorActual == null;
+  // Un PAGO RECURRENTE puede no tener total pactado (una suscripción no lo tiene). Es el ÚNICO
+  // caso en que se cobra sin definir un total: pedirlo obligaría a inventar un número falso, y
+  // ese número después contamina el Resumen de Ventas y los reportes de ingresos. Tampoco hay
+  // saldo contra el que comparar, así que aquí no aplica la guarda de sobrepago.
+  const recurrenteSinTotal = pagoModal?.modalidadPago === "RECURRENTE" && valorActual == null;
+  const necesitaDefinirTotal = valorActual == null && !recurrenteSinTotal;
   const montoNum = Number(montoPago) || 0;
   const totalInputNum = Number(montoTotalInput) || 0;
   const totalRef = necesitaDefinirTotal ? totalInputNum : (valorActual ?? 0);
   const saldoActual = Math.max(0, (valorActual ?? totalRef) - pagadoActual);
   const saldoDespues = Math.max(0, totalRef - (pagadoActual + montoNum));
-  const requiereFecha = totalRef > 0 && saldoDespues > 0;
+  // En un recurrente la fecha del próximo cobro se pide siempre (es lo que hace que el cobro del
+  // mes siguiente no se olvide); viene prellenada con el siguiente período.
+  const requiereFecha = recurrenteSinTotal || (totalRef > 0 && saldoDespues > 0);
 
   const confirmarPago = async () => {
     if (!pagoModal) return;
@@ -176,7 +280,11 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
       return;
     }
     if (requiereFecha && !fechaProximoCobro) {
-      setErrorPago("Queda saldo pendiente — indica la fecha del próximo cobro.");
+      setErrorPago(
+        recurrenteSinTotal
+          ? "Es un cobro recurrente — indica cuándo se cobra el próximo período."
+          : "Queda saldo pendiente — indica la fecha del próximo cobro."
+      );
       return;
     }
     setGuardandoPago(true);
@@ -292,6 +400,74 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
                   >
                     <p className="font-medium text-neutral-800">{r.personaNombre ?? "Sin persona asignada"}</p>
 
+                    {/* Cómo se cobra este trato. Va FUERA del bloque de dinero de abajo a
+                        propósito: ese bloque solo se dibuja cuando ya hay un total pactado, y un
+                        recurrente sin total no lo tiene — justo el caso que hay que configurar. */}
+                    {permiteModalidadPago && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {modalidadAbiertaId !== r.id ? (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); abrirModalidad(r); }}
+                            className={`text-[10px] hover:underline ${etiquetaModalidad(r) ? "text-neutral-500" : "text-neutral-400"}`}
+                          >
+                            {etiquetaModalidad(r) ?? "modalidad: definir"}
+                          </button>
+                        ) : (
+                          <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-1.5 mt-1">
+                            <select
+                              value={modalidadInput}
+                              onChange={(e) => setModalidadInput(e.target.value as ModalidadPago | "")}
+                              className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded px-1.5 py-1 text-xs mb-1"
+                            >
+                              <option value="">Sin definir</option>
+                              <option value="PAGO_UNICO">Pago único</option>
+                              <option value="ABONOS">Varios abonos</option>
+                              <option value="RECURRENTE">Pago recurrente</option>
+                            </select>
+                            {modalidadInput === "RECURRENTE" && (
+                              <div className="flex gap-1 mb-1">
+                                <input
+                                  type="number"
+                                  value={montoRecurrenteInput}
+                                  onChange={(e) => setMontoRecurrenteInput(e.target.value)}
+                                  className="w-full border border-neutral-200 bg-transparent text-neutral-800 rounded px-1.5 py-1 text-xs"
+                                  placeholder="Monto por período"
+                                />
+                                <select
+                                  value={frecuenciaInput}
+                                  onChange={(e) => setFrecuenciaInput(e.target.value as FrecuenciaRecurrente)}
+                                  className="border border-neutral-200 bg-transparent text-neutral-800 rounded px-1.5 py-1 text-xs"
+                                >
+                                  <option value="SEMANAL">Semanal</option>
+                                  <option value="QUINCENAL">Quincenal</option>
+                                  <option value="MENSUAL">Mensual</option>
+                                </select>
+                              </div>
+                            )}
+                            {errorModalidad && <p className="text-[10px] text-danger-600 mb-1">{errorModalidad}</p>}
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => void guardarModalidad(r.id)}
+                                disabled={guardandoModalidad}
+                                className="text-[10px] bg-primary-500 text-white px-2 py-0.5 rounded font-medium disabled:bg-primary-100"
+                              >
+                                {guardandoModalidad ? "..." : "Guardar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setModalidadAbiertaId(null)}
+                                className="text-[10px] px-1.5 text-neutral-500"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {tieneTotal && (
                       <>
                         <p className="text-xs text-neutral-500">
@@ -307,9 +483,6 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
                             Próximo pago: ${r.proximoPago!.toLocaleString()}
                             {r.metodoPago ? ` · ${r.metodoPago}` : ""}
                           </p>
-                        )}
-                        {(r.montoVencido ?? 0) > 0 && (
-                          <p className="text-[11px] text-danger-600 font-medium">Vencido: ${r.montoVencido!.toLocaleString()}</p>
                         )}
                         {puedeAjustarTotal && ajustandoValorId !== r.id && (
                           <button
@@ -354,6 +527,12 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
 
                     {!tieneTotal && pagado > 0 && (
                       <p className="text-xs text-neutral-500">Pagado ${pagado.toLocaleString()}</p>
+                    )}
+
+                    {/* Fuera del bloque de dinero a propósito: un cobro recurrente sin total pactado
+                        también se atrasa y debe verse en rojo (es el caso más probable). */}
+                    {(r.montoVencido ?? 0) > 0 && (
+                      <p className="text-[11px] text-danger-600 font-medium">Vencido: ${r.montoVencido!.toLocaleString()}</p>
                     )}
 
                     {!saldado && (
@@ -410,6 +589,12 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
               {esPrimerPago ? "Registrar pago" : "Abonar pago"} — {pagoModal.personaNombre}
             </p>
 
+            {/* Contexto: cómo está configurada esta oportunidad. El "Método de pago" de abajo
+                (Tarjeta, Zelle...) es otra cosa y no se toca. */}
+            {permiteModalidadPago && etiquetaModalidad(pagoModal) && (
+              <p className="text-[11px] text-neutral-500 mb-1">{etiquetaModalidad(pagoModal)}</p>
+            )}
+
             {necesitaDefinirTotal ? (
               <>
                 <p className="text-xs text-neutral-500 mb-2">
@@ -424,6 +609,12 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
                   placeholder="0"
                 />
               </>
+            ) : recurrenteSinTotal ? (
+              // Un cobro recurrente no tiene por qué tener monto total pactado. No se pide ninguno
+              // (pedirlo obligaría a inventar un número) y no se habla de "saldo": solo de lo cobrado.
+              <p className="text-xs text-neutral-500 mb-3">
+                Cobrado hasta ahora ${pagadoActual.toLocaleString()} · sin monto total pactado
+              </p>
             ) : (
               <p className="text-xs text-neutral-500 mb-3">
                 Total ${pagoModal.valor?.toLocaleString()} · Pagado ${pagadoActual.toLocaleString()} · Saldo restante ${saldoActual.toLocaleString()}
@@ -459,8 +650,17 @@ export function KanbanBoard({ pipelineId, registroIdDestacado }: { pipelineId: s
             <p className="text-[11px] text-neutral-500 -mt-2 mb-3">Cambia esto si estás registrando una venta de un día anterior.</p>
 
             {montoNum > 0 && (
-              <p className={`text-xs mb-3 ${saldoDespues > 0 ? "text-warning-600" : "text-success-600"}`}>
-                {saldoDespues > 0 ? `Quedará un saldo de $${saldoDespues.toLocaleString()}` : "Este pago salda por completo"}
+              <p
+                className={`text-xs mb-3 ${
+                  recurrenteSinTotal ? "text-neutral-500" : saldoDespues > 0 ? "text-warning-600" : "text-success-600"
+                }`}
+              >
+                {recurrenteSinTotal
+                  ? // "Salda por completo" sería falso en un cobro mensual: este trato no se salda.
+                    `Se sumará al total cobrado: $${(pagadoActual + montoNum).toLocaleString()}`
+                  : saldoDespues > 0
+                    ? `Quedará un saldo de $${saldoDespues.toLocaleString()}`
+                    : "Este pago salda por completo"}
               </p>
             )}
 

@@ -1,0 +1,22 @@
+-- 0033_modalidad_pago.sql — Modalidad de pago de una oportunidad (parte 1 de 3)
+--
+-- Cómo se cobra esta oportunidad: PAGO_UNICO | ABONOS | RECURRENTE, o NULL = sin definir.
+-- Es información FINANCIERA del trato, no una etapa comercial: NO crea ninguna columna en el
+-- tablero del Pipeline ni cambia las etapas (NUEVO / EN SEGUIMIENTO / CERRADO GANADO / CERRADO
+-- PERDIDO se quedan como están).
+--
+-- Aditiva y sin pérdida: todos los tratos que ya existen quedan en NULL ("sin definir") y
+-- siguen funcionando exactamente igual que antes. No se adivina ni se rellena ninguna fila,
+-- porque no hay información suficiente para saber cómo se cobra cada trato viejo.
+--
+-- POR QUÉ UN ARCHIVO POR COLUMNA (0033, 0034, 0035) y no uno solo con tres ALTER:
+-- `migrate.ts` ejecuta cada archivo completo con `sqlite.exec()`, que ABORTA en el primer
+-- statement que falla, y trata "duplicate column name" como "este archivo ya estaba aplicado".
+-- Con las tres columnas en un mismo archivo, un corte entre el primer y el segundo ALTER haría
+-- que el archivo se diera por aplicado con columnas faltantes, y como el schema de Drizzle las
+-- declararía, TODOS los pipelines fallarían al leer `registros`. Un archivo por columna deja que
+-- cada una se aplique (o se reintente) por separado: no hay ventana de riesgo.
+--
+-- La modalidad NO se deduce nunca del nombre del producto, del título ni de ningún texto libre.
+
+ALTER TABLE registros ADD COLUMN modalidad_pago TEXT;
