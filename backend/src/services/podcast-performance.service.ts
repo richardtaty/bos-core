@@ -5,13 +5,12 @@ import {
   pipelines,
   registros,
   usuarios,
-  departamentos,
-  usuarioDepartamentos,
   podcastMetas,
   podcastReportesDiarios,
   podcastReporteCanales,
   pagos,
 } from "../db/schema";
+import { miembrosDeDepartamento } from "./tareas.service";
 import {
   ETAPA_PODCAST,
   REPORTE_DIARIO_COLUMNS,
@@ -609,49 +608,11 @@ function _estadoIA(alertas: AlertaPodcast[]): Nivel {
 
 // ─── Usuarios del equipo Podcast ─────────────────────────
 
+// "¿Quiénes son de Podcast?" ya no se consulta aquí: la pregunta es la misma para toda área
+// y su único dueño es la capa central de tareas (`miembrosDeDepartamento`). Este alias se
+// conserva porque las métricas, el desempeño y los reportes de este archivo lo usan.
 async function _usuariosPodcast(): Promise<{ id: string; nombre: string }[]> {
-  const [depto] = await db.select().from(departamentos).where(eq(departamentos.nombre, "Podcast"));
-  if (!depto) return [];
-
-  const porMulti = await db
-    .select({ id: usuarios.id, nombre: usuarios.nombre })
-    .from(usuarios)
-    .innerJoin(usuarioDepartamentos, eq(usuarios.id, usuarioDepartamentos.usuarioId))
-    .where(and(eq(usuarioDepartamentos.departamentoId, depto.id), eq(usuarios.activo, true)));
-
-  const porLegacy = await db
-    .select({ id: usuarios.id, nombre: usuarios.nombre })
-    .from(usuarios)
-    .where(and(eq(usuarios.departamentoId, depto.id), eq(usuarios.activo, true)));
-
-  const mapa = new Map<string, { id: string; nombre: string }>();
-  for (const u of [...porMulti, ...porLegacy]) if (!mapa.has(u.id)) mapa.set(u.id, u);
-  return Array.from(mapa.values());
-}
-
-/**
- * Quién puede ser RESPONSABLE de una tarea de Podcast: los miembros reales del
- * departamento (relación estructurada `usuario_departamentos` / `usuarios.departamento_id`,
- * nunca por nombre escrito) más los SUPER_ADMIN activos, que operan en cualquier
- * departamento y además permiten asignar tareas aunque el equipo esté recién creado.
- */
-export async function miembrosElegiblesPodcast(): Promise<{ id: string; nombre: string }[]> {
-  const delEquipo = await _usuariosPodcast();
-
-  const superAdmins = await db
-    .select({ id: usuarios.id, nombre: usuarios.nombre })
-    .from(usuarios)
-    .where(and(eq(usuarios.rol, "SUPER_ADMIN"), eq(usuarios.activo, true)));
-
-  const mapa = new Map<string, { id: string; nombre: string }>();
-  for (const u of [...delEquipo, ...superAdmins]) if (!mapa.has(u.id)) mapa.set(u.id, u);
-  return Array.from(mapa.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
-}
-
-/** ¿Esta persona puede ser responsable de una tarea de Podcast? */
-export async function esMiembroElegiblePodcast(usuarioId: string): Promise<boolean> {
-  const miembros = await miembrosElegiblesPodcast();
-  return miembros.some((m) => m.id === usuarioId);
+  return miembrosDeDepartamento("Podcast");
 }
 
 // ─── Reporte diario ──────────────────────────────────────

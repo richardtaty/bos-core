@@ -20,16 +20,27 @@ function compartenDepartamento(u: Usuario, idsDepto: string[]): boolean {
 }
 
 /**
+ * Una sección del CRM que tiene su propia vista de Tareas. El `area` es el slug con el que
+ * el backend resuelve el departamento ("marketing", "sala-de-ofertas", "podcast") y `nombre`
+ * es lo que se muestra en pantalla.
+ */
+export interface AreaTareas {
+  area: string;
+  nombre: string;
+}
+
+/**
  * Módulo central de Tareas.
  *
- * `departamentoFijo` lo convierte en la vista de UN departamento (PODCAST → Tareas) sin
- * duplicar nada: mismas tarjetas, mismos filtros, misma tabla `tareas_operativas`. Lo que
- * cambia es que el departamento deja de ser elegible — el servidor lo fija en su endpoint —
- * y que los responsables ofrecidos son los miembros reales de esa área.
+ * `areaFija` lo convierte en la vista de UNA sección del CRM (PODCAST → Tareas, Marketing →
+ * Tareas, Sala de OFERTAS → Tareas) sin duplicar nada: mismas tarjetas, mismos filtros, misma
+ * tabla `tareas_operativas`. Lo que cambia es que el departamento deja de ser elegible — el
+ * servidor lo fija en su endpoint — y que los responsables ofrecidos son los miembros reales
+ * de esa área.
  *
- * Sin la prop, la pantalla es exactamente la de siempre (General, Sala de Ofertas, etc.).
+ * Sin la prop, la pantalla es exactamente la de siempre (la vista General).
  */
-export function TareasPage({ departamentoFijo }: { departamentoFijo?: string } = {}) {
+export function TareasPage({ areaFija }: { areaFija?: AreaTareas } = {}) {
   const { usuario } = useAuth();
   const permisos = usePermisos();
   const [tareas, setTareas] = useState<TareaOperativa[]>([]);
@@ -52,17 +63,16 @@ export function TareasPage({ departamentoFijo }: { departamentoFijo?: string } =
   const idsDeptoUsuario = usuario?.departamentoIds ??
     (usuario?.departamentoId ? [usuario.departamentoId] : []);
 
-  // ── Vista acotada a un departamento (PODCAST → Tareas) ───────────
-  // Hoy solo Podcast tiene endpoint propio; el objeto concentra las dos cosas que cambian:
-  // de dónde se leen/crean las tareas y de dónde salen los responsables.
-  const contexto: ContextoTareas | undefined =
-    departamentoFijo === "Podcast"
-      ? {
-          departamento: "Podcast",
-          crear: (data) => api.crearTareaPodcast(data),
-          actualizar: (id, data) => api.actualizarTareaPodcast(id, data),
-        }
-      : undefined;
+  // ── Vista acotada a una sección del CRM ─────────────────────────
+  // El objeto concentra las dos cosas que cambian: de dónde se leen/crean las tareas y de
+  // dónde salen los responsables. Todo lo demás de la pantalla es el módulo de siempre.
+  const contexto: ContextoTareas | undefined = areaFija
+    ? {
+        departamento: areaFija.nombre,
+        crear: (data) => api.crearTareaDeArea(areaFija.area, data),
+        actualizar: (id, data) => api.actualizarTareaDeArea(areaFija.area, id, data),
+      }
+    : undefined;
   const enContexto = !!contexto;
 
   // "Todas" = todo el ámbito de supervisión; "Mías" = solo las propias.
@@ -84,12 +94,14 @@ export function TareasPage({ departamentoFijo }: { departamentoFijo?: string } =
       // fija el servidor y el endpoint ni siquiera lee ese parámetro.
       if (filtroDepto && !enContexto) params.departamento = filtroDepto;
 
-      const listaTareas = enContexto ? api.listarTareasPodcast(params) : api.listarTareasVisibles(params);
+      const listaTareas = areaFija
+        ? api.listarTareasDeArea(areaFija.area, params)
+        : api.listarTareasVisibles(params);
 
       // Vista acotada: los responsables salen de la relación real del departamento, no del
       // directorio completo. Nada más que cargar — ni el directorio ni los departamentos.
-      if (enContexto) {
-        const [tareasOk, miembrosOk] = await Promise.all([listaTareas, api.miembrosTareasPodcast()]);
+      if (areaFija) {
+        const [tareasOk, miembrosOk] = await Promise.all([listaTareas, api.miembrosTareasDeArea(areaFija.area)]);
         setTareas(tareasOk);
         setMiembros(miembrosOk);
         return;
@@ -116,7 +128,7 @@ export function TareasPage({ departamentoFijo }: { departamentoFijo?: string } =
     } finally {
       setCargando(false);
     }
-  }, [usuario, vista, filtroResponsable, filtroDepto, mostrarFiltroDepto, enContexto]);
+  }, [usuario, vista, filtroResponsable, filtroDepto, mostrarFiltroDepto, areaFija?.area]);
 
   useEffect(() => { void cargar(); }, [cargar]);
 

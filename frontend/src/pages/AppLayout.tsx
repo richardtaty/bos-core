@@ -61,7 +61,9 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
     items.push(
       { to: "/ventas", label: "💰 Resumen de Ventas", seccion: "ventas" },
       { to: "/reportes-diarios", label: "📝 Reportes diarios", seccion: "ventas" },
-      { to: "/tareas", label: "📋 Tareas", seccion: "ventas" },
+      // Tareas: el módulo CENTRAL de tareas visto con el departamento fijo en Sala de OFERTAS
+      // (no hay una pantalla aparte ni tareas duplicadas).
+      { to: "/ventas/tareas", label: "📋 Tareas", seccion: "ventas" },
       { to: "/calendario", label: "📅 Calendario", seccion: "ventas" },
     );
     if (p.puedeVerPipelineKanban) {
@@ -125,6 +127,11 @@ function buildNav(p: PermisosDepartamento, rol?: string): NavItem[] {
   // operación comercial); los demás departamentos la conservan aquí. Nunca duplicada.
   if (!p.menuSecciones.includes("ventas")) {
     generales.push({ to: "/tareas", label: "📋 Tareas", seccion: "general" });
+  } else if (p.esSuperAdmin) {
+    // El Super Admin ve TODAS las secciones, así que la regla de arriba le quitaría su único
+    // acceso a la vista general: sus accesos de sección ven un área a la vez. Esta entrada se
+    // la devuelve — "todas las tareas del sistema", con el filtro de Departamento incluido.
+    generales.push({ to: "/tareas", label: "📋 Todas las tareas", seccion: "general" });
   }
   generales.push(
     { to: "/equipo", label: "⚙️ Mi Equipo", seccion: "general" },

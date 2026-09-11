@@ -9,6 +9,7 @@ import { usuariosRouter } from "./routes/usuarios.routes";
 import { reportesRouter } from "./routes/reportes.routes";
 import { podcastRouter } from "./routes/podcast.routes";
 import { tareasRouter } from "./routes/tareas.routes";
+import { areasTareasRouter } from "./routes/tareas-area.routes";
 import { devRouter } from "./routes/dev.routes";
 import { archivosRouter } from "./routes/archivos.routes";
 import { ticketsRouter } from "./routes/tickets.routes";
@@ -57,6 +58,10 @@ app.use("/api/usuarios", usuariosRouter);
 app.use("/api/reportes", reportesRouter);
 app.use("/api/podcast", podcastRouter);
 app.use("/api/tareas", tareasRouter);
+// Tareas vistas desde UNA sección, con el departamento fijo en el servidor
+// (/api/areas/marketing/tareas, /api/areas/sala-de-ofertas/tareas, /api/areas/podcast/tareas).
+// Es el mismo módulo central de Tareas, acotado — ver routes/tareas-area.routes.ts.
+app.use("/api/areas", areasTareasRouter);
 // Módulo DEV (tareas de desarrollo) — restringido a SUPER_ADMIN dentro del router.
 app.use("/api/dev", devRouter);
 app.use("/api/archivos", archivosRouter);

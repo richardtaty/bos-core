@@ -26,18 +26,8 @@ import {
   eliminarCita,
 } from "../services/podcast-citas.service";
 import { buscarInvitados, obtenerOCrearInvitado, crearInvitadoCompleto } from "../services/podcast-invitados.service";
-import {
-  listarTareasVisibles,
-  obtenerTarea,
-  crearTarea,
-  actualizarTarea,
-  reasignarTarea,
-  SinPermisoTareaError,
-} from "../services/tareas.service";
-import {
-  miembrosElegiblesPodcast,
-  esMiembroElegiblePodcast,
-} from "../services/podcast-performance.service";
+// Las rutas de tareas de Podcast las monta el módulo compartido (ver el final del archivo).
+import { montarRutasTareasDeArea } from "./tareas-area.routes";
 
 export const podcastRouter = Router();
 podcastRouter.use(requireAuth);
@@ -409,127 +399,10 @@ podcastRouter.post("/invitados/completo", requireDepartamento("Podcast"), async 
 // ─── Tareas de Podcast ───────────────────────────────────────────
 //
 // Podcast NO tiene tabla propia de tareas: usa la MISMA tabla central
-// (`tareas_operativas`) que el módulo Tareas. Aquí no se crea nada nuevo — se acota.
+// (`tareas_operativas`) que el módulo Tareas, vista con el departamento fijo en el servidor.
+// Toda la lógica vive en el módulo compartido `tareas-area.routes.ts`, porque Marketing y
+// Sala de OFERTAS usan exactamente la misma; aquí solo se enchufa a las URLs de Podcast.
 //
-// El departamento es un DATO ESTRUCTURADO de la tarea (la columna `departamento`, con el
-// nombre "Podcast"), así que el filtro es ese valor exacto. Nunca por título, descripción,
-// texto libre ni nombre del responsable.
-//
-// Lo importante de este bloque: el departamento lo pone SIEMPRE el servidor. Estas rutas
-// no leen ningún parámetro `departamento` del cliente, y al crear lo descartan del body.
-// Manipular el request no saca una tarea de Podcast ni mete tareas de otros departamentos.
-// El alcance por rol lo sigue calculando `listarTareasVisibles` desde `req.user`.
-
-const DEPARTAMENTO_PODCAST = "Podcast";
-
-/** Un fallo de permiso de tareas es 403; lo demás, 400. Igual que tareas.routes.ts. */
-function responderErrorTarea(res: Response, e: unknown): void {
-  const mensaje = e instanceof Error ? e.message : "Error inesperado";
-  res.status(e instanceof SinPermisoTareaError ? 403 : 400).json({ error: mensaje });
-}
-
-/** La tarea existe y es de Podcast, o se responde y se devuelve null. */
-async function cargarTareaPodcast(res: Response, id: string) {
-  const tarea = await obtenerTarea(id);
-  if (!tarea) {
-    res.status(404).json({ error: "Tarea no encontrada" });
-    return null;
-  }
-  if (tarea.departamento !== DEPARTAMENTO_PODCAST) {
-    // El bloqueo real: una tarea de otro departamento no se toca desde esta vista aunque
-    // se conozca su id.
-    res.status(403).json({ error: "Esta tarea no pertenece a Podcast." });
-    return null;
-  }
-  return tarea;
-}
-
-// Quién puede ser responsable aquí: los miembros REALES de Podcast más los Super Admin
-// activos. Se consulta la relación del CRM, no una lista escrita a mano: si el equipo
-// cambia, el selector cambia solo.
-podcastRouter.get("/tareas/miembros", requireDepartamento("Podcast"), async (_req, res) => {
-  try {
-    res.json(await miembrosElegiblesPodcast());
-  } catch (e) {
-    res.status(500).json({ error: (e as Error).message });
-  }
-});
-
-// GET /podcast/tareas?responsableId=&estado=&prioridad=&proyectoId=&canal=
-// El `departamento` NO se lee del query a propósito, aunque venga.
-podcastRouter.get("/tareas", requireDepartamento("Podcast"), async (req, res) => {
-  const q = req.query as Record<string, string | undefined>;
-  try {
-    res.json(
-      await listarTareasVisibles(req.user!, {
-        responsableId: q.responsableId,
-        departamento: DEPARTAMENTO_PODCAST,
-        estado: q.estado as any,
-        prioridad: q.prioridad as any,
-        proyectoId: q.proyectoId,
-        canal: q.canal,
-      }),
-    );
-  } catch (e) {
-    responderErrorTarea(res, e);
-  }
-});
-
-// POST /podcast/tareas — crea una tarea que YA nace siendo de Podcast. El usuario no elige
-// departamento, y el que venga en el body se descarta.
-podcastRouter.post("/tareas", requireDepartamento("Podcast"), async (req, res) => {
-  const body = req.body ?? {};
-  const titulo = typeof body.titulo === "string" ? body.titulo.trim() : "";
-  if (!titulo) {
-    res.status(400).json({ error: "El título es obligatorio" });
-    return;
-  }
-  const responsableId = typeof body.responsableId === "string" ? body.responsableId : "";
-  if (!responsableId) {
-    res.status(400).json({ error: "Elige un responsable" });
-    return;
-  }
-  if (!(await esMiembroElegiblePodcast(responsableId))) {
-    res.status(400).json({ error: "Esa persona no pertenece al equipo de Podcast." });
-    return;
-  }
-  try {
-    const tarea = await crearTarea({ ...body, titulo, responsableId, departamento: DEPARTAMENTO_PODCAST }, req.user!);
-    res.status(201).json(tarea);
-  } catch (e) {
-    responderErrorTarea(res, e);
-  }
-});
-
-// PATCH /podcast/tareas/:id — editar, completar y reagendar la MISMA tarea.
-// `departamento` se elimina del input para que no pueda mudarse de área desde aquí.
-podcastRouter.patch("/tareas/:id", requireDepartamento("Podcast"), async (req, res) => {
-  const tarea = await cargarTareaPodcast(res, req.params.id);
-  if (!tarea) return;
-  try {
-    const { departamento: _ignorado, ...cambios } = req.body ?? {};
-    res.json(await actualizarTarea(req.params.id, cambios, req.user!));
-  } catch (e) {
-    responderErrorTarea(res, e);
-  }
-});
-
-// PATCH /podcast/tareas/:id/reasignar — solo a alguien del equipo de Podcast.
-podcastRouter.patch("/tareas/:id/reasignar", requireDepartamento("Podcast"), async (req, res) => {
-  const tarea = await cargarTareaPodcast(res, req.params.id);
-  if (!tarea) return;
-  const responsableId = typeof req.body?.responsableId === "string" ? req.body.responsableId : "";
-  if (!responsableId) {
-    res.status(400).json({ error: "Elige un responsable" });
-    return;
-  }
-  if (!(await esMiembroElegiblePodcast(responsableId))) {
-    res.status(400).json({ error: "Esa persona no pertenece al equipo de Podcast." });
-    return;
-  }
-  try {
-    res.json(await reasignarTarea(req.params.id, responsableId, req.user!));
-  } catch (e) {
-    responderErrorTarea(res, e);
-  }
-});
+// Las rutas siguen siendo las de siempre (`/api/podcast/tareas...`), así que nada de lo que
+// ya funcionaba cambia de dirección.
+montarRutasTareasDeArea(podcastRouter, "Podcast");

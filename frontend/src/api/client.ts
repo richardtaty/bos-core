@@ -1042,30 +1042,32 @@ export const api = {
   actualizarTarea: (id: string, data: Record<string, unknown>) =>
     request<import("../types").TareaOperativa>(`/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
-  // ─── Podcast → Tareas (MISMAS tareas centrales, acotadas al departamento) ───
+  // ─── Tareas de UNA sección (MISMAS tareas centrales, acotadas a su departamento) ───
   //
-  // No hay tabla nueva: es `tareas_operativas` vista con el departamento fijo. Por eso
-  // ninguna de estas funciones manda `departamento` — lo pone el servidor. Los parámetros
-  // de aquí (responsableId, estado) solo acotan el alcance, nunca lo amplían.
+  // No hay tabla nueva: es `tareas_operativas` vista con el departamento fijo. El `area`
+  // ("marketing", "sala-de-ofertas", "podcast") es el slug que el backend traduce al
+  // departamento correspondiente. Por eso ninguna de estas funciones manda `departamento`
+  // — lo pone el servidor. Los parámetros de aquí (responsableId, estado) solo acotan el
+  // alcance, nunca lo amplían.
 
-  listarTareasPodcast: (params: { responsableId?: string; estado?: string } = {}) => {
+  listarTareasDeArea: (area: string, params: { responsableId?: string; estado?: string } = {}) => {
     const qs = new URLSearchParams(params as Record<string, string>).toString();
-    return request<import("../types").TareaOperativa[]>(`/podcast/tareas${qs ? `?${qs}` : ""}`);
+    return request<import("../types").TareaOperativa[]>(`/areas/${area}/tareas${qs ? `?${qs}` : ""}`);
   },
 
-  // Miembros reales del equipo de Podcast (+ Super Admin activos), para el filtro
-  // Responsable y el formulario. Nunca una lista de nombres escrita a mano.
-  miembrosTareasPodcast: () =>
-    request<import("../types").OpcionUsuario[]>("/podcast/tareas/miembros"),
+  // Miembros reales del área (+ Super Admin activos), para el filtro Responsable y el
+  // formulario. Nunca una lista de nombres escrita a mano.
+  miembrosTareasDeArea: (area: string) =>
+    request<import("../types").OpcionUsuario[]>(`/areas/${area}/tareas/miembros`),
 
-  crearTareaPodcast: (data: Record<string, unknown>) =>
-    request<import("../types").TareaOperativa>("/podcast/tareas", { method: "POST", body: JSON.stringify(data) }),
+  crearTareaDeArea: (area: string, data: Record<string, unknown>) =>
+    request<import("../types").TareaOperativa>(`/areas/${area}/tareas`, { method: "POST", body: JSON.stringify(data) }),
 
-  actualizarTareaPodcast: (id: string, data: Record<string, unknown>) =>
-    request<import("../types").TareaOperativa>(`/podcast/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  actualizarTareaDeArea: (area: string, id: string, data: Record<string, unknown>) =>
+    request<import("../types").TareaOperativa>(`/areas/${area}/tareas/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
-  reasignarTareaPodcast: (id: string, responsableId: string) =>
-    request<import("../types").TareaOperativa>(`/podcast/tareas/${id}/reasignar`, {
+  reasignarTareaDeArea: (area: string, id: string, responsableId: string) =>
+    request<import("../types").TareaOperativa>(`/areas/${area}/tareas/${id}/reasignar`, {
       method: "PATCH",
       body: JSON.stringify({ responsableId }),
     }),

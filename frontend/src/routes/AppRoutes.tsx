@@ -106,7 +106,10 @@ export function AppRoutes() {
         <Route path="/moc/recursos" element={<RutaPorDepartamento secciones={["moc"]}><RecursosPage /></RutaPorDepartamento>} />
         <Route path="/moc/meta-ads" element={<RutaPorDepartamento secciones={["moc"]}><MetaAdsPage /></RutaPorDepartamento>} />
         <Route path="/moc/tablero" element={<Navigate to="/mi-dia" replace />} />
-        <Route path="/moc/tareas" element={<RutaPorDepartamento secciones={["moc"]}><TareasPage /></RutaPorDepartamento>} />
+        {/* Marketing → Tareas: el módulo central acotado a Marketing. El backend fija el
+            departamento en /api/areas/marketing/tareas, así que el filtro no se puede
+            ampliar desde aquí ni manipulando el request. */}
+        <Route path="/moc/tareas" element={<RutaPorDepartamento secciones={["moc"]}><TareasPage areaFija={{ area: "marketing", nombre: "Marketing" }} /></RutaPorDepartamento>} />
         <Route path="/moc/calendario" element={<RutaPorDepartamento secciones={["moc"]}><CalendarioEditorialPage /></RutaPorDepartamento>} />
         <Route path="/moc/archivos" element={<RutaPorDepartamento secciones={["moc"]}><ArchivosPage /></RutaPorDepartamento>} />
         <Route path="/moc/proyectos" element={<RutaPorDepartamento secciones={["moc"]}><ProyectosPage /></RutaPorDepartamento>} />
@@ -119,6 +122,8 @@ export function AppRoutes() {
 
         {/* Sala de OFERTAS — Ventas */}
         <Route path="/ventas" element={<RutaPorDepartamento secciones={["ventas"]}><VentasDashboardPage /></RutaPorDepartamento>} />
+        {/* Sala de OFERTAS → Tareas: el mismo módulo central acotado a Sala de OFERTAS. */}
+        <Route path="/ventas/tareas" element={<RutaPorDepartamento secciones={["ventas"]}><TareasPage areaFija={{ area: "sala-de-ofertas", nombre: "Sala de OFERTAS" }} /></RutaPorDepartamento>} />
         {/* Reportes diarios (Sala de OFERTAS): acceso provisional; la funcionalidad
             completa del módulo se desarrolla en una tarea posterior. */}
         <Route path="/reportes-diarios" element={<RutaPorDepartamento secciones={["ventas"]}><VentasReportesDiariosPage /></RutaPorDepartamento>} />
@@ -148,7 +153,7 @@ export function AppRoutes() {
         {/* Podcast → Tareas: el módulo central de tareas acotado a Podcast. El backend
             fuerza el departamento en /api/podcast/tareas, así que el filtro no se puede
             ampliar desde aquí ni manipulando el request. */}
-        <Route path="/podcast/tareas" element={<RutaPorDepartamento secciones={["podcast"]}><TareasPage departamentoFijo="Podcast" /></RutaPorDepartamento>} />
+        <Route path="/podcast/tareas" element={<RutaPorDepartamento secciones={["podcast"]}><TareasPage areaFija={{ area: "podcast", nombre: "Podcast" }} /></RutaPorDepartamento>} />
         <Route path="/podcast/calendario" element={<RutaPorDepartamento secciones={["podcast"]}><PodcastCalendarioPage /></RutaPorDepartamento>} />
         <Route path="/podcast/reporte-diario" element={<RutaPorDepartamento secciones={["podcast"]}><PodcastReporteDiarioPage /></RutaPorDepartamento>} />
         <Route path="/podcast/desempeno" element={<RutaPorDepartamento secciones={["podcast"]}><PodcastMiDesempenoPage /></RutaPorDepartamento>} />

@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, lte, ne, or, inArray } from "drizzle-orm";
 import { db } from "../db/client";
-import { tareasOperativas, tareaChecklist, tareaComentarios, solicitudesExtension, usuarios } from "../db/schema";
+import { tareasOperativas, tareaChecklist, tareaComentarios, solicitudesExtension, usuarios, departamentos, usuarioDepartamentos } from "../db/schema";
 import { registrarAuditoria } from "./auditoria.service";
 import { nombreDepartamentoDe } from "../middleware/auth";
 import { esAtrasada, esCompletada, normalizarEstado } from "../lib/tareas-estado";
@@ -142,6 +142,62 @@ export async function departamentosDe(user: AuthUser): Promise<string[]> {
     if (nombre) nombres.push(nombre);
   }
   return nombres;
+}
+
+/** Los usuarios activos que pertenecen a un departamento, por su nombre.
+ *
+ *  Mira las DOS relaciones reales del CRM: la M:N `usuario_departamentos` (la vigente) y la
+ *  columna legacy `usuarios.departamento_id` (todavía con datos). Nunca por nombre escrito ni
+ *  por una lista fija: si el equipo cambia, esta lista cambia sola. */
+export async function miembrosDeDepartamento(nombre: string): Promise<{ id: string; nombre: string }[]> {
+  const [depto] = await db
+    .select({ id: departamentos.id })
+    .from(departamentos)
+    .where(eq(departamentos.nombre, nombre));
+  if (!depto) return [];
+
+  const porMulti = await db
+    .select({ id: usuarios.id, nombre: usuarios.nombre })
+    .from(usuarios)
+    .innerJoin(usuarioDepartamentos, eq(usuarios.id, usuarioDepartamentos.usuarioId))
+    .where(and(eq(usuarioDepartamentos.departamentoId, depto.id), eq(usuarios.activo, true)));
+
+  const porLegacy = await db
+    .select({ id: usuarios.id, nombre: usuarios.nombre })
+    .from(usuarios)
+    .where(and(eq(usuarios.departamentoId, depto.id), eq(usuarios.activo, true)));
+
+  const mapa = new Map<string, { id: string; nombre: string }>();
+  for (const u of [...porMulti, ...porLegacy]) if (!mapa.has(u.id)) mapa.set(u.id, u);
+  return Array.from(mapa.values());
+}
+
+/**
+ * Quién puede ser RESPONSABLE de una tarea de un departamento: los miembros reales de esa
+ * unidad más los SUPER_ADMIN activos, que operan en cualquier departamento y además permiten
+ * asignar tareas aunque el equipo esté recién creado.
+ *
+ * Es la puerta única de las vistas acotadas por área (Podcast, Marketing, Sala de OFERTAS…):
+ * el selector de Responsable y la validación al crear/reasignar salen de aquí, así que no
+ * pueden ofrecer ni aceptar a alguien de otra área.
+ */
+export async function miembrosElegiblesDeDepartamento(nombre: string): Promise<{ id: string; nombre: string }[]> {
+  const delEquipo = await miembrosDeDepartamento(nombre);
+
+  const superAdmins = await db
+    .select({ id: usuarios.id, nombre: usuarios.nombre })
+    .from(usuarios)
+    .where(and(eq(usuarios.rol, "SUPER_ADMIN"), eq(usuarios.activo, true)));
+
+  const mapa = new Map<string, { id: string; nombre: string }>();
+  for (const u of [...delEquipo, ...superAdmins]) if (!mapa.has(u.id)) mapa.set(u.id, u);
+  return Array.from(mapa.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+/** ¿Esta persona puede ser responsable de una tarea de este departamento? */
+export async function esMiembroElegibleDeDepartamento(nombre: string, usuarioId: string): Promise<boolean> {
+  const miembros = await miembrosElegiblesDeDepartamento(nombre);
+  return miembros.some((m) => m.id === usuarioId);
 }
 
 /**
