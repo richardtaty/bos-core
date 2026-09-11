@@ -149,6 +149,21 @@
     background-color: rgb(var(--surface-base));
     color: rgb(var(--color-neutral-900));
   }
+
+  /*
+   * Autocompletado del navegador en campos oscuros (login).
+   * Chrome/Edge pintan los campos autocompletados de blanco con texto negro,
+   * lo que rompe cualquier formulario sobre fondo oscuro. Se fuerza el fondo
+   * oscuro con un box-shadow interior y el texto en blanco.
+   */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #fff;
+    -webkit-box-shadow: 0 0 0 1000px #141414 inset;
+    caret-color: rgb(var(--color-warning-400));
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 /* ═══════════════════════════════════════════
